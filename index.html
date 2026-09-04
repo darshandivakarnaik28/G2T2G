@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>ISL Dataset Collector - Static & Dynamic Gesture Manager</title>
+  
+  <!-- Tailwind CSS & Plugins -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  
+  <!-- Three.js & Controls -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "inverse-primary": "#494bd6",
+            "surface-container-high": "#222a3d",
+            "surface-container-highest": "#2d3449",
+            "on-secondary-fixed-variant": "#2f3aa3",
+            "background": "#0b1326",
+            "surface-tint": "#c0c1ff",
+            "outline-variant": "#464554",
+            "on-error": "#690005",
+            "error-container": "#93000a",
+            "secondary-container": "#2f3aa3",
+            "on-background": "#dae2fd",
+            "on-tertiary": "#4f2500",
+            "on-primary-fixed": "#07006c",
+            "tertiary-fixed-dim": "#ffb783",
+            "secondary-fixed": "#e0e0ff",
+            "tertiary-fixed": "#ffdcc5",
+            "on-secondary-container": "#a8afff",
+            "on-secondary-fixed": "#000767",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "tertiary": "#ffb783",
+            "surface-bright": "#31394d",
+            "on-tertiary-container": "#452000",
+            "primary": "#c0c1ff",
+            "secondary-fixed-dim": "#bdc2ff",
+            "on-error-container": "#ffdad6",
+            "on-secondary": "#131e8c",
+            "outline": "#908fa0",
+            "on-surface-variant": "#c7c4d7",
+            "on-surface": "#dae2fd",
+            "surface-container": "#171f33",
+            "surface-container-low": "#131b2e",
+            "inverse-surface": "#dae2fd",
+            "on-primary": "#1000a9",
+            "tertiary-container": "#d97721",
+            "on-tertiary-fixed": "#301400",
+            "surface": "#0b1326",
+            "error": "#ffb4ab",
+            "surface-variant": "#2d3449",
+            "inverse-on-surface": "#283044",
+            "primary-fixed-dim": "#c0c1ff",
+            "surface-container-lowest": "#060e20",
+            "on-primary-container": "#0d0096",
+            "on-tertiary-fixed-variant": "#703700",
+            "surface-dim": "#0b1326",
+            "primary-container": "#8083ff",
+            "secondary": "#bdc2ff",
+            "primary-fixed": "#e1e0ff"
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "sidebar-collapsed-width": "80px",
+            "unit": "4px",
+            "container-padding-mobile": "16px",
+            "gutter": "24px",
+            "container-padding-desktop": "32px",
+            "sidebar-width": "260px"
+          },
+          fontFamily: {
+            "body-lg": ["Inter"],
+            "display-lg": ["Inter"],
+            "label-md": ["JetBrains Mono"],
+            "label-sm": ["JetBrains Mono"],
+            "headline-lg": ["Inter"],
+            "headline-md": ["Inter"],
+            "body-md": ["Inter"],
+            "body-sm": ["Inter"],
+            "headline-sm": ["Inter"]
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    body {
+      background-color: #0b1326;
+      color: #dae2fd;
+      font-family: 'Inter', sans-serif;
+    }
+    .stat-card {
+      background-color: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 0.5rem;
+      padding: 1.5rem;
+      transition: border-color 0.2s ease-in-out;
+    }
+    .stat-card:hover {
+      border-color: #475569;
+    }
+    .data-table-row {
+      border-bottom: 1px solid #334155;
+    }
+    .data-table-row:last-child {
+      border-bottom: none;
+    }
+    .btn-primary {
+      background-color: #6366F1;
+      color: white;
+      transition: background-color 0.2s ease-in-out;
+    }
+    .btn-primary:hover {
+      background-color: #4f46e5;
+    }
+    .status-badge-success {
+      background-color: rgba(99, 102, 241, 0.1);
+      color: #6366F1;
+    }
+    .status-badge-review {
+      background-color: rgba(217, 119, 33, 0.1);
+      color: #d97721;
+    }
+  </style>
+</head>
+<body class="flex flex-col md:flex-row min-h-screen">
+
+  <!-- Navigation Sidebar (Web) -->
+  <aside class="hidden md:flex flex-col h-screen w-sidebar fixed left-0 top-0 border-r border-outline-variant bg-surface-container overflow-y-auto z-50">
+    <div class="px-gutter py-6 border-b border-outline-variant/30 flex items-center justify-between">
+      <div>
+        <h1 class="font-headline-md text-headline-md font-bold text-primary tracking-tight">ISL Admin</h1>
+        <p class="text-[11px] font-label-sm text-outline mt-0.5">Dataset Collector v2.4</p>
+      </div>
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-4 ring-emerald-500/20" title="Online"></span>
+    </div>
+    
+    <nav class="flex-1 py-4 flex flex-col gap-1">
+      <a class="flex items-center gap-3 px-4 py-3 text-primary border-l-4 border-inverse-primary bg-secondary-container/20 cursor-pointer active:scale-95 transition-all duration-200" href="#" data-nav="dashboard">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span class="font-body-md font-medium">Dashboard</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="gestures">
+        <span class="material-symbols-outlined">sign_language</span>
+        <span class="font-body-md">Gestures</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="collection">
+        <span class="material-symbols-outlined">video_call</span>
+        <span class="font-body-md">Collection</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="samples">
+        <span class="material-symbols-outlined">database</span>
+        <span class="font-body-md">Samples</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="models">
+        <span class="material-symbols-outlined">model_training</span>
+        <span class="font-body-md">3D Models</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95 mt-auto" href="#" data-nav="settings">
+        <span class="material-symbols-outlined">settings</span>
+        <span class="font-body-md">Settings</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main Content Wrapper -->
+  <div class="flex-1 flex flex-col md:ml-sidebar w-full md:w-[calc(100%-spacing.sidebar-width)]">
+    
+    <!-- TopAppBar -->
+    <header class="flex justify-between items-center px-container-padding-mobile md:px-gutter py-4 sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-outline-variant shadow-sm md:shadow-none">
+      <div class="flex items-center gap-4">
+        <button class="md:hidden text-on-background p-2 -ml-2 rounded-full hover:bg-surface-variant transition-colors">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+        <div>
+          <h2 class="font-headline-md text-headline-md font-extrabold text-primary tracking-tight">ISL Dataset Manager</h2>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-3">
+        <!-- Live Status Pill -->
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/40 text-xs font-label-sm">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-on-surface-variant">MediaPipe 21-Rig: <strong class="text-emerald-400 font-semibold">Active</strong></span>
+        </div>
+
+        <!-- Avatar -->
+        <div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-label-md font-bold overflow-hidden border border-outline-variant cursor-pointer hover:border-primary transition-colors">
+          <img class="object-cover w-full h-full" alt="Avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80">
+        </div>
+      </div>
+    </header>
+
+    <!-- Canvas Main Container -->
+    <main class="flex-1 px-container-padding-mobile md:px-gutter py-8 max-w-[1600px] mx-auto w-full flex flex-col gap-8">
+      
+      <!-- ============================================== -->
+      <!-- VIEW: DASHBOARD (Default)                      -->
+      <!-- ============================================== -->
+      <div id="view-dashboard" class="flex flex-col gap-8">
+        <!-- Page Header Section -->
+        <section class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-outline-variant/30 pb-6">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="px-2.5 py-0.5 rounded text-[11px] font-label-sm bg-primary/10 text-primary border border-primary/20">PRD 2.0 WORKFLOW ENGINE</span>
+            </div>
+            <h1 class="font-display-lg text-display-lg text-on-background mb-2">Dataset Overview</h1>
+            <p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
+              Manage ISL gestures, 21-landmark tracking, static poses, dynamic video sequences, and 3D rigged assets.
+            </p>
+          </div>
+          <button id="btn-add-new-gesture" class="btn-primary flex items-center justify-center gap-2 px-6 py-3 rounded-md font-label-md text-label-md shadow-lg shadow-indigo-950/40 self-start md:self-auto cursor-pointer active:scale-95 transition-all">
+            <span class="material-symbols-outlined text-[20px]">add</span>
+            <span>Add New Gesture</span>
+          </button>
+        </section>
+
+        <!-- Dynamic vs Static Workflow Callout Card -->
+        <section class="p-5 rounded-lg bg-surface-container border border-outline-variant/30 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="flex items-start gap-4 p-3 rounded bg-blue-950/20 border border-blue-900/30">
+            <div class="w-10 h-10 rounded bg-blue-900/40 text-blue-300 flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined">photo_camera</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h4 class="text-sm font-semibold text-blue-200">Static Gesture Protocol</h4>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-blue-900 text-blue-300 font-mono">No Video Needed</span>
+              </div>
+              <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">
+                Image upload or live webcam single pose capture &rarr; 21 Landmark Detection &rarr; Joint mapping &rarr; 3D Rigged Hand Pose (.GLB). Supports multiple discrete samples for ML.
+              </p>
+            </div>
+          </div>
+
+          <div class="flex items-start gap-4 p-3 rounded bg-purple-950/20 border border-purple-900/30">
+            <div class="w-10 h-10 rounded bg-purple-900/40 text-purple-300 flex items-center justify-center shrink-0">
+              <span class="material-symbols-outlined">videocam</span>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h4 class="text-sm font-semibold text-purple-200">Dynamic Gesture Protocol</h4>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-purple-900 text-purple-300 font-mono">Temporal Sequence</span>
+              </div>
+              <p class="text-xs text-on-surface-variant mt-1 leading-relaxed">
+                Live video recording or MP4 upload &rarr; Frame-by-frame landmarks &rarr; Temporal sequence extraction &rarr; Interactive 3D Hand Animation with timeline player.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Stats Bento Grid -->
+        <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <!-- Stat Card 1 -->
+          <div class="stat-card col-span-2 lg:col-span-2 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Total Gestures</span>
+              <span class="material-symbols-outlined text-outline-variant text-[20px]">sign_language</span>
+            </div>
+            <div>
+              <div id="stat-total-gestures" class="font-display-lg text-display-lg text-on-background">24</div>
+              <div class="flex items-center gap-1 mt-2 text-primary font-label-md text-label-md">
+                <span class="material-symbols-outlined text-[16px]">trending_up</span>
+                <span>+3 this month</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Stat Card 2 -->
+          <div class="stat-card col-span-1 lg:col-span-1 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Verified</span>
+            </div>
+            <div id="stat-verified" class="font-display-lg text-display-lg text-emerald-400">18</div>
+          </div>
+
+          <!-- Stat Card 3 -->
+          <div class="stat-card col-span-1 lg:col-span-1 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Samples</span>
+            </div>
+            <div id="stat-samples" class="font-display-lg text-display-lg text-on-background">426</div>
+          </div>
+
+          <!-- Stat Card 4 -->
+          <div class="stat-card col-span-2 md:col-span-1 lg:col-span-1 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Signers</span>
+            </div>
+            <div id="stat-signers" class="font-display-lg text-display-lg text-on-background">8</div>
+          </div>
+
+          <!-- Stat Card 5 & 6 -->
+          <div class="col-span-2 md:col-span-3 lg:col-span-1 flex flex-col gap-4">
+            <div class="stat-card flex-1 flex flex-col justify-center px-4 py-3 bg-blue-950/20 border-blue-900/40">
+              <div class="font-label-sm text-label-sm uppercase text-blue-300 tracking-wider mb-1 flex items-center justify-between">
+                <span>Static</span>
+                <span class="material-symbols-outlined text-[14px]">photo_camera</span>
+              </div>
+              <div id="stat-static" class="font-headline-md text-headline-md text-on-background">15</div>
+            </div>
+            <div class="stat-card flex-1 flex flex-col justify-center px-4 py-3 bg-purple-950/20 border-purple-900/40">
+              <div class="font-label-sm text-label-sm uppercase text-purple-300 tracking-wider mb-1 flex items-center justify-between">
+                <span>Dynamic</span>
+                <span class="material-symbols-outlined text-[14px]">videocam</span>
+              </div>
+              <div id="stat-dynamic" class="font-headline-md text-headline-md text-on-background">9</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Recent Activity Section (Data Table) -->
+        <section class="bg-[#1E293B] border border-[#334155] rounded-lg overflow-hidden flex flex-col shadow-sm">
+          <div class="px-6 py-5 border-b border-[#334155] flex justify-between items-center bg-[#171f33]">
+            <div>
+              <h3 class="font-headline-sm text-headline-sm text-on-background font-semibold">Recent Samples</h3>
+              <p class="text-xs text-outline mt-0.5">Click any record to inspect 3D pose, signer data and 21 landmark points</p>
+            </div>
+            <button onclick="app.switchView('samples')" class="text-primary hover:text-surface-tint font-label-md text-label-md transition-colors flex items-center gap-1 cursor-pointer">
+              View All <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </button>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[650px]">
+              <thead>
+                <tr class="border-b border-[#334155] bg-[#0b1326]/50">
+                  <th class="py-4 px-6 font-label-sm text-label-sm uppercase text-outline tracking-wider">Gesture (English / Kannada)</th>
+                  <th class="py-4 px-6 font-label-sm text-label-sm uppercase text-outline tracking-wider">Source</th>
+                  <th class="py-4 px-6 font-label-sm text-label-sm uppercase text-outline tracking-wider">Signer</th>
+                  <th class="py-4 px-6 font-label-sm text-label-sm uppercase text-outline tracking-wider">Timestamp</th>
+                  <th class="py-4 px-6 font-label-sm text-label-sm uppercase text-outline tracking-wider text-right">Status</th>
+                </tr>
+              </thead>
+              <tbody id="recent-samples-tbody" class="font-body-md text-body-md text-on-surface-variant divide-y divide-[#334155]/40">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: GESTURES CATALOG                         -->
+      <!-- ============================================== -->
+      <div id="view-gestures" class="hidden flex flex-col gap-6">
+        <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-outline-variant/30 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-on-background">ISL Gestures Library</h2>
+            <p class="text-sm text-on-surface-variant">Complete catalog of indexed Indian Sign Language gestures with 3D model status</p>
+          </div>
+          <button id="btn-add-new-gesture-2" class="btn-primary flex items-center gap-2 px-5 py-2.5 rounded text-sm font-medium self-start">
+            <span class="material-symbols-outlined text-[18px]">add</span> Add Gesture
+          </button>
+        </div>
+        
+        <div id="gestures-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: SAMPLES EXPLORER                         -->
+      <!-- ============================================== -->
+      <div id="view-samples" class="hidden flex flex-col gap-6">
+        <div class="border-b border-outline-variant/30 pb-4">
+          <h2 class="text-2xl font-bold text-on-background">Collected Dataset Samples</h2>
+          <p class="text-sm text-on-surface-variant">Multi-signer collection of images, live webcam poses, and video frames</p>
+        </div>
+
+        <div class="bg-[#1E293B] border border-[#334155] rounded-lg overflow-hidden">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-[#334155] bg-[#0b1326]/50">
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Gesture</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Type</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Signer</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Source</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Confidence</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Date</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline text-right">Status</th>
+              </tr>
+            </thead>
+            <tbody id="all-samples-tbody" class="divide-y divide-[#334155]/40 text-on-surface-variant">
+              <!-- Dynamically populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: 3D MODELS GALLERY                        -->
+      <!-- ============================================== -->
+      <div id="view-models" class="hidden flex flex-col gap-6">
+        <div class="border-b border-outline-variant/30 pb-4">
+          <h2 class="text-2xl font-bold text-on-background">3D Assets & Hand Rig Models</h2>
+          <p class="text-sm text-on-surface-variant">Rigged 21-joint 3D hand poses (.GLB) and animated sequence assets</p>
+        </div>
+
+        <div id="models-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: SETTINGS                                 -->
+      <!-- ============================================== -->
+      <div id="view-settings" class="hidden flex flex-col gap-6">
+        <div class="border-b border-outline-variant/30 pb-4">
+          <h2 class="text-2xl font-bold text-on-background">Collector Settings & Protocols</h2>
+          <p class="text-sm text-on-surface-variant">Configuration for MediaPipe detector, rig constraints, and storage endpoints</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="stat-card space-y-4">
+            <h3 class="font-bold text-lg text-primary">Landmark Detector Calibration</h3>
+            <div>
+              <label class="block text-xs font-mono text-outline mb-1">Minimum Detection Confidence</label>
+              <input type="range" min="70" max="99" value="95" class="w-full">
+              <div class="flex justify-between text-xs font-mono text-outline mt-1">
+                <span>70% (Permissive)</span>
+                <span class="text-primary font-bold">95% (Recommended)</span>
+                <span>99% (Strict)</span>
+              </div>
+            </div>
+            <div>
+              <label class="block text-xs font-mono text-outline mb-1">Hand Landmark Model</label>
+              <select class="w-full bg-surface-container border border-outline-variant/40 rounded p-2 text-sm text-on-background">
+                <option selected>MediaPipe Hands 21-Rig Full (v0.10.x)</option>
+                <option>MediaPipe Lite (Mobile Optimized)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="stat-card space-y-4">
+            <h3 class="font-bold text-lg text-primary">Storage & Export Protocol</h3>
+            <div class="space-y-2 text-sm text-on-surface-variant">
+              <p>Dataset samples are synced locally and mapped to standard glTF / GLB skeletal meshes with 21 articulated bones.</p>
+              <button onclick="localStorage.clear(); location.reload();" class="px-4 py-2 rounded bg-red-950/40 text-red-400 border border-red-800 text-xs font-medium hover:bg-red-900/50 transition-colors">
+                Reset Dataset to PRD Default Seed
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-outline-variant bg-surface-container-low py-6 px-container-padding-mobile md:px-gutter flex flex-col md:flex-row justify-between items-center gap-4 text-on-surface-variant">
+      <div class="font-label-sm text-label-sm text-center md:text-left">
+        &copy; 2024 Indian Sign Language Research and Training Centre &bull; Static & Dynamic Collector PRD
+      </div>
+      <div class="flex gap-6 font-label-sm text-label-sm">
+        <a class="hover:text-primary transition-colors" href="#">Documentation</a>
+        <a class="hover:text-primary transition-colors" href="#">API Access</a>
+        <a class="hover:text-primary transition-colors" href="#">Support</a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL 1: ADD NEW GESTURE & COLLECTION WIZARD           -->
+  <!-- ======================================================= -->
+  <div id="add-gesture-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-4xl w-full p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+      
+      <!-- Close Button -->
+      <button onclick="app.closeAddGestureModal()" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant transition-colors">
+        <span class="material-symbols-outlined text-[22px]">close</span>
+      </button>
+
+      <!-- ========================================== -->
+      <!-- STEP 1: GESTURE INFORMATION & TYPE         -->
+      <!-- ========================================== -->
+      <div id="wizard-step-info" class="space-y-6">
+        <div>
+          <span class="text-xs font-mono px-2 py-0.5 rounded bg-primary/20 text-primary border border-primary/30">Step 1 of 2</span>
+          <h2 class="text-2xl font-bold text-on-background mt-2">Add New Gesture</h2>
+          <p class="text-sm text-on-surface-variant">Enter gesture metadata and choose the collection protocol.</p>
+        </div>
+
+        <!-- Form fields grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-medium text-outline uppercase tracking-wider mb-1">Gesture ID</label>
+            <input id="wiz-gesture-id" type="text" readonly class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 font-mono text-sm text-primary">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-outline uppercase tracking-wider mb-1">Gesture Name (English) *</label>
+            <input id="wiz-gesture-name" type="text" placeholder="e.g. Water, Hello, Thank You" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background focus:border-primary">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-outline uppercase tracking-wider mb-1">English Meaning</label>
+            <input id="wiz-english-meaning" type="text" placeholder="Meaning in English" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-outline uppercase tracking-wider mb-1">Kannada Meaning</label>
+            <input id="wiz-kannada-meaning" type="text" placeholder="e.g. ನೀರು, ನಮಸ್ಕಾರ" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-tertiary">
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-outline uppercase tracking-wider mb-1">Hand Count</label>
+            <select id="wiz-hand-count" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+              <option value="one">One Hand</option>
+              <option value="two">Two Hands</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-outline uppercase tracking-wider mb-1">Verification Status</label>
+            <select id="wiz-verification-status" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+              <option value="verified">Verified</option>
+              <option value="review">Pending Review</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-outline uppercase tracking-wider mb-1">Gesture Description</label>
+          <textarea id="wiz-description" rows="2" placeholder="Movement instructions or hand placement guidance..." class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background"></textarea>
+        </div>
+
+        <!-- Prominent Gesture Type Selector -->
+        <div>
+          <label class="block text-xs font-medium text-outline uppercase tracking-wider mb-3">
+            Select Gesture Type <span class="text-primary font-normal">(Determines collection workflow)</span>
+          </label>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- Static Card -->
+            <div id="wiz-type-card-static" onclick="app.selectWizardType('static')" class="p-5 rounded-lg border-2 cursor-pointer transition-all flex flex-col justify-between hover:border-primary">
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-xs font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800">STATIC</span>
+                  <span class="material-symbols-outlined text-blue-400 text-[26px]">photo_camera</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-background mb-1">Fixed Hand Pose</h3>
+                <p class="text-xs text-on-surface-variant leading-relaxed">
+                  Single pose capture or image upload. <strong>Video is NOT required.</strong> The system extracts 21 landmarks and generates a 3D hand pose (.GLB).
+                </p>
+              </div>
+              <div class="mt-4 pt-3 border-t border-outline-variant/20 flex items-center gap-2 text-[11px] text-blue-300 font-mono">
+                <span class="material-symbols-outlined text-[14px]">check</span> Image Upload / Webcam Pose
+              </div>
+            </div>
+
+            <!-- Dynamic Card -->
+            <div id="wiz-type-card-dynamic" onclick="app.selectWizardType('dynamic')" class="p-5 rounded-lg border-2 cursor-pointer transition-all flex flex-col justify-between hover:border-primary">
+              <div>
+                <div class="flex items-center justify-between mb-3">
+                  <span class="text-xs font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800">DYNAMIC</span>
+                  <span class="material-symbols-outlined text-purple-400 text-[26px]">videocam</span>
+                </div>
+                <h3 class="text-lg font-bold text-on-background mb-1">Hand Movement Over Time</h3>
+                <p class="text-xs text-on-surface-variant leading-relaxed">
+                  Requires temporal motion. Capture with <strong>Video Recording</strong> or <strong>Video Upload</strong>. Generates a 3D animated timeline.
+                </p>
+              </div>
+              <div class="mt-4 pt-3 border-t border-outline-variant/20 flex items-center gap-2 text-[11px] text-purple-300 font-mono">
+                <span class="material-symbols-outlined text-[14px]">check</span> Video Recording / Upload
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-3 pt-4 border-t border-[#334155]">
+          <button onclick="app.closeAddGestureModal()" class="px-5 py-2.5 rounded text-sm text-outline hover:text-on-background hover:bg-surface-variant">Cancel</button>
+          <button onclick="app.goToCollectionStep()" class="btn-primary px-6 py-2.5 rounded text-sm font-medium flex items-center gap-2">
+            <span>Continue to Collection</span>
+            <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- ==================================================== -->
+      <!-- STEP 2A: STATIC GESTURE WORKFLOW (PRD Sections 3-8)  -->
+      <!-- ==================================================== -->
+      <div id="wizard-step-static-collection" class="hidden space-y-6">
+        
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-outline-variant/30 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-blue-900/50 text-blue-300 border border-blue-700">STATIC WORKFLOW</span>
+              <span id="static-wiz-badge" class="text-xs text-outline">Static &bull; One Hand</span>
+            </div>
+            <div class="flex items-baseline gap-2 mt-1">
+              <h2 id="static-wiz-name" class="text-2xl font-bold text-on-background">Water</h2>
+              <span id="static-wiz-kannada" class="text-lg text-tertiary">ನೀರು</span>
+            </div>
+          </div>
+          <div class="text-xs text-outline bg-surface-container-lowest px-3 py-1.5 rounded border border-outline-variant/30">
+            Protocol: <strong>Pose/Image &rarr; 21 Landmarks &rarr; 3D Pose</strong>
+          </div>
+        </div>
+
+        <!-- 1. Collection Source Options (Dual Tabs) -->
+        <div id="static-source-options" class="space-y-4">
+          <!-- Tab selector -->
+          <div class="flex border-b border-[#334155]">
+            <button id="static-tab-webcam-btn" onclick="app.switchStaticCollectionTab('webcam')" class="py-2.5 px-6 font-medium text-sm border-b-2 border-primary text-primary flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">photo_camera</span> Option B — Capture Pose (Webcam)
+            </button>
+            <button id="static-tab-upload-btn" onclick="app.switchStaticCollectionTab('upload')" class="py-2.5 px-6 font-medium text-sm text-on-surface-variant flex items-center gap-2 hover:text-on-background">
+              <span class="material-symbols-outlined text-[18px]">upload_file</span> Option A — Upload Image
+            </button>
+          </div>
+
+          <!-- Option B: Webcam Live Feed & Capture -->
+          <div id="static-webcam-area" class="space-y-4">
+            <div class="relative w-full h-80 sm:h-96 rounded-lg overflow-hidden bg-surface-container-lowest border border-[#334155] flex items-center justify-center">
+              <video id="static-webcam-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+              <canvas id="static-webcam-canvas" class="landmark-overlay-canvas"></canvas>
+
+              <!-- Live HUD overlay -->
+              <div class="absolute top-3 left-3 bg-background/80 backdrop-blur px-3 py-1.5 rounded text-xs font-mono border border-outline-variant/30 flex items-center gap-2 z-30">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                <span>Hands detected: <strong>1</strong></span>
+                <span class="text-outline">|</span>
+                <span>Confidence: <strong class="text-primary">96%</strong></span>
+              </div>
+            </div>
+
+            <div class="flex justify-between items-center">
+              <p class="text-xs text-outline">Position hand clearly within frame with palm facing the camera.</p>
+              <button onclick="app.captureStaticPoseFromCamera()" class="btn-primary px-6 py-3 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg cursor-pointer">
+                <span class="material-symbols-outlined text-[20px]">camera</span>
+                <span>Capture Pose</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Option A: Upload Image Area -->
+          <div id="static-upload-area" class="hidden space-y-4">
+            <div class="border-2 border-dashed border-outline-variant/60 hover:border-primary rounded-lg p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-surface-container-lowest" onclick="document.getElementById('static-file-input').click()">
+              <input type="file" id="static-file-input" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="app.handleImageUpload(event)">
+              <div class="w-14 h-14 rounded-full bg-primary/10 text-primary flex items-center justify-center mb-3">
+                <span class="material-symbols-outlined text-[32px]">cloud_upload</span>
+              </div>
+              <h4 class="text-base font-semibold text-on-background">Drag &amp; Drop Gesture Image</h4>
+              <p class="text-xs text-outline mt-1 mb-4">Supports JPG, PNG, WEBP &bull; Max 10MB</p>
+              <button class="px-4 py-2 rounded bg-surface-container-high text-primary border border-outline-variant text-xs font-medium hover:bg-secondary-container/30">
+                Choose Image File
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Landmark Detection Verification Screen (PRD Section 4) -->
+        <div id="static-landmark-check" class="hidden space-y-4">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+            <!-- Captured Frame with 21 Landmarks Overlay -->
+            <div class="relative w-full h-80 rounded-lg overflow-hidden bg-surface-container-lowest border border-[#334155]">
+              <canvas id="static-landmark-overlay-canvas" width="640" height="480" class="w-full h-full object-contain"></canvas>
+            </div>
+
+            <!-- Detection Checklist -->
+            <div class="stat-card space-y-4">
+              <h3 class="font-headline-sm font-semibold text-on-background flex items-center justify-between">
+                <span>Hand Detection Results</span>
+                <span class="text-xs font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">PASSED</span>
+              </h3>
+
+              <div class="space-y-2 text-sm">
+                <div class="flex items-center gap-2 text-emerald-400 font-medium">
+                  <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                  <span>Hand detected successfully</span>
+                </div>
+                <div class="flex items-center gap-2 text-emerald-400 font-medium">
+                  <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                  <span>Expected hand count: 1</span>
+                </div>
+                <div class="flex items-center gap-2 text-emerald-400 font-medium">
+                  <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                  <span>21 landmarks detected</span>
+                </div>
+                <div class="flex items-center gap-2 text-emerald-400 font-medium">
+                  <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                  <span>Landmark confidence: <strong id="static-detection-conf" class="text-on-background font-mono">96%</strong></span>
+                </div>
+              </div>
+
+              <div class="pt-3 border-t border-outline-variant/30 text-xs text-outline">
+                Source: <span id="static-detection-source" class="text-on-surface-variant font-medium">Webcam Capture</span>
+              </div>
+
+              <div class="flex gap-3 pt-2">
+                <button onclick="app.retryStaticCapture()" class="flex-1 py-2.5 rounded bg-surface-container-high text-outline hover:text-on-background border border-outline-variant text-xs font-medium">
+                  Try Again
+                </button>
+                <button onclick="app.generateStatic3DHand()" class="flex-1 btn-primary py-2.5 rounded text-xs font-semibold flex items-center justify-center gap-1.5 shadow">
+                  <span class="material-symbols-outlined text-[16px]">view_in_ar</span>
+                  <span>Generate 3D Pose</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. 3D Hand Generation Progress Stepper (PRD Section 5) -->
+        <div id="static-3d-generation-stepper" class="hidden p-8 rounded-lg bg-surface-container border border-[#334155] space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <h3 class="font-bold text-lg text-on-background">Generating 3D Hand Rig</h3>
+          </div>
+          <div class="space-y-2.5 font-mono text-xs text-on-surface-variant">
+            <div id="static-step-detect" data-label="Detecting hand" class="text-emerald-400 font-bold">✓ Detecting hand</div>
+            <div id="static-step-extract" data-label="Extracting landmarks" class="text-outline">○ Extracting landmarks</div>
+            <div id="static-step-joint" data-label="Calculating joint positions" class="text-outline">○ Calculating joint positions</div>
+            <div id="static-step-map" data-label="Mapping pose to 3D rig" class="text-outline">○ Mapping pose to 3D rig</div>
+            <div id="static-step-prep" data-label="Preparing preview" class="text-outline">○ Preparing preview</div>
+          </div>
+        </div>
+
+        <!-- 4. Static 3D Preview (PRD Section 6) -->
+        <div id="static-3d-preview-card" class="hidden space-y-4">
+          <div class="relative w-full h-80 sm:h-96 rounded-lg three-canvas-container" id="static-3d-viewport">
+            <!-- 3D Three.js canvas renders here -->
+          </div>
+
+          <!-- 3D Viewer Toolbar -->
+          <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded bg-surface-container border border-outline-variant/30 text-xs">
+            <div class="flex items-center gap-2 font-mono">
+              <span class="text-outline">Gesture:</span>
+              <strong id="static-preview-meta-gesture" class="text-on-background font-semibold">Water</strong>
+              <span class="text-outline">|</span>
+              <span class="text-outline">Model:</span>
+              <span id="static-preview-meta-model" class="text-primary font-mono">water_pose_001.glb</span>
+              <span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 font-sans font-medium text-[10px]">Preview Ready</span>
+            </div>
+
+            <!-- View Angle Controls -->
+            <div class="flex items-center gap-1.5">
+              <button onclick="app.staticViewer.setView('front')" class="px-2.5 py-1 rounded bg-surface-container-high hover:bg-surface-variant text-on-surface-variant hover:text-on-background transition-colors">Front</button>
+              <button onclick="app.staticViewer.setView('side')" class="px-2.5 py-1 rounded bg-surface-container-high hover:bg-surface-variant text-on-surface-variant hover:text-on-background transition-colors">Side</button>
+              <button onclick="app.staticViewer.setView('reset')" class="px-2.5 py-1 rounded bg-surface-container-high hover:bg-surface-variant text-on-surface-variant hover:text-on-background transition-colors">Reset</button>
+              <button onclick="app.staticViewer.zoomIn()" class="p-1 rounded bg-surface-container-high hover:bg-surface-variant" title="Zoom In">
+                <span class="material-symbols-outlined text-[16px]">zoom_in</span>
+              </button>
+              <button onclick="app.staticViewer.zoomOut()" class="p-1 rounded bg-surface-container-high hover:bg-surface-variant" title="Zoom Out">
+                <span class="material-symbols-outlined text-[16px]">zoom_out</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Bottom Actions -->
+          <div class="flex justify-end items-center gap-3 pt-2">
+            <button onclick="app.generateStatic3DHand()" class="px-4 py-2.5 rounded bg-surface-container-high text-on-surface-variant hover:text-on-background border border-outline-variant text-xs font-medium">
+              Regenerate
+            </button>
+            <button onclick="app.retryStaticCapture()" class="px-4 py-2.5 rounded text-red-400 hover:bg-red-950/30 text-xs font-medium">
+              Discard
+            </button>
+            <button onclick="app.acceptStatic3DPose()" class="btn-primary px-6 py-2.5 rounded text-xs font-semibold flex items-center gap-2 shadow-lg">
+              <span class="material-symbols-outlined text-[18px]">check</span>
+              <span>Accept 3D Pose</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 5. Multiple Static Samples Prompt (PRD Section 8) -->
+        <div id="static-multi-sample-prompt" class="hidden stat-card space-y-4 border-primary/50 bg-blue-950/20">
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">SAVED &bull; SAMPLE ACCEPTED</span>
+              <h3 class="text-xl font-bold text-on-background mt-2">Pose Sample Registered!</h3>
+              <p class="text-xs text-on-surface-variant mt-1">
+                For optimal ISL recognition and signer-independent ML training, collect multiple samples of this static pose from different signers/angles.
+              </p>
+            </div>
+            <span class="material-symbols-outlined text-emerald-400 text-[36px]">verified</span>
+          </div>
+
+          <div class="p-3 rounded bg-surface-container-lowest/80 border border-outline-variant/30 flex items-center justify-between">
+            <div class="text-xs">
+              <span class="text-outline">Current Gesture:</span>
+              <strong id="multi-prompt-gesture-title" class="text-on-background ml-1">Water (ನೀರು)</strong>
+            </div>
+            <span class="text-xs text-primary font-mono">1 sample added</span>
+          </div>
+
+          <div class="flex flex-wrap gap-3 pt-2">
+            <button onclick="app.addAnotherStaticSample('webcam')" class="flex-1 py-3 rounded bg-surface-container-high hover:bg-secondary-container/30 text-primary border border-primary/30 text-xs font-semibold flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">add_a_photo</span>
+              <span>+ Capture Another Pose</span>
+            </button>
+            <button onclick="app.addAnotherStaticSample('upload')" class="flex-1 py-3 rounded bg-surface-container-high hover:bg-secondary-container/30 text-primary border border-primary/30 text-xs font-semibold flex items-center justify-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">upload</span>
+              <span>+ Upload Another Image</span>
+            </button>
+            <button onclick="app.finishStaticWizard()" class="btn-primary px-6 py-3 rounded text-xs font-semibold flex items-center justify-center gap-1">
+              <span>Finish &amp; View Gesture</span>
+              <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ==================================================== -->
+      <!-- STEP 2B: DYNAMIC GESTURE WORKFLOW (PRD Sections 9-12)-->
+      <!-- ==================================================== -->
+      <div id="wizard-step-dynamic-collection" class="hidden space-y-6">
+        
+        <!-- Header -->
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-outline-variant/30 pb-4">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-mono px-2 py-0.5 rounded bg-purple-900/50 text-purple-300 border border-purple-700">DYNAMIC WORKFLOW</span>
+              <span id="dynamic-wiz-badge" class="text-xs text-outline">Dynamic &bull; Temporal Movement</span>
+            </div>
+            <div class="flex items-baseline gap-2 mt-1">
+              <h2 id="dynamic-wiz-name" class="text-2xl font-bold text-on-background">Hello</h2>
+              <span id="dynamic-wiz-kannada" class="text-lg text-tertiary">ನಮಸ್ಕಾರ</span>
+            </div>
+          </div>
+          <div class="text-xs text-outline bg-surface-container-lowest px-3 py-1.5 rounded border border-outline-variant/30">
+            Protocol: <strong>Video &rarr; Temporal Sequences &rarr; 3D Animation</strong>
+          </div>
+        </div>
+
+        <!-- 1. Dynamic Video Source Options -->
+        <div id="dynamic-source-options" class="space-y-4">
+          <div class="flex border-b border-[#334155]">
+            <button id="dynamic-tab-record-btn" onclick="app.switchDynamicCollectionTab('record')" class="py-2.5 px-6 font-medium text-sm border-b-2 border-primary text-primary flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">videocam</span> Option A — Record Video
+            </button>
+            <button id="dynamic-tab-upload-btn" onclick="app.switchDynamicCollectionTab('upload')" class="py-2.5 px-6 font-medium text-sm text-on-surface-variant flex items-center gap-2 hover:text-on-background">
+              <span class="material-symbols-outlined text-[18px]">upload</span> Option B — Upload Video
+            </button>
+          </div>
+
+          <!-- Option A: Record Live Webcam -->
+          <div id="dynamic-record-area" class="space-y-4">
+            <div class="relative w-full h-80 sm:h-96 rounded-lg overflow-hidden bg-surface-container-lowest border border-[#334155] flex items-center justify-center">
+              <video id="dynamic-webcam-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+              <canvas id="dynamic-webcam-canvas" class="landmark-overlay-canvas"></canvas>
+
+              <!-- Live HUD overlay -->
+              <div class="absolute top-3 left-3 bg-background/80 backdrop-blur px-3 py-1.5 rounded text-xs font-mono border border-outline-variant/30 flex items-center gap-3 z-30">
+                <span class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400"></span> FPS: <strong>30</strong>
+                </span>
+                <span class="text-outline">|</span>
+                <span id="dynamic-record-timer" class="text-primary font-bold">00:00.0s</span>
+                <span class="text-outline">|</span>
+                <span>Confidence: <strong>95%</strong></span>
+              </div>
+            </div>
+
+            <div class="flex justify-between items-center">
+              <div id="dynamic-record-status" class="text-xs text-outline flex items-center">
+                Press 'Start Recording' and perform the gesture within 4 seconds.
+              </div>
+              <div class="flex items-center gap-3">
+                <button id="dynamic-record-toggle-btn" onclick="app.toggleDynamicRecording()" class="px-6 py-2.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium text-sm flex items-center gap-2 shadow-lg transition-colors cursor-pointer">
+                  <span class="material-symbols-outlined text-[18px]">fiber_manual_record</span>
+                  <span>Start Recording</span>
+                </button>
+                <button id="dynamic-process-btn" onclick="app.processDynamicVideo()" class="hidden btn-primary px-6 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg">
+                  <span>Process Video</span>
+                  <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Option B: Upload Video File -->
+          <div id="dynamic-upload-area" class="hidden space-y-4">
+            <div class="border-2 border-dashed border-outline-variant/60 hover:border-primary rounded-lg p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-surface-container-lowest" onclick="document.getElementById('dynamic-file-input').click()">
+              <input type="file" id="dynamic-file-input" accept="video/mp4,video/webm" class="hidden" onchange="app.handleDynamicVideoUpload(event)">
+              <div class="w-14 h-14 rounded-full bg-purple-900/30 text-purple-300 flex items-center justify-center mb-3">
+                <span class="material-symbols-outlined text-[32px]">video_file</span>
+              </div>
+              <h4 class="text-base font-semibold text-on-background">Upload Video File</h4>
+              <p class="text-xs text-outline mt-1 mb-2">Supports MP4, WEBM &bull; Max 50MB</p>
+              <div id="dynamic-upload-file-status" class="text-xs font-mono text-primary mb-4">No file selected</div>
+              <button class="px-4 py-2 rounded bg-surface-container-high text-primary border border-outline-variant text-xs font-medium hover:bg-secondary-container/30">
+                Choose Video
+              </button>
+            </div>
+            <div class="flex justify-end">
+              <button id="dynamic-upload-process-btn" onclick="app.processDynamicVideo()" class="hidden btn-primary px-6 py-2.5 rounded-lg font-medium text-sm flex items-center gap-2">
+                <span>Process Uploaded Video</span>
+                <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Dynamic Processing Stepper (PRD Section 11) -->
+        <div id="dynamic-processing-stepper" class="hidden p-8 rounded-lg bg-surface-container border border-[#334155] space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <h3 class="font-bold text-lg text-on-background">Dynamic Gesture Processing</h3>
+          </div>
+          <div class="space-y-2.5 font-mono text-xs text-on-surface-variant">
+            <div id="dyn-step-load" data-label="Video loaded" class="text-emerald-400 font-bold">✓ Video loaded</div>
+            <div id="dyn-step-frames" data-label="Frames extracted (96 frames)" class="text-outline">○ Frames extracted (96 frames)</div>
+            <div id="dyn-step-detect" data-label="Hand detection across frames" class="text-outline">○ Hand detection across frames</div>
+            <div id="dyn-step-landmark" data-label="Landmark extraction" class="text-outline">○ Landmark extraction</div>
+            <div id="dyn-step-temporal" data-label="Temporal sequence generation" class="text-outline">○ Temporal sequence generation</div>
+            <div id="dyn-step-anim" data-label="3D animation preparation" class="text-outline">○ 3D animation preparation</div>
+          </div>
+        </div>
+
+        <!-- 3. Dynamic 3D Animation Preview (PRD Section 12) -->
+        <div id="dynamic-3d-preview-card" class="hidden space-y-4">
+          <div class="relative w-full h-80 sm:h-96 rounded-lg three-canvas-container" id="dynamic-3d-viewport">
+            <!-- 3D Three.js canvas renders here -->
+          </div>
+
+          <!-- Timeline Scrubber Bar -->
+          <div class="p-4 rounded-lg bg-surface-container border border-outline-variant/30 space-y-3">
+            <div class="flex items-center gap-3">
+              <button id="dyn-timeline-play-btn" class="w-8 h-8 rounded-full bg-primary text-black flex items-center justify-center hover:bg-primary/90 transition-colors">
+                <span class="material-symbols-outlined text-[18px]">pause</span>
+              </button>
+              <input id="dyn-timeline-scrubber" type="range" min="0" max="100" value="0" class="flex-1 h-2 bg-surface-container-highest rounded-lg cursor-pointer">
+              <span id="dyn-timeline-time" class="font-mono text-xs text-primary min-w-[75px] text-right">0.0s / 4.0s</span>
+            </div>
+
+            <div class="flex justify-between items-center text-xs pt-1 border-t border-outline-variant/20">
+              <div class="flex items-center gap-2">
+                <span class="text-outline font-mono">Speed:</span>
+                <button onclick="app.setDynamicPlaybackSpeed(0.5, this)" class="dyn-speed-btn px-2 py-0.5 rounded bg-surface-container text-on-surface-variant">0.5x</button>
+                <button onclick="app.setDynamicPlaybackSpeed(1.0, this)" class="dyn-speed-btn px-2 py-0.5 rounded bg-primary text-black font-semibold">1.0x</button>
+                <button onclick="app.setDynamicPlaybackSpeed(1.5, this)" class="dyn-speed-btn px-2 py-0.5 rounded bg-surface-container text-on-surface-variant">1.5x</button>
+              </div>
+
+              <!-- Camera presets -->
+              <div class="flex items-center gap-1.5">
+                <button onclick="app.dynamicViewer.setView('front')" class="px-2 py-0.5 rounded bg-surface-container-high hover:bg-surface-variant text-on-surface-variant">Front</button>
+                <button onclick="app.dynamicViewer.setView('side')" class="px-2 py-0.5 rounded bg-surface-container-high hover:bg-surface-variant text-on-surface-variant">Side</button>
+                <button onclick="app.dynamicViewer.setView('reset')" class="px-2 py-0.5 rounded bg-surface-container-high hover:bg-surface-variant text-on-surface-variant">Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Actions -->
+          <div class="flex justify-between items-center pt-2">
+            <div class="text-xs font-mono text-outline">
+              Asset: <span id="dyn-preview-meta-model" class="text-primary">hello_animation_001.glb</span>
+            </div>
+            <div class="flex items-center gap-3">
+              <button onclick="app.switchDynamicCollectionTab('record')" class="px-4 py-2.5 rounded bg-surface-container-high text-on-surface-variant hover:text-on-background border border-outline-variant text-xs font-medium">
+                Re-record
+              </button>
+              <button onclick="app.acceptDynamic3DAnimation()" class="btn-primary px-6 py-2.5 rounded text-xs font-semibold flex items-center gap-2 shadow-lg">
+                <span class="material-symbols-outlined text-[18px]">check</span>
+                <span>Accept 3D Animation</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL 2: GESTURE DETAILS & 4-TAB INSPECTOR             -->
+  <!-- ======================================================= -->
+  <div id="gesture-details-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-4xl w-full p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+      
+      <button onclick="app.closeGestureDetails()" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant transition-colors">
+        <span class="material-symbols-outlined text-[22px]">close</span>
+      </button>
+
+      <!-- Details Header -->
+      <div class="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-outline-variant/30 pb-4 mb-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <span id="details-type-badge" class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase bg-blue-900/40 text-blue-300 border border-blue-700/50">STATIC</span>
+            <span id="details-hands-badge" class="px-2.5 py-1 rounded-full text-xs font-semibold uppercase bg-surface-container-high text-outline">ONE HAND</span>
+            <span id="details-verified-badge" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-950 text-emerald-400 border border-emerald-800">VERIFIED</span>
+          </div>
+          <div class="flex items-baseline gap-3">
+            <h2 id="details-name" class="text-3xl font-bold text-on-background">Water</h2>
+            <span id="details-kannada" class="text-2xl text-tertiary font-medium">ನೀರು</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Tabs (PRD Section 14) -->
+      <div class="flex border-b border-[#334155] mb-6">
+        <button id="tab-btn-overview" onclick="app.switchDetailsTab('overview')" class="py-2 px-5 font-medium text-sm border-b-2 border-primary text-primary">Overview</button>
+        <button id="tab-btn-dataset" onclick="app.switchDetailsTab('dataset')" class="py-2 px-5 font-medium text-sm text-on-surface-variant hover:text-on-background">Dataset Samples</button>
+        <button id="tab-btn-3d" onclick="app.switchDetailsTab('3d')" class="py-2 px-5 font-medium text-sm text-on-surface-variant hover:text-on-background">3D Pose / Animation</button>
+        <button id="tab-btn-quality" onclick="app.switchDetailsTab('quality')" class="py-2 px-5 font-medium text-sm text-on-surface-variant hover:text-on-background">Quality Metrics</button>
+      </div>
+
+      <!-- Tab Content: Overview -->
+      <div id="tab-content-overview" class="space-y-4">
+        <div class="stat-card space-y-3">
+          <h4 class="font-bold text-sm text-primary uppercase font-mono">Sign Description</h4>
+          <p id="details-desc" class="text-sm text-on-background leading-relaxed">
+            Thumb of 'W' hand taps the chin twice, or cupped hand brought to mouth.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="stat-card p-4">
+            <span class="text-xs text-outline font-mono">Total Samples</span>
+            <div id="details-stat-samples" class="text-2xl font-bold text-on-background mt-1">42</div>
+          </div>
+          <div class="stat-card p-4">
+            <span class="text-xs text-outline font-mono">Total Signers</span>
+            <div id="details-stat-signers" class="text-2xl font-bold text-on-background mt-1">4</div>
+          </div>
+          <div class="stat-card p-4">
+            <span class="text-xs text-outline font-mono">3D Model File</span>
+            <div id="details-model-ref" class="text-xs font-mono text-primary mt-2 truncate">water_pose_001.glb</div>
+          </div>
+          <div class="stat-card p-4">
+            <span class="text-xs text-outline font-mono">3D Rig Status</span>
+            <div id="details-model-status" class="text-sm font-semibold text-emerald-400 mt-2">Ready</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: Dataset Signer Tree (PRD Section 8) -->
+      <div id="tab-content-dataset" class="hidden space-y-4">
+        <div class="flex justify-between items-center mb-2">
+          <p class="text-xs text-outline">Hierarchical dataset collection broken down per individual signer:</p>
+          <button onclick="app.quickAddSampleForSigner(app.activeGestureDetails.id, 'New Signer')" class="btn-primary text-xs px-3 py-1.5 rounded flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">add</span> Add Signer Sample
+          </button>
+        </div>
+        <div id="details-signers-tree" class="space-y-4">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- Tab Content: 3D Viewer -->
+      <div id="tab-content-3d" class="hidden space-y-4">
+        <div class="relative w-full h-80 sm:h-96 rounded-lg three-canvas-container" id="details-3d-viewport">
+          <!-- Three.js canvas renders here -->
+        </div>
+        <div class="flex justify-between items-center text-xs text-outline">
+          <span>Click &amp; drag to rotate &bull; Scroll to zoom</span>
+          <div class="flex gap-2">
+            <button onclick="app.detailsViewer.setView('front')" class="px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-on-background">Front</button>
+            <button onclick="app.detailsViewer.setView('side')" class="px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-on-background">Side</button>
+            <button onclick="app.detailsViewer.setView('reset')" class="px-2.5 py-1 rounded bg-surface-container text-on-surface-variant hover:text-on-background">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab Content: Quality -->
+      <div id="tab-content-quality" class="hidden space-y-4">
+        <div class="stat-card space-y-3">
+          <h4 class="font-bold text-sm text-primary uppercase font-mono">Dataset Quality Audit</h4>
+          <div class="grid grid-cols-3 gap-4 text-center">
+            <div class="p-3 bg-surface-container-lowest rounded">
+              <span class="text-xs text-outline">Avg Confidence</span>
+              <div class="text-xl font-bold text-emerald-400 mt-1">96.2%</div>
+            </div>
+            <div class="p-3 bg-surface-container-lowest rounded">
+              <span class="text-xs text-outline">Completeness</span>
+              <div class="text-xl font-bold text-primary mt-1">98%</div>
+            </div>
+            <div class="p-3 bg-surface-container-lowest rounded">
+              <span class="text-xs text-outline">Signer Variance</span>
+              <div class="text-xl font-bold text-tertiary mt-1">Low</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Mobile Bottom Navigation -->
+  <nav class="md:hidden fixed bottom-0 w-full bg-surface-container border-t border-outline-variant/30 flex justify-around items-center py-2 z-50 pb-safe">
+    <a class="flex flex-col items-center gap-1 p-2 text-primary" href="#" data-nav="dashboard">
+      <div class="w-16 h-8 flex items-center justify-center rounded-full bg-secondary-container/30">
+        <span class="material-symbols-outlined">dashboard</span>
+      </div>
+      <span class="font-label-sm text-[10px] font-semibold">Dashboard</span>
+    </a>
+    <a class="flex flex-col items-center gap-1 p-2 text-on-surface-variant hover:text-primary transition-colors" href="#" data-nav="gestures">
+      <span class="material-symbols-outlined">sign_language</span>
+      <span class="font-label-sm text-[10px]">Gestures</span>
+    </a>
+    <a class="flex flex-col items-center gap-1 p-2 text-on-surface-variant hover:text-primary transition-colors" href="#" data-nav="collection">
+      <span class="material-symbols-outlined">video_call</span>
+      <span class="font-label-sm text-[10px]">Collection</span>
+    </a>
+    <a class="flex flex-col items-center gap-1 p-2 text-on-surface-variant hover:text-primary transition-colors" href="#" data-nav="settings">
+      <span class="material-symbols-outlined">settings</span>
+      <span class="font-label-sm text-[10px]">Settings</span>
+    </a>
+  </nav>
+
+  <div class="h-16 md:hidden"></div>
+
+  <!-- App Main Script -->
+  <script src="app.js"></script>
+</body>
+</html>

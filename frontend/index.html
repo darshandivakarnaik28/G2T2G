@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <title>ISL Dataset Collector - Production System</title>
+  
+  <!-- Tailwind CSS & Plugins -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+  
+  <!-- Three.js + Controls + Loaders -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+  <!-- Official MediaPipe Hands & Camera Utils -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="styles.css">
+
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "inverse-primary": "#494bd6",
+            "surface-container-high": "#222a3d",
+            "surface-container-highest": "#2d3449",
+            "on-secondary-fixed-variant": "#2f3aa3",
+            "background": "#0b1326",
+            "surface-tint": "#c0c1ff",
+            "outline-variant": "#464554",
+            "on-error": "#690005",
+            "error-container": "#93000a",
+            "secondary-container": "#2f3aa3",
+            "on-background": "#dae2fd",
+            "on-tertiary": "#4f2500",
+            "on-primary-fixed": "#07006c",
+            "tertiary-fixed-dim": "#ffb783",
+            "secondary-fixed": "#e0e0ff",
+            "tertiary-fixed": "#ffdcc5",
+            "on-secondary-container": "#a8afff",
+            "on-secondary-fixed": "#000767",
+            "on-primary-fixed-variant": "#2f2ebe",
+            "tertiary": "#ffb783",
+            "surface-bright": "#31394d",
+            "on-tertiary-container": "#452000",
+            "primary": "#c0c1ff",
+            "secondary-fixed-dim": "#bdc2ff",
+            "on-error-container": "#ffdad6",
+            "on-secondary": "#131e8c",
+            "outline": "#908fa0",
+            "on-surface-variant": "#c7c4d7",
+            "on-surface": "#dae2fd",
+            "surface-container": "#171f33",
+            "surface-container-low": "#131b2e",
+            "inverse-surface": "#dae2fd",
+            "on-primary": "#1000a9",
+            "tertiary-container": "#d97721",
+            "on-tertiary-fixed": "#301400",
+            "surface": "#0b1326",
+            "error": "#ffb4ab",
+            "surface-variant": "#2d3449",
+            "inverse-on-surface": "#283044",
+            "primary-fixed-dim": "#c0c1ff",
+            "surface-container-lowest": "#060e20",
+            "on-primary-container": "#0d0096",
+            "on-tertiary-fixed-variant": "#703700",
+            "surface-dim": "#0b1326",
+            "primary-container": "#8083ff",
+            "secondary": "#bdc2ff",
+            "primary-fixed": "#e1e0ff"
+          },
+          borderRadius: {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          spacing: {
+            "sidebar-collapsed-width": "80px",
+            "unit": "4px",
+            "container-padding-mobile": "16px",
+            "gutter": "24px",
+            "container-padding-desktop": "32px",
+            "sidebar-width": "260px"
+          },
+          fontFamily: {
+            "body-lg": ["Inter"],
+            "display-lg": ["Inter"],
+            "label-md": ["JetBrains Mono"],
+            "label-sm": ["JetBrains Mono"],
+            "headline-lg": ["Inter"],
+            "headline-md": ["Inter"],
+            "body-md": ["Inter"],
+            "body-sm": ["Inter"],
+            "headline-sm": ["Inter"]
+          }
+        }
+      }
+    };
+  </script>
+</head>
+<body class="flex flex-col md:flex-row min-h-screen bg-background text-on-background">
+
+  <!-- Sidebar (Web) -->
+  <aside class="hidden md:flex flex-col h-screen w-sidebar fixed left-0 top-0 border-r border-outline-variant bg-surface-container overflow-y-auto z-50">
+    <div class="px-gutter py-6 border-b border-outline-variant/30 flex items-center justify-between">
+      <div>
+        <h1 class="font-headline-md text-headline-md font-bold text-primary tracking-tight">ISL Admin</h1>
+        <p class="text-[11px] font-label-sm text-outline mt-0.5">Dataset Collector System</p>
+      </div>
+      <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ring-4 ring-emerald-500/20" title="Backend Live"></span>
+    </div>
+    
+    <nav class="flex-1 py-4 flex flex-col gap-1">
+      <a class="flex items-center gap-3 px-4 py-3 text-primary border-l-4 border-inverse-primary bg-secondary-container/20 cursor-pointer active:scale-95 transition-all duration-200" href="#" data-nav="dashboard">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span class="font-body-md font-medium">Dashboard</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="gestures">
+        <span class="material-symbols-outlined">sign_language</span>
+        <span class="font-body-md">Gestures</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="collection">
+        <span class="material-symbols-outlined">video_call</span>
+        <span class="font-body-md font-semibold text-primary">Collect Dataset</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="samples">
+        <span class="material-symbols-outlined">database</span>
+        <span class="font-body-md">Dataset Samples</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="models">
+        <span class="material-symbols-outlined">model_training</span>
+        <span class="font-body-md">3D Models</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="readiness">
+        <span class="material-symbols-outlined">fact_check</span>
+        <span class="font-body-md">Training Readiness</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95 mt-auto" href="#" data-nav="settings">
+        <span class="material-symbols-outlined">settings</span>
+        <span class="font-body-md">Settings</span>
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main Content Area -->
+  <div class="flex-1 flex flex-col md:ml-sidebar w-full md:w-[calc(100%-spacing.sidebar-width)]">
+    
+    <!-- TopAppBar -->
+    <header class="flex justify-between items-center px-container-padding-mobile md:px-gutter py-4 sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-outline-variant shadow-sm md:shadow-none">
+      <div class="flex items-center gap-4">
+        <button class="md:hidden text-on-background p-2 -ml-2 rounded-full hover:bg-surface-variant transition-colors">
+          <span class="material-symbols-outlined">menu</span>
+        </button>
+        <div>
+          <h2 class="font-headline-md text-headline-md font-extrabold text-primary tracking-tight">ISL Dataset Collector</h2>
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-3">
+        <!-- Live Status Pill -->
+        <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/40 text-xs font-label-sm">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span class="text-on-surface-variant">FastAPI + MediaPipe: <strong class="text-emerald-400 font-semibold">Ready</strong></span>
+        </div>
+
+        <!-- Avatar Placeholder -->
+        <div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-label-md font-bold overflow-hidden border border-outline-variant cursor-pointer hover:border-primary transition-colors">
+          <img class="object-cover w-full h-full" alt="Avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80">
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Views Canvas -->
+    <main class="flex-1 px-container-padding-mobile md:px-gutter py-8 max-w-[1600px] mx-auto w-full flex flex-col gap-8">
+      
+      <!-- ============================================== -->
+      <!-- VIEW: DASHBOARD                                -->
+      <!-- ============================================== -->
+      <div id="view-dashboard" class="flex flex-col gap-8">
+        <section class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-outline-variant/30 pb-6">
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <span class="px-2.5 py-0.5 rounded text-[11px] font-label-sm bg-primary/10 text-primary border border-primary/20">SQLITE DATABASE LIVE</span>
+            </div>
+            <h1 class="font-display-lg text-display-lg text-on-background mb-2">Dataset Overview</h1>
+            <p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl">
+              Indian Sign Language dataset collector with live MediaPipe 21-hand tracking, persistent SQLite storage, and 3D rig mapping.
+            </p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="btn-export-dataset" class="px-5 py-3 rounded-md bg-surface-container-high hover:bg-surface-variant border border-outline-variant/60 font-label-md text-sm text-primary flex items-center gap-2 transition-colors">
+              <span class="material-symbols-outlined text-[20px]">download</span>
+              <span>Export Dataset (ZIP)</span>
+            </button>
+            <button id="btn-add-gesture-modal" class="btn-primary flex items-center justify-center gap-2 px-6 py-3 rounded-md font-label-md text-label-md shadow-lg shadow-indigo-950/40 cursor-pointer active:scale-95 transition-all">
+              <span class="material-symbols-outlined text-[20px]">add</span>
+              <span>Add New Gesture</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Stats Bento Grid (Calculated from SQLite) -->
+        <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <div class="stat-card col-span-2 lg:col-span-2 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Total Gestures</span>
+              <span class="material-symbols-outlined text-outline-variant text-[20px]">sign_language</span>
+            </div>
+            <div>
+              <div id="stat-total-gestures" class="font-display-lg text-display-lg text-on-background">0</div>
+              <div class="flex items-center gap-1 mt-2 text-primary font-label-md text-label-md">
+                <span class="material-symbols-outlined text-[16px]">database</span>
+                <span>SQLite indexed</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="stat-card col-span-1 lg:col-span-1 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Verified</span>
+            </div>
+            <div id="stat-verified" class="font-display-lg text-display-lg text-emerald-400">0</div>
+          </div>
+
+          <div class="stat-card col-span-1 lg:col-span-1 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Samples</span>
+            </div>
+            <div id="stat-samples" class="font-display-lg text-display-lg text-on-background">0</div>
+          </div>
+
+          <div class="stat-card col-span-2 md:col-span-1 lg:col-span-1 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-4">
+              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Signers</span>
+            </div>
+            <div id="stat-signers" class="font-display-lg text-display-lg text-on-background">0</div>
+          </div>
+
+          <div class="col-span-2 md:col-span-3 lg:col-span-1 flex flex-col gap-4">
+            <div class="stat-card flex-1 flex flex-col justify-center px-4 py-3 bg-blue-950/20 border-blue-900/40">
+              <div class="font-label-sm text-label-sm uppercase text-blue-300 tracking-wider mb-1 flex items-center justify-between">
+                <span>Static</span>
+                <span class="material-symbols-outlined text-[14px]">photo_camera</span>
+              </div>
+              <div id="stat-static" class="font-headline-md text-headline-md text-on-background">0</div>
+            </div>
+            <div class="stat-card flex-1 flex flex-col justify-center px-4 py-3 bg-purple-950/20 border-purple-900/40">
+              <div class="font-label-sm text-label-sm uppercase text-purple-300 tracking-wider mb-1 flex items-center justify-between">
+                <span>Dynamic</span>
+                <span class="material-symbols-outlined text-[14px]">videocam</span>
+              </div>
+              <div id="stat-dynamic" class="font-headline-md text-headline-md text-on-background">0</div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ISL Computer Vision Pipeline Visual Hero (#17) -->
+        <section class="stat-card border-primary/30 bg-gradient-to-r from-surface-container via-surface-container-high to-surface-container relative overflow-hidden">
+          <div class="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div class="space-y-2 max-w-xl">
+              <div class="flex items-center gap-2">
+                <span class="px-2.5 py-0.5 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800">PIPELINE VERIFIED</span>
+                <span class="text-xs font-mono text-outline">Realtime Landmark Rigging</span>
+              </div>
+              <h3 class="text-xl font-bold text-on-background">End-to-End ISL Dataset &amp; 3D Articulation Engine</h3>
+              <p class="text-xs text-on-surface-variant leading-relaxed">
+                Captures raw frames from camera, tracks 21 spatial landmarks in real-time, resolves physical handedness, articulates a skin-toned 3D hand, and exports standardized ML feature vectors.
+              </p>
+            </div>
+
+            <!-- Pipeline Visual Steps -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 w-full lg:w-auto text-xs font-mono">
+              <div class="p-3 rounded-lg bg-surface-container-lowest/80 border border-outline-variant/30 text-center">
+                <span class="material-symbols-outlined text-primary text-[22px] block mb-1">videocam</span>
+                <strong class="text-on-background block text-[11px]">1. WebRTC Feed</strong>
+                <span class="text-outline text-[10px]">640x480 &bull; 30 FPS</span>
+              </div>
+              <div class="p-3 rounded-lg bg-surface-container-lowest/80 border border-outline-variant/30 text-center">
+                <span class="material-symbols-outlined text-emerald-400 text-[22px] block mb-1">grain</span>
+                <strong class="text-on-background block text-[11px]">2. 21 Landmarks</strong>
+                <span class="text-outline text-[10px]">MediaPipe $[x,y,z]$</span>
+              </div>
+              <div class="p-3 rounded-lg bg-surface-container-lowest/80 border border-outline-variant/30 text-center">
+                <span class="material-symbols-outlined text-purple-400 text-[22px] block mb-1">view_in_ar</span>
+                <strong class="text-on-background block text-[11px]">3. 3D Hand Rig</strong>
+                <span class="text-outline text-[10px]">Skin-Tone Mesh</span>
+              </div>
+              <div class="p-3 rounded-lg bg-surface-container-lowest/80 border border-outline-variant/30 text-center">
+                <span class="material-symbols-outlined text-amber-400 text-[22px] block mb-1">storage</span>
+                <strong class="text-on-background block text-[11px]">4. SQLite + ZIP</strong>
+                <span class="text-outline text-[10px]">ML Ready Dataset</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Recent Samples Data Table -->
+        <section class="bg-[#1E293B] border border-[#334155] rounded-lg overflow-hidden flex flex-col shadow-sm">
+          <div class="px-6 py-5 border-b border-[#334155] flex justify-between items-center bg-[#171f33]">
+            <div>
+              <h3 class="font-headline-sm text-headline-sm text-on-background font-semibold">Recent Samples</h3>
+              <p class="text-xs text-outline mt-0.5">Click any record to inspect actual saved 21 landmarks, media, and 3D preview</p>
+            </div>
+            <button onclick="app.navigateTo('samples')" class="text-primary hover:text-surface-tint font-label-md text-label-md transition-colors flex items-center gap-1 cursor-pointer">
+              View All <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+            </button>
+          </div>
+          
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse min-w-[650px]">
+              <thead>
+                <tr class="border-b border-[#334155] bg-[#0b1326]/50">
+                  <th class="py-4 px-6 font-label-sm text-label-sm uppercase text-outline tracking-wider">Gesture</th>
+                  <th class="py-4 px-6 font-label-sm text-label-sm uppercase text-outline tracking-wider">Source</th>
+                  <th class="py-4 px-6 font-label-sm text-label-sm uppercase text-outline tracking-wider">Signer</th>
+                  <th class="py-4 px-6 font-label-sm text-label-sm uppercase text-outline tracking-wider">Date</th>
+                  <th class="py-4 px-6 font-label-sm text-label-sm uppercase text-outline tracking-wider text-right">Confidence</th>
+                </tr>
+              </thead>
+              <tbody id="recent-samples-tbody" class="font-body-md text-body-md text-on-surface-variant divide-y divide-[#334155]/40">
+                <!-- Dynamically populated from SQLite -->
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: GESTURES CATALOG                         -->
+      <!-- ============================================== -->
+      <div id="view-gestures" class="hidden flex flex-col gap-6">
+        <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-outline-variant/30 pb-4">
+          <div>
+            <h2 class="text-2xl font-bold text-on-background">ISL Gestures Catalog</h2>
+            <p class="text-sm text-on-surface-variant">Manage indexed gestures with bilingual Kannada and English metadata</p>
+          </div>
+          <button id="btn-add-gesture-modal-2" class="btn-primary flex items-center gap-2 px-5 py-2.5 rounded text-sm font-medium self-start">
+            <span class="material-symbols-outlined text-[18px]">add</span> Add Gesture
+          </button>
+        </div>
+        
+        <div id="gestures-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Dynamically populated -->
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: COLLECT DATASET (STATIC & DYNAMIC)       -->
+      <!-- ============================================== -->
+      <div id="view-collection" class="hidden flex flex-col gap-6">
+        <!-- Collection Header & Selector -->
+        <div class="p-6 rounded-lg bg-surface-container border border-[#334155] flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-4">
+            <div>
+              <label class="block text-xs font-mono uppercase text-outline mb-1">Target Gesture</label>
+              <select id="collect-gesture-select" class="bg-surface-container-lowest border border-outline-variant/40 rounded p-2 text-sm text-on-background font-semibold" onchange="app.handleCollectionGestureChange()">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+
+            <div>
+              <label class="block text-xs font-mono uppercase text-outline mb-1">Signer ID</label>
+              <input id="collect-signer-input" type="text" value="S001" placeholder="e.g. S001" class="bg-surface-container-lowest border border-outline-variant/40 rounded p-2 text-sm text-on-background font-mono w-28">
+            </div>
+
+            <div>
+              <label class="block text-xs font-mono uppercase text-outline mb-1">Target Samples</label>
+              <input id="collect-target-samples-input" type="number" min="5" max="1000" step="5" value="100" class="bg-surface-container-lowest border border-outline-variant/40 rounded p-2 text-sm text-on-background font-mono w-28">
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="text-right">
+              <div class="flex items-baseline gap-2">
+                <span id="collect-selected-name" class="font-bold text-lg text-on-background">Water</span>
+                <span id="collect-selected-kannada" class="text-tertiary font-medium">ನೀರು</span>
+              </div>
+              <span id="collect-selected-type-badge" class="text-xs px-2 py-0.5 rounded bg-blue-950 text-blue-300 font-mono">STATIC • ONE_HAND</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- SUB-SECTION: STATIC COLLECTION WORKFLOW        -->
+        <!-- ============================================== -->
+        <div id="collect-static-section" class="space-y-6">
+          <div class="flex border-b border-[#334155]">
+            <button id="static-tab-webcam" onclick="app.switchStaticCollectionTab('webcam')" class="py-2.5 px-6 font-medium text-sm border-b-2 border-primary text-primary flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">photo_camera</span> Option B — Webcam Auto & Pose Capture
+            </button>
+            <button id="static-tab-upload" onclick="app.switchStaticCollectionTab('upload')" class="py-2.5 px-6 font-medium text-sm text-on-surface-variant flex items-center gap-2 hover:text-on-background">
+              <span class="material-symbols-outlined text-[18px]">upload_file</span> Option A — Upload Image
+            </button>
+          </div>
+
+          <!-- Auto-Collection Progress & Status Banner -->
+          <div id="auto-collection-banner" class="hidden p-4 rounded-lg bg-surface-container border border-primary/50 shadow-lg space-y-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-3">
+                <span id="auto-status-indicator" class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+                <div>
+                  <h4 class="font-bold text-sm text-on-background flex items-center gap-2">
+                    <span>Auto 100-Sample Collection in Progress</span>
+                    <span id="auto-status-badge" class="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800">COLLECTING</span>
+                  </h4>
+                  <p class="text-xs text-outline">Natural movement variation auto-captured. Duplicate & low-confidence frames are auto-rejected.</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-2">
+                <button id="btn-auto-pause" class="px-3 py-1.5 rounded bg-surface-container-high hover:bg-surface-variant text-primary border border-outline-variant text-xs font-medium flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[16px]">pause</span>
+                  <span id="btn-auto-pause-text">Pause</span>
+                </button>
+                <button id="btn-auto-stop" class="px-3 py-1.5 rounded bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-800 text-xs font-medium flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[16px]">stop</span>
+                  <span>Stop Collection</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Progress bar -->
+            <div class="space-y-1">
+              <div class="flex justify-between text-xs font-mono">
+                <span class="text-on-background">Progress: <strong id="auto-prog-count" class="text-primary">0 / 100</strong> samples</span>
+                <span id="auto-prog-pct" class="text-emerald-400 font-bold">0%</span>
+              </div>
+              <div class="w-full h-3 rounded-full bg-surface-container-lowest overflow-hidden border border-outline-variant/30">
+                <div id="auto-progress-fill" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-400 transition-all duration-300" style="width: 0%;"></div>
+              </div>
+            </div>
+
+            <!-- Auto-Collection Telemetry Metrics -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-2 text-xs font-mono pt-1 border-t border-[#334155]/60">
+              <div class="p-2 rounded bg-surface-container-lowest">
+                <span class="text-outline block text-[10px]">VALID</span>
+                <span id="auto-valid-count" class="text-emerald-400 font-bold text-sm">0</span>
+              </div>
+              <div class="p-2 rounded bg-surface-container-lowest">
+                <span class="text-outline block text-[10px]">REJECTED</span>
+                <span id="auto-rejected-count" class="text-amber-400 font-bold text-sm">0</span>
+              </div>
+              <div class="p-2 rounded bg-surface-container-lowest">
+                <span class="text-outline block text-[10px]">HAND DETECTED</span>
+                <span id="auto-hand-type" class="text-primary font-bold text-sm">—</span>
+              </div>
+              <div class="p-2 rounded bg-surface-container-lowest">
+                <span class="text-outline block text-[10px]">CONFIDENCE</span>
+                <span id="auto-confidence" class="text-emerald-400 font-bold text-sm">0%</span>
+              </div>
+              <div class="p-2 rounded bg-surface-container-lowest col-span-2 sm:col-span-1">
+                <span class="text-outline block text-[10px]">LAST EVENT</span>
+                <span id="auto-last-reason" class="text-outline text-xs truncate block">Waiting for hand...</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Static Webcam Live Feed Area -->
+          <div id="static-camera-area" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="lg:col-span-2 space-y-4">
+              <div class="relative w-full h-[400px] sm:h-[460px] rounded-lg overflow-hidden bg-surface-container-lowest border border-[#334155] flex items-center justify-center">
+                <video id="static-live-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+                <canvas id="static-landmark-canvas" class="landmark-overlay-canvas"></canvas>
+
+                <!-- Live HUD overlay -->
+                <div class="absolute top-3 left-3 bg-background/85 backdrop-blur px-3 py-1.5 rounded text-xs font-mono border border-outline-variant/30 flex items-center gap-3 z-30">
+                  <span class="flex items-center gap-1.5">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+                    <span>FPS: <strong id="static-hud-fps" class="text-on-background">0</strong></span>
+                  </span>
+                  <span class="text-outline">|</span>
+                  <span>Hands: <strong id="static-hud-hands" class="text-primary">0</strong></span>
+                  <span class="text-outline">|</span>
+                  <span>Physical: <strong id="static-hud-physical-hand" class="text-amber-300">—</strong></span>
+                  <span class="text-outline">|</span>
+                  <span>Confidence: <strong id="static-hud-conf" class="text-emerald-400">0%</strong></span>
+                </div>
+              </div>
+
+              <div class="flex flex-wrap justify-between items-center gap-3">
+                <p class="text-xs text-outline">Position hand in frame. Use Auto-Collect to capture up to 100 varied samples automatically.</p>
+                <div class="flex items-center gap-2">
+                  <button id="btn-start-auto-collect" class="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-2 shadow-lg transition-all cursor-pointer">
+                    <span class="material-symbols-outlined text-[18px]">auto_mode</span>
+                    <span>Start Auto-Collection (100)</span>
+                  </button>
+                  <button id="btn-capture-static" class="btn-primary px-4 py-2.5 rounded-lg font-medium text-xs flex items-center gap-1.5 shadow cursor-pointer">
+                    <span class="material-symbols-outlined text-[18px]">camera</span>
+                    <span>Single Capture</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Quality Validation Sidebar -->
+            <div class="stat-card space-y-4 flex flex-col justify-between">
+              <div>
+                <h3 class="font-headline-sm font-semibold text-on-background flex items-center justify-between mb-3">
+                  <span>Quality Check</span>
+                  <span class="text-xs font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">REALTIME</span>
+                </h3>
+
+                <div class="space-y-3 text-sm font-medium">
+                  <div id="check-hand-detected" class="flex items-center gap-2 text-outline">
+                    <span>○ Hand detection waiting</span>
+                  </div>
+                  <div id="check-landmarks" class="flex items-center gap-2 text-outline">
+                    <span>○ 21 landmarks waiting</span>
+                  </div>
+                  <div id="check-confidence" class="flex items-center gap-2 text-outline">
+                    <span>○ Confidence threshold</span>
+                  </div>
+                  <div class="flex items-center gap-2 text-emerald-400">
+                    <span>✓ Resolution: 640 × 480</span>
+                  </div>
+                </div>
+
+                <div class="mt-6 p-3 rounded bg-surface-container-lowest text-xs text-outline">
+                  <strong>Protocol:</strong> Static gestures do NOT require video. Each captured sample stores the raw frame, 21 landmark coordinates $[x, y, z]$, and metadata in SQLite.
+                </div>
+              </div>
+
+              <div id="static-save-status"></div>
+            </div>
+          </div>
+
+          <!-- Static Image Upload Area -->
+          <div id="static-upload-area" class="hidden space-y-4">
+            <div class="border-2 border-dashed border-outline-variant/60 hover:border-primary rounded-lg p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-surface-container-lowest" onclick="document.getElementById('static-image-file').click()">
+              <input type="file" id="static-image-file" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="app.handleStaticImageFileUpload(event)">
+              <span class="material-symbols-outlined text-[42px] text-primary mb-2">cloud_upload</span>
+              <h4 class="text-base font-semibold text-on-background">Upload Static Gesture Image</h4>
+              <p class="text-xs text-outline mt-1 mb-3">JPG, PNG, WEBP &bull; Extracted with MediaPipe in browser</p>
+              <button class="px-4 py-2 rounded bg-surface-container-high text-primary border border-outline-variant text-xs font-medium">
+                Choose Image
+              </button>
+            </div>
+          </div>
+
+          <!-- Captured Static Result & 3D Pose Preview Panel -->
+          <div id="static-captured-panel" class="hidden stat-card space-y-4 border-primary/40 bg-blue-950/10">
+            <div class="flex justify-between items-center border-b border-[#334155] pb-3">
+              <h4 class="font-bold text-on-background flex items-center gap-2">
+                <span class="material-symbols-outlined text-emerald-400">check_circle</span>
+                <span>Pose Captured &bull; Landmark-to-3D Rig Mapping Ready</span>
+              </h4>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+              <div>
+                <p class="text-xs text-outline mb-2">Captured Frame</p>
+                <div class="h-64 rounded bg-surface-container-lowest overflow-hidden border border-outline-variant/30 flex items-center justify-center">
+                  <img id="static-preview-snapshot" class="w-full h-full object-contain">
+                </div>
+              </div>
+
+              <div>
+                <p class="text-xs text-outline mb-2">Interactive 3D Hand Pose (Driven by Real Landmarks)</p>
+                <div id="static-3d-viewport" class="h-64 rounded three-canvas-container"></div>
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+              <button id="btn-retake-static" class="px-4 py-2.5 rounded bg-surface-container-high hover:bg-surface-variant text-outline hover:text-on-background text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer">
+                <span class="material-symbols-outlined text-[16px]">replay</span>
+                <span>Retake Pose</span>
+              </button>
+              <button id="btn-save-static-sample" class="btn-primary px-6 py-2.5 rounded font-semibold text-xs flex items-center gap-2 shadow-lg">
+                <span class="material-symbols-outlined text-[18px]">save</span>
+                <span>Save Sample to Dataset</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- SUB-SECTION: DYNAMIC COLLECTION WORKFLOW       -->
+        <!-- ============================================== -->
+        <div id="collect-dynamic-section" class="hidden space-y-6">
+          <div class="flex border-b border-[#334155]">
+            <button id="dynamic-tab-record" onclick="app.switchDynamicCollectionTab('record')" class="py-2.5 px-6 font-medium text-sm border-b-2 border-primary text-primary flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">videocam</span> Option A — Record Video
+            </button>
+            <button id="dynamic-tab-upload" onclick="app.switchDynamicCollectionTab('upload')" class="py-2.5 px-6 font-medium text-sm text-on-surface-variant flex items-center gap-2 hover:text-on-background">
+              <span class="material-symbols-outlined text-[18px]">upload</span> Option B — Upload Video
+            </button>
+          </div>
+
+          <!-- Dynamic Video Recording Area -->
+          <div id="dynamic-record-area" class="space-y-4">
+            <div class="relative w-full h-[400px] sm:h-[460px] rounded-lg overflow-hidden bg-surface-container-lowest border border-[#334155] flex items-center justify-center">
+              <video id="dynamic-live-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover"></video>
+              <canvas id="dynamic-landmark-canvas" class="landmark-overlay-canvas"></canvas>
+
+              <!-- Live HUD -->
+              <div class="absolute top-3 left-3 bg-background/85 backdrop-blur px-3 py-1.5 rounded text-xs font-mono border border-outline-variant/30 flex items-center gap-3 z-30">
+                <span id="dyn-recording-timer" class="text-rose-400 font-bold">0.0s</span>
+                <span class="text-outline">|</span>
+                <span id="dyn-frames-count" class="text-primary font-bold">0 frames</span>
+                <span class="text-outline">|</span>
+                <span>FPS: <strong id="dyn-hud-fps">0</strong></span>
+                <span class="text-outline">|</span>
+                <span>Confidence: <strong id="dyn-hud-conf">0%</strong></span>
+              </div>
+            </div>
+
+            <div class="flex justify-between items-center">
+              <p class="text-xs text-outline">Press 'Start Recording' and perform the dynamic movement sequence.</p>
+              <button id="btn-toggle-recording" class="px-6 py-3 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-medium text-sm flex items-center gap-2 shadow-lg transition-colors cursor-pointer">
+                <span class="material-symbols-outlined text-[18px]">fiber_manual_record</span>
+                <span>Start Recording</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dynamic Video Upload Area -->
+          <div id="dynamic-upload-area" class="hidden space-y-4">
+            <div class="border-2 border-dashed border-outline-variant/60 hover:border-primary rounded-lg p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-colors bg-surface-container-lowest" onclick="document.getElementById('dynamic-video-file').click()">
+              <input type="file" id="dynamic-video-file" accept="video/mp4,video/webm" class="hidden">
+              <span class="material-symbols-outlined text-[42px] text-purple-400 mb-2">video_file</span>
+              <h4 class="text-base font-semibold text-on-background">Upload Gesture Video</h4>
+              <p class="text-xs text-outline mt-1 mb-3">MP4, WEBM &bull; Max 50MB</p>
+              <button class="px-4 py-2 rounded bg-surface-container-high text-primary border border-outline-variant text-xs font-medium">
+                Choose Video
+              </button>
+            </div>
+          </div>
+
+          <!-- Recorded Dynamic Sequence Preview Panel -->
+          <div id="dynamic-recorded-panel" class="hidden stat-card space-y-4 border-purple-800/40 bg-purple-950/10">
+            <div class="flex justify-between items-center border-b border-[#334155] pb-3">
+              <h4 class="font-bold text-on-background flex items-center gap-2">
+                <span class="material-symbols-outlined text-purple-400">check_circle</span>
+                <span>Dynamic Sequence Recorded &bull; Temporal 3D Animation Loaded</span>
+              </h4>
+              <div class="flex items-center gap-4 text-xs font-mono text-outline">
+                <span>Frames: <strong id="dyn-summary-frames" class="text-on-background">0</strong></span>
+                <span>Duration: <strong id="dyn-summary-duration" class="text-primary">0s</strong></span>
+                <span>Avg FPS: <strong id="dyn-summary-fps" class="text-emerald-400">0</strong></span>
+              </div>
+            </div>
+
+            <!-- 3D Animation Viewport & Timeline Scrubber -->
+            <div id="dynamic-3d-viewport" class="h-72 rounded three-canvas-container"></div>
+
+            <!-- Playback Controls Bar -->
+            <div class="p-3 rounded bg-surface-container-lowest border border-outline-variant/30 flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-2">
+                <button id="btn-dyn-play-pause" class="p-2 rounded bg-primary/20 hover:bg-primary/30 text-primary flex items-center justify-center cursor-pointer transition-colors" title="Play / Pause">
+                  <span class="material-symbols-outlined text-[20px]" id="icon-dyn-play-pause">pause</span>
+                </button>
+                <button id="btn-dyn-reset" class="p-2 rounded bg-surface-container-high hover:bg-surface-variant text-outline hover:text-on-background flex items-center justify-center cursor-pointer transition-colors" title="Reset to start">
+                  <span class="material-symbols-outlined text-[18px]">replay</span>
+                </button>
+                <div class="flex items-center gap-1 text-xs font-mono ml-2">
+                  <span class="text-outline">Speed:</span>
+                  <button class="dyn-speed-btn px-2 py-0.5 rounded text-[11px] text-outline hover:text-on-background" data-speed="0.5">0.5x</button>
+                  <button class="dyn-speed-btn px-2 py-0.5 rounded text-[11px] bg-primary/20 text-primary font-bold" data-speed="1.0">1x</button>
+                  <button class="dyn-speed-btn px-2 py-0.5 rounded text-[11px] text-outline hover:text-on-background" data-speed="1.5">1.5x</button>
+                  <button class="dyn-speed-btn px-2 py-0.5 rounded text-[11px] text-outline hover:text-on-background" data-speed="2.0">2x</button>
+                </div>
+              </div>
+              <div class="flex-1 min-w-[200px] flex items-center gap-3">
+                <input id="dyn-timeline-scrubber" type="range" min="0" max="100" value="0" class="flex-1 h-2 cursor-pointer">
+                <span id="dyn-timeline-time" class="font-mono text-xs text-primary min-w-[75px] text-right">0.0s / 0.0s</span>
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2">
+              <button id="btn-retake-dynamic" class="px-4 py-2.5 rounded bg-surface-container-high hover:bg-surface-variant text-outline hover:text-on-background text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer">
+                <span class="material-symbols-outlined text-[16px]">replay</span>
+                <span>Re-record Video</span>
+              </button>
+              <button id="btn-save-dynamic-sample" class="btn-primary px-6 py-2.5 rounded font-semibold text-xs flex items-center gap-2 shadow-lg">
+                <span class="material-symbols-outlined text-[18px]">save</span>
+                <span>Save Dynamic Sample to Dataset</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: DATASET SAMPLES                          -->
+      <!-- ============================================== -->
+      <div id="view-samples" class="hidden flex flex-col gap-6">
+        <div class="border-b border-outline-variant/30 pb-4">
+          <h2 class="text-2xl font-bold text-on-background">Collected Dataset Samples</h2>
+          <p class="text-sm text-on-surface-variant">Real samples saved to SQLite database with raw media and 21 landmark sequences</p>
+        </div>
+
+        <div class="bg-[#1E293B] border border-[#334155] rounded-lg overflow-hidden shadow-sm">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-[#334155] bg-[#0b1326]/50">
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Gesture</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Type</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Signer</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Frames</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Confidence</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Timestamp</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="all-samples-tbody" class="divide-y divide-[#334155]/40 text-on-surface-variant">
+              <!-- Populated from SQLite -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: 3D MODELS                                -->
+      <!-- ============================================== -->
+      <div id="view-models" class="hidden flex flex-col gap-6">
+        <div class="border-b border-outline-variant/30 pb-4">
+          <h2 class="text-2xl font-bold text-on-background">3D Assets & Rigged Hand Models</h2>
+          <p class="text-sm text-on-surface-variant">Upload and inspect real .glb / .gltf hand models loaded via Three.js GLTFLoader</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Upload 3D Model Form -->
+          <div class="stat-card space-y-4">
+            <h3 class="font-bold text-base text-primary">Upload 3D Model (.GLB / .GLTF)</h3>
+            <form id="form-upload-model" class="space-y-4">
+              <div>
+                <label class="block text-xs font-mono text-outline mb-1">Model File *</label>
+                <input type="file" id="input-model-file" accept=".glb,.gltf" required class="w-full text-xs text-on-background">
+              </div>
+              <div>
+                <label class="block text-xs font-mono text-outline mb-1">Associated Gesture ID (Optional)</label>
+                <input type="text" id="input-model-gesture" placeholder="e.g. hello, water" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2 text-sm text-on-background">
+              </div>
+              <div class="flex items-center gap-2">
+                <input type="checkbox" id="input-model-rigged" class="rounded text-primary focus:ring-0">
+                <label for="input-model-rigged" class="text-xs text-on-surface-variant">Model contains skeletal bones (Rigged)</label>
+              </div>
+              <button type="submit" class="btn-primary w-full py-2.5 rounded font-medium text-xs">
+                Upload &amp; Index Model
+              </button>
+            </form>
+          </div>
+
+          <!-- 3D Viewport for Inspection -->
+          <div class="lg:col-span-2 stat-card space-y-3">
+            <div class="flex justify-between items-center text-xs">
+              <span id="models-viewport-status" class="text-outline font-mono">Select a model below to load in 3D viewer</span>
+              <div class="flex gap-1.5">
+                <button onclick="app.modelsPage3DViewer?.setView('front')" class="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant">Front</button>
+                <button onclick="app.modelsPage3DViewer?.setView('side')" class="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant">Side</button>
+                <button onclick="app.modelsPage3DViewer?.setView('reset')" class="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant">Reset</button>
+              </div>
+            </div>
+            <div id="models-3d-viewport" class="h-72 rounded three-canvas-container"></div>
+          </div>
+        </div>
+
+        <!-- Catalog Grid -->
+        <h3 class="font-bold text-lg text-on-background mt-4">Indexed 3D Models</h3>
+        <div id="models-catalog-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Populated from SQLite -->
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: TRAINING READINESS                       -->
+      <!-- ============================================== -->
+      <div id="view-readiness" class="hidden flex flex-col gap-6">
+        <div class="border-b border-outline-variant/30 pb-4">
+          <h2 class="text-2xl font-bold text-on-background">Training Readiness Audit</h2>
+          <p class="text-sm text-on-surface-variant">Dataset completeness, signer diversity, and validation thresholds calculated directly from SQLite</p>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="stat-card p-4">
+            <span class="text-xs text-outline font-mono">Total Gestures</span>
+            <div id="readiness-total-gestures" class="text-2xl font-bold text-on-background mt-1">0</div>
+          </div>
+          <div class="stat-card p-4">
+            <span class="text-xs text-outline font-mono">ML-Ready Gestures</span>
+            <div id="readiness-ready-count" class="text-2xl font-bold text-emerald-400 mt-1">0</div>
+          </div>
+          <div class="stat-card p-4">
+            <span class="text-xs text-outline font-mono">Total Samples</span>
+            <div id="readiness-total-samples" class="text-2xl font-bold text-on-background mt-1">0</div>
+          </div>
+          <div class="stat-card p-4">
+            <span class="text-xs text-outline font-mono">Valid Samples (&ge;70%)</span>
+            <div id="readiness-valid-samples" class="text-2xl font-bold text-primary mt-1">0</div>
+          </div>
+        </div>
+
+        <div class="bg-[#1E293B] border border-[#334155] rounded-lg overflow-hidden shadow-sm">
+          <table class="w-full text-left border-collapse">
+            <thead>
+              <tr class="border-b border-[#334155] bg-[#0b1326]/50">
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Gesture</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Type</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Samples</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Signers</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Valid (&ge;70%)</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">Low Conf</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline">3D Model</th>
+                <th class="py-3 px-4 font-label-sm text-xs uppercase text-outline text-right">Readiness</th>
+              </tr>
+            </thead>
+            <tbody id="readiness-table-tbody" class="divide-y divide-[#334155]/40 text-on-surface-variant">
+              <!-- Populated from SQLite -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: SETTINGS                                 -->
+      <!-- ============================================== -->
+      <div id="view-settings" class="hidden flex flex-col gap-6">
+        <div class="border-b border-outline-variant/30 pb-4">
+          <h2 class="text-2xl font-bold text-on-background">System Settings &amp; Architecture</h2>
+          <p class="text-sm text-on-surface-variant">Configuration for MediaPipe Hand Landmarker, SQLite database, and export endpoints</p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="stat-card space-y-4">
+            <h3 class="font-bold text-base text-primary">MediaPipe Hand Landmarker</h3>
+            <div class="text-xs text-on-surface-variant space-y-2">
+              <p>Model Complexity: <strong>Full (1.0)</strong></p>
+              <p>Max Hands: <strong>2</strong></p>
+              <p>Min Detection Confidence: <strong>50%</strong></p>
+              <p>Min Tracking Confidence: <strong>50%</strong></p>
+              <p>Landmark Coordinate Standard: <strong>21 joints [x, y, z]</strong></p>
+            </div>
+          </div>
+
+          <div class="stat-card space-y-4">
+            <h3 class="font-bold text-base text-primary">Database &amp; Storage Paths</h3>
+            <div class="text-xs text-on-surface-variant font-mono space-y-1.5">
+              <p>Database: <code>sqlite:///./isl_dataset.db</code></p>
+              <p>Images: <code>storage/images/</code></p>
+              <p>Videos: <code>storage/videos/</code></p>
+              <p>Landmarks: <code>storage/landmarks/</code></p>
+              <p>3D Models: <code>storage/models/</code></p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="mt-auto border-t border-outline-variant bg-surface-container-low py-6 px-container-padding-mobile md:px-gutter flex flex-col md:flex-row justify-between items-center gap-4 text-on-surface-variant">
+      <div class="font-label-sm text-label-sm text-center md:text-left">
+        &copy; 2024 Indian Sign Language Research and Training Centre &bull; Production System
+      </div>
+      <div class="flex gap-6 font-label-sm text-label-sm">
+        <a class="hover:text-primary transition-colors" href="/docs" target="_blank">FastAPI Swagger Docs</a>
+        <a class="hover:text-primary transition-colors" href="#" onclick="app.navigateTo('settings')">Settings</a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: ADD NEW GESTURE (REAL SQLITE CREATION)          -->
+  <!-- ======================================================= -->
+  <div id="add-gesture-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-2xl w-full p-6 md:p-8 shadow-2xl relative">
+      <button id="btn-close-add-gesture" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant">
+        <span class="material-symbols-outlined text-[22px]">close</span>
+      </button>
+
+      <h2 class="text-2xl font-bold text-on-background mb-1">Add New Gesture</h2>
+      <p class="text-xs text-on-surface-variant mb-6">Creates a persistent record in SQLite database.</p>
+
+      <form id="form-create-gesture" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs font-mono uppercase text-outline mb-1">Gesture ID (Key) *</label>
+            <input id="input-gesture-id" type="text" required placeholder="e.g. hello, water" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono">
+          </div>
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="block text-xs font-mono uppercase text-outline">Gesture Name (English) *</label>
+              <span id="translate-status" class="text-[11px] text-primary font-mono hidden">Auto-translating...</span>
+            </div>
+            <input id="input-gesture-name" type="text" required placeholder="e.g. Hello, Water, Thank you" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+          </div>
+          <div>
+            <div class="flex justify-between items-center mb-1">
+              <label class="block text-xs font-mono uppercase text-outline">Kannada Meaning</label>
+              <button type="button" id="btn-manual-translate" class="text-[11px] text-primary hover:underline flex items-center gap-1 font-mono">
+                <span class="material-symbols-outlined text-[14px]">translate</span> Auto-Translate
+              </button>
+            </div>
+            <input id="input-gesture-kannada" type="text" placeholder="Auto-populated or type manually (e.g. ನಮಸ್ಕಾರ)" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-tertiary">
+          </div>
+          <div>
+            <label class="block text-xs font-mono uppercase text-outline mb-1">Gesture Type *</label>
+            <select id="input-gesture-type" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+              <option value="STATIC">STATIC (Single Hand Pose)</option>
+              <option value="DYNAMIC">DYNAMIC (Movement Sequence)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-mono uppercase text-outline mb-1">Hand Count</label>
+            <select id="input-gesture-hands" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+              <option value="ONE_HAND">ONE_HAND</option>
+              <option value="TWO_HANDS">TWO_HANDS</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Description</label>
+          <textarea id="input-gesture-desc" rows="2" placeholder="Sign instructions..." class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background"></textarea>
+        </div>
+        <div class="flex justify-end gap-3 pt-4 border-t border-[#334155]">
+          <button type="submit" class="btn-primary px-6 py-2.5 rounded font-medium text-xs">
+            Save Gesture to Database
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: GESTURE DETAILS & SAMPLES TREE                  -->
+  <!-- ======================================================= -->
+  <div id="gesture-details-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-4xl w-full p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+      <button onclick="app.closeGestureDetails()" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant">
+        <span class="material-symbols-outlined text-[22px]">close</span>
+      </button>
+
+      <div class="flex items-baseline gap-3 mb-2">
+        <h2 id="details-name" class="text-3xl font-bold text-on-background">Water</h2>
+        <span id="details-kannada" class="text-2xl text-tertiary font-medium">ನೀರು</span>
+      </div>
+      <div class="flex items-center gap-2 mb-4">
+        <span id="details-type-badge" class="px-2.5 py-0.5 rounded text-xs font-mono bg-blue-950 text-blue-300">STATIC</span>
+        <span id="details-hands-badge" class="px-2.5 py-0.5 rounded text-xs font-mono bg-surface-container-high text-outline">ONE_HAND</span>
+        <span id="details-verified-badge" class="px-2.5 py-0.5 rounded text-xs font-mono bg-emerald-950 text-emerald-400">VERIFIED</span>
+      </div>
+
+      <div class="flex border-b border-[#334155] mb-4">
+        <button id="tab-btn-overview" onclick="app.switchDetailsTab('overview')" class="py-2 px-5 font-medium text-sm border-b-2 border-primary text-primary">Overview</button>
+        <button id="tab-btn-dataset" onclick="app.switchDetailsTab('dataset')" class="py-2 px-5 font-medium text-sm text-on-surface-variant hover:text-on-background">Dataset Samples</button>
+        <button id="tab-btn-3d" onclick="app.switchDetailsTab('3d')" class="py-2 px-5 font-medium text-sm text-on-surface-variant hover:text-on-background">3D Hand</button>
+      </div>
+
+      <!-- Tab: Overview -->
+      <div id="tab-content-overview" class="space-y-4">
+        <p id="details-desc" class="text-sm text-on-background p-3 rounded bg-surface-container-lowest"></p>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
+          <div class="p-3 bg-surface-container-lowest rounded">
+            <span class="text-xs text-outline">Total Samples</span>
+            <div id="details-stat-samples" class="text-xl font-bold text-on-background mt-1">0</div>
+          </div>
+          <div class="p-3 bg-surface-container-lowest rounded">
+            <span class="text-xs text-outline">Total Signers</span>
+            <div id="details-stat-signers" class="text-xl font-bold text-on-background mt-1">0</div>
+          </div>
+          <div class="p-3 bg-surface-container-lowest rounded">
+            <span class="text-xs text-outline">3D Asset Ref</span>
+            <div id="details-model-ref" class="text-xs font-mono text-primary mt-2 truncate">Standard 21-Rig</div>
+          </div>
+          <div class="p-3 bg-surface-container-lowest rounded">
+            <span class="text-xs text-outline">Status</span>
+            <div id="details-model-status" class="text-xs font-semibold text-emerald-400 mt-2">Active</div>
+          </div>
+        </div>
+
+        <!-- Dataset Quality & Readiness Audit Card (#21) -->
+        <div class="p-4 rounded-lg bg-surface-container-lowest border border-outline-variant/30 space-y-3">
+          <div class="flex justify-between items-center">
+            <h4 class="text-xs font-mono uppercase text-outline font-semibold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px] text-primary">verified</span>
+              <span>Dataset Quality &amp; ML Training Audit</span>
+            </h4>
+            <span id="details-quality-badge" class="px-2 py-0.5 rounded text-[11px] font-mono bg-blue-950 text-blue-300 border border-blue-800">AUDITING...</span>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono">
+            <div class="p-2 rounded bg-surface-container">
+              <span class="text-outline block text-[10px]">TARGET SAMPLES</span>
+              <span id="details-quality-target" class="text-on-background font-bold">100</span>
+            </div>
+            <div class="p-2 rounded bg-surface-container">
+              <span class="text-outline block text-[10px]">VALID SAMPLES</span>
+              <span id="details-quality-valid" class="text-emerald-400 font-bold">0</span>
+            </div>
+            <div class="p-2 rounded bg-surface-container">
+              <span class="text-outline block text-[10px]">LOW CONFIDENCE</span>
+              <span id="details-quality-rejected" class="text-amber-400 font-bold">0</span>
+            </div>
+            <div class="p-2 rounded bg-surface-container">
+              <span class="text-outline block text-[10px]">COMPLETION</span>
+              <span id="details-quality-pct" class="text-primary font-bold">0%</span>
+            </div>
+          </div>
+
+          <div class="w-full h-2 rounded-full bg-surface-container overflow-hidden">
+            <div id="details-quality-bar" class="h-full bg-gradient-to-r from-indigo-500 to-emerald-400" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Gesture Danger Zone / Delete -->
+        <div class="pt-4 border-t border-[#334155] flex justify-between items-center">
+          <span class="text-xs text-outline">Manage Gesture Lifecycle</span>
+          <button id="btn-delete-gesture-modal" class="px-3 py-1.5 rounded bg-rose-950/60 hover:bg-rose-900 text-rose-300 border border-rose-800/80 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer">
+            <span class="material-symbols-outlined text-[16px]">delete</span>
+            <span>Delete Gesture &amp; Samples</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Tab: Dataset Samples Tree -->
+      <div id="tab-content-dataset" class="hidden space-y-4">
+        <div id="details-signers-tree" class="space-y-3"></div>
+      </div>
+
+      <!-- Tab: 3D Viewport -->
+      <div id="tab-content-3d" class="hidden space-y-3">
+        <div id="details-3d-viewport" class="h-80 rounded three-canvas-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: SAMPLE INSPECTOR (REAL MEDIA & LANDMARKS)       -->
+  <!-- ======================================================= -->
+  <div id="sample-inspector-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-4xl w-full p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+      <button onclick="app.closeSampleInspector()" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant">
+        <span class="material-symbols-outlined text-[22px]">close</span>
+      </button>
+
+      <div class="flex items-center gap-3 mb-4">
+        <span class="text-xs font-mono px-2 py-0.5 rounded bg-primary/20 text-primary">SAMPLE INSPECT</span>
+        <h3 id="inspect-sample-id" class="font-bold text-xl text-on-background font-mono">smp_001</h3>
+      </div>
+
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-outline mb-4">
+        <div>Gesture: <strong id="inspect-gesture" class="text-on-background"></strong></div>
+        <div>Signer: <strong id="inspect-signer" class="text-primary font-mono"></strong></div>
+        <div>Confidence: <strong id="inspect-conf" class="text-emerald-400 font-mono"></strong></div>
+        <div>Frames: <strong id="inspect-frames" class="text-on-background font-mono"></strong></div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div>
+          <p class="text-xs text-outline mb-1">Stored Media</p>
+          <div id="inspect-media-container" class="h-64 rounded bg-surface-container-lowest overflow-hidden border border-outline-variant/30 flex items-center justify-center"></div>
+        </div>
+        <div>
+          <p class="text-xs text-outline mb-1">3D Articulated Pose</p>
+          <div id="inspect-3d-viewport" class="h-64 rounded three-canvas-container"></div>
+        </div>
+      </div>
+
+      <div>
+        <p class="text-xs text-outline mb-1">Stored 21-Point Landmark JSON</p>
+        <pre id="inspect-raw-json" class="h-40 overflow-y-auto p-3 rounded bg-surface-container-lowest font-mono text-[11px] text-primary border border-outline-variant/30"></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- Root Application JS Module -->
+  <script type="module" src="app.js"></script>
+</body>
+</html>

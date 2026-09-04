@@ -1,0 +1,82 @@
+﻿/* Custom styles for ISL Dataset Collector */
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b1326;
+}
+::-webkit-scrollbar-thumb {
+  background: #2d3449;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #464554;
+}
+
+/* 3D Viewport container */
+.three-canvas-container {
+  position: relative;
+  background: radial-gradient(circle at center, #1b243b 0%, #0c1324 100%);
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+}
+
+.three-canvas-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Landmark overlay canvas */
+.landmark-overlay-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Skeleton joint points glow */
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px #6366F1);
+  }
+  50% {
+    filter: drop-shadow(0 0 8px #c0c1ff);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+/* Stepper transitions */
+.step-item.active .step-indicator {
+  border-color: #c0c1ff;
+  background-color: #2f3aa3;
+  color: #c0c1ff;
+}
+
+.step-item.completed .step-indicator {
+  border-color: #10b981;
+  background-color: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+/* Modal backdrop blur */
+.modal-backdrop {
+  background-color: rgba(6, 14, 32, 0.75);
+  backdrop-filter: blur(8px);
+}
+
+/* Custom range slider for timeline */
+input[type="range"] {
+  accent-color: #6366f1;
+}

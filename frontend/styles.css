@@ -1,0 +1,119 @@
+/* Prevent horizontal viewport overflow across all resolutions */
+html, body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+
+/* Sidebar layout responsive fix */
+@media (min-width: 768px) {
+  .md\:ml-sidebar {
+    margin-left: 260px !important;
+    width: calc(100% - 260px) !important;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0b1326;
+}
+::-webkit-scrollbar-thumb {
+  background: #2d3449;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #464554;
+}
+
+/* 3D Viewport container */
+.three-canvas-container {
+  position: relative;
+  background: radial-gradient(circle at center, #1b243b 0%, #0c1324 100%);
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.6);
+}
+
+.three-canvas-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+/* Landmark overlay canvas */
+.landmark-overlay-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+}
+
+/* Skeleton joint points glow */
+@keyframes pulseGlow {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px #6366F1);
+  }
+  50% {
+    filter: drop-shadow(0 0 8px #c0c1ff);
+  }
+}
+
+.pulse-glow {
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+/* Modal backdrop blur */
+.modal-backdrop {
+  background-color: rgba(6, 14, 32, 0.85);
+  backdrop-filter: blur(10px);
+}
+
+/* Custom range slider for timeline */
+input[type="range"] {
+  accent-color: #6366f1;
+}
+
+.stat-card {
+  background-color: #1E293B;
+  border: 1px solid #334155;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  transition: border-color 0.2s ease-in-out;
+}
+.stat-card:hover {
+  border-color: #475569;
+}
+.data-table-row {
+  border-bottom: 1px solid #334155;
+}
+.data-table-row:last-child {
+  border-bottom: none;
+}
+.btn-primary {
+  background-color: #6366F1;
+  color: white;
+  transition: background-color 0.2s ease-in-out;
+}
+.btn-primary:hover {
+  background-color: #4f46e5;
+}
+.status-badge-success {
+  background-color: rgba(99, 102, 241, 0.1);
+  color: #6366F1;
+}
+.status-badge-review {
+  background-color: rgba(217, 119, 33, 0.1);
+  color: #d97721;
+}
