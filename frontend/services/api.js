@@ -1,9 +1,9 @@
 /**
- * API Service for communicating with Python FastAPI backend
+ * API Service for Centralized Remote ISL Dataset Collector
  */
 
-// Dynamically determine backend URL (uses same host or fallback to :8000)
-const API_BASE_URL = window.location.origin.includes(":8000") || window.location.origin.includes(":5173")
+// Dynamically determine backend URL (uses current remote origin or fallback to local port 8000)
+const API_BASE_URL = (typeof window !== "undefined" && window.location.origin && window.location.origin.startsWith("http"))
   ? (window.location.origin.includes(":5173") ? "http://localhost:8000" : window.location.origin)
   : "http://localhost:8000";
 
@@ -40,6 +40,10 @@ class ApiService {
     return await this.fetchJson(`/api/gestures/${gestureId}`);
   }
 
+  async getGestureDataset(gestureId) {
+    return await this.fetchJson(`/api/gestures/${gestureId}/dataset`);
+  }
+
   async createGesture(data) {
     return await this.fetchJson("/api/gestures", {
       method: "POST",
@@ -58,6 +62,55 @@ class ApiService {
 
   async deleteGesture(gestureId) {
     return await this.fetchJson(`/api/gestures/${gestureId}`, {
+      method: "DELETE"
+    });
+  }
+
+  // Signers
+  async getSigners() {
+    return await this.fetchJson("/api/signers");
+  }
+
+  async createSigner(data) {
+    return await this.fetchJson("/api/signers", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+  }
+
+  async getSigner(signerId) {
+    return await this.fetchJson(`/api/signers/${signerId}`);
+  }
+
+  async getSignerDataset(signerId) {
+    return await this.fetchJson(`/api/signers/${signerId}/dataset`);
+  }
+
+  // Assignments
+  async getAssignments(filters = {}) {
+    const params = new URLSearchParams();
+    if (filters.signer_id) params.append("signer_id", filters.signer_id);
+    if (filters.gesture_id) params.append("gesture_id", filters.gesture_id);
+    if (filters.status) params.append("status", filters.status);
+    const qs = params.toString() ? `?${params.toString()}` : "";
+    return await this.fetchJson(`/api/assignments${qs}`);
+  }
+
+  async createAssignment(data) {
+    return await this.fetchJson("/api/assignments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+  }
+
+  async getAssignmentProgress(assignmentId) {
+    return await this.fetchJson(`/api/assignments/${assignmentId}/progress`);
+  }
+
+  async deleteAssignment(assignmentId) {
+    return await this.fetchJson(`/api/assignments/${assignmentId}`, {
       method: "DELETE"
     });
   }

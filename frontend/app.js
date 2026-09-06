@@ -23,6 +23,7 @@ class App {
     // Collection state
     this.selectedGestureId = "";
     this.selectedSignerId = "S001";
+    this.activeSignerId = localStorage.getItem("isl_active_signer") || "S001";
     this.collectionType = "STATIC"; // STATIC or DYNAMIC
     this.staticMethod = "webcam";   // webcam or upload
     this.dynamicMethod = "record";  // record or upload
@@ -35,8 +36,104 @@ class App {
   async init() {
     this.bindNavigation();
     this.bindActionButtons();
+    this.bindSignerSelection();
+    this.setupNetworkListeners();
+    await this.populateSignerDropdowns();
     await this.loadDashboard();
     await this.refreshGesturesList();
+  }
+
+  // ==========================================
+  // NETWORK & OFFLINE RESILIENCE
+  // ==========================================
+  setupNetworkListeners() {
+    const banner = document.getElementById("offline-alert-banner");
+    window.addEventListener("online", () => {
+      if (banner) banner.classList.add("hidden");
+    });
+    window.addEventListener("offline", () => {
+      if (banner) banner.classList.remove("hidden");
+      if (this.tracker._isAutoCollecting && !this.tracker._autoPaused) {
+        this.pauseAutoCollection();
+      }
+    });
+  }
+
+  // ==========================================
+  // SIGNER ROSTER & SELECTION SYNC
+  // ==========================================
+  async populateSignerDropdowns() {
+    try {
+      const signers = await api.getSigners();
+      const globalSelect = document.getElementById("global-active-signer-select");
+      const assignSignerSelect = document.getElementById("input-assign-signer");
+
+      if (globalSelect) {
+        globalSelect.innerHTML = "";
+        signers.forEach((s) => {
+          const opt = document.createElement("option");
+          opt.value = s.signer_id;
+          opt.textContent = `${s.signer_id} (${s.display_name})`;
+          if (s.signer_id === this.activeSignerId) opt.selected = true;
+          globalSelect.appendChild(opt);
+        });
+      }
+
+      if (assignSignerSelect) {
+        assignSignerSelect.innerHTML = "";
+        signers.forEach((s) => {
+          const opt = document.createElement("option");
+          opt.value = s.signer_id;
+          opt.textContent = `${s.signer_id} (${s.display_name})`;
+          assignSignerSelect.appendChild(opt);
+        });
+      }
+
+      const collectSignerInput = document.getElementById("collect-signer-input");
+      if (collectSignerInput) {
+        collectSignerInput.value = this.activeSignerId;
+      }
+      const mySignerBadge = document.getElementById("my-collection-signer-badge");
+      if (mySignerBadge) {
+        mySignerBadge.textContent = this.activeSignerId;
+      }
+    } catch (err) {
+      console.warn("Failed to populate signers dropdown:", err);
+    }
+  }
+
+  bindSignerSelection() {
+    const globalSelect = document.getElementById("global-active-signer-select");
+    globalSelect?.addEventListener("change", (e) => {
+      this.setActiveSigner(e.target.value);
+    });
+
+    const collectSignerInput = document.getElementById("collect-signer-input");
+    collectSignerInput?.addEventListener("change", (e) => {
+      this.setActiveSigner(e.target.value.trim().toUpperCase());
+    });
+  }
+
+  setActiveSigner(signerId) {
+    if (!signerId) return;
+    this.activeSignerId = signerId;
+    localStorage.setItem("isl_active_signer", signerId);
+
+    const globalSelect = document.getElementById("global-active-signer-select");
+    if (globalSelect && globalSelect.value !== signerId) {
+      globalSelect.value = signerId;
+    }
+    const collectSignerInput = document.getElementById("collect-signer-input");
+    if (collectSignerInput && collectSignerInput.value !== signerId) {
+      collectSignerInput.value = signerId;
+    }
+    const mySignerBadge = document.getElementById("my-collection-signer-badge");
+    if (mySignerBadge) {
+      mySignerBadge.textContent = signerId;
+    }
+    if (this.activeView === "my-collection") {
+      this.loadMyCollectionPage();
+    }
   }
 
   // ==========================================
@@ -59,7 +156,17 @@ class App {
     }
 
     this.activeView = viewName;
-    const views = ["dashboard", "gestures", "collection", "samples", "models", "readiness", "settings"];
+    const views = [
+      "dashboard",
+      "gestures",
+      "my-collection",
+      "team",
+      "collection",
+      "samples",
+      "models",
+      "readiness",
+      "settings"
+    ];
     views.forEach((v) => {
       const el = document.getElementById(`view-${v}`);
       if (el) {
@@ -86,6 +193,8 @@ class App {
     // Trigger view-specific data loading
     if (viewName === "dashboard") this.loadDashboard();
     else if (viewName === "gestures") this.loadGesturesPage();
+    else if (viewName === "my-collection") this.loadMyCollectionPage();
+    else if (viewName === "team") this.loadTeamPage();
     else if (viewName === "collection") this.setupCollectionPage();
     else if (viewName === "samples") this.loadSamplesPage();
     else if (viewName === "models") this.loadModelsPage();
@@ -104,6 +213,11 @@ class App {
       document.getElementById("stat-signers").textContent = stats.total_signers;
       document.getElementById("stat-static").textContent = stats.static_gestures;
       document.getElementById("stat-dynamic").textContent = stats.dynamic_gestures;
+
+      const completedEl = document.getElementById("stat-completed-assignments");
+      const pendingEl = document.getElementById("stat-pending-assignments");
+      if (completedEl) completedEl.textContent = stats.completed_assignments ?? 0;
+      if (pendingEl) pendingEl.textContent = stats.pending_assignments ?? 0;
 
       // Load recent samples table
       const samples = await api.getSamples();
@@ -280,12 +394,62 @@ class App {
         });
       }
 
-      // Calculate Dataset Quality Metrics (#21)
+      // Populate Signer Contribution Breakdown (# Strict 50/signer)
+      let breakdown = null;
+      try {
+        breakdown = await api.getGestureDataset(g.gesture_id);
+      } catch (err) {
+        console.warn("Could not load gesture dataset breakdown:", err);
+      }
+
+      const signersTbody = document.getElementById("details-gesture-signers-tbody");
+      if (signersTbody) {
+        signersTbody.innerHTML = "";
+        if (!breakdown || !breakdown.signers || breakdown.signers.length === 0) {
+          signersTbody.innerHTML = `<tr><td colspan="5" class="p-3 text-center text-outline">No signer contributions or assignments yet.</td></tr>`;
+        } else {
+          breakdown.signers.forEach((s) => {
+            const sTarget = s.target_samples || 50;
+            const sCollected = s.valid_samples !== undefined ? s.valid_samples : (s.collected_samples || 0);
+            const sPct = Math.min(100, Math.round((sCollected / (sTarget || 1)) * 100));
+            const sDone = sCollected >= sTarget || s.status === "COMPLETED";
+
+            const tr = document.createElement("tr");
+            tr.innerHTML = `
+              <td class="p-2 font-mono font-bold text-primary">
+                ${s.signer_id} <span class="text-xs text-outline">(${s.display_name})</span>
+              </td>
+              <td class="p-2 font-mono font-semibold">${sCollected}</td>
+              <td class="p-2 font-mono text-outline">${sTarget}</td>
+              <td class="p-2">
+                <div class="flex items-center gap-2">
+                  <div class="w-20 h-2 rounded-full bg-surface-container overflow-hidden">
+                    <div class="h-full ${sDone ? 'bg-emerald-400' : 'bg-primary'}" style="width: ${sPct}%"></div>
+                  </div>
+                  <span class="text-[10px] text-outline">${sPct}%</span>
+                </div>
+              </td>
+              <td class="p-2">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono ${
+                  sDone ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : (sCollected > 0 ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-surface-container-high text-outline')
+                }">${sDone ? 'COMPLETED' : (sCollected > 0 ? 'IN PROGRESS' : 'NOT STARTED')}</span>
+              </td>
+            `;
+            signersTbody.appendChild(tr);
+          });
+        }
+      }
+
+      // Calculate Dataset Quality Metrics
       this.detailsActiveGestureId = g.gesture_id;
-      const targetSamples = 100;
-      const validSamples = samples.filter(s => s.detection_confidence >= 0.70).length;
+      const targetSamples = (breakdown && breakdown.total_target_samples > 0)
+        ? breakdown.total_target_samples
+        : 50;
+      const validSamples = (breakdown && breakdown.valid_samples !== undefined)
+        ? breakdown.valid_samples
+        : samples.filter(s => s.detection_confidence >= 0.70).length;
       const lowConfSamples = samples.filter(s => s.detection_confidence < 0.70).length;
-      const pct = Math.min(100, Math.round((validSamples / targetSamples) * 100));
+      const pct = Math.min(100, Math.round((validSamples / (targetSamples || 1)) * 100));
 
       const qTarget = document.getElementById("details-quality-target");
       const qValid = document.getElementById("details-quality-valid");
@@ -345,10 +509,112 @@ class App {
 
     if (tab === "3d") {
       setTimeout(() => {
-        if (this.details3DViewer) this.details3DViewer.destroy();
-        this.details3DViewer = new ThreeHandViewer("details-3d-viewport");
+        this.loadDetails3DAnimation();
       }, 100);
     }
+  }
+
+  async loadDetails3DAnimation() {
+    if (this.details3DViewer) this.details3DViewer.destroy();
+    this.details3DViewer = new ThreeHandViewer("details-3d-viewport");
+
+    const sampleSelect = document.getElementById("details-3d-sample-select");
+    const timeLabel = document.getElementById("details-3d-time-label");
+    const durationLabel = document.getElementById("details-3d-duration-label");
+    const playPauseIcon = document.getElementById("icon-details-play-pause");
+
+    this.details3DViewer.onTimelineUpdate = (currentTime, duration) => {
+      if (timeLabel) timeLabel.textContent = `${currentTime.toFixed(1)}s`;
+      if (durationLabel) durationLabel.textContent = `${duration.toFixed(1)}s`;
+    };
+
+    try {
+      // Fetch all collected samples for this gesture
+      const samples = await api.getSamples({ gesture_id: this.detailsActiveGestureId });
+      if (!samples || samples.length === 0) {
+        if (sampleSelect) {
+          sampleSelect.innerHTML = `<option value="">No samples collected yet for this gesture</option>`;
+        }
+        return;
+      }
+
+      if (sampleSelect) {
+        sampleSelect.innerHTML = samples.map((s, idx) => `
+          <option value="${s.sample_id}">
+            Sample #${idx + 1} (${s.signer_id} - ${s.sample_type})
+          </option>
+        `).join("");
+
+        sampleSelect.onchange = (e) => {
+          this.loadSampleIntoDetails3D(e.target.value);
+        };
+      }
+
+      // Automatically load the first valid sample into the 3D animated viewer
+      const firstSample = samples[0];
+      await this.loadSampleIntoDetails3D(firstSample.sample_id);
+
+    } catch (err) {
+      console.warn("Could not load gesture samples into 3D viewer:", err);
+    }
+  }
+
+  async loadSampleIntoDetails3D(sampleId) {
+    if (!this.details3DViewer || !sampleId) return;
+    try {
+      const lmData = await api.getSampleLandmarks(sampleId);
+      if (!lmData) return;
+
+      if (lmData.type === "DYNAMIC" && Array.isArray(lmData.frames) && lmData.frames.length > 0) {
+        // Play temporal dynamic sequence on loop
+        const duration = lmData.duration || (lmData.frames.length / (lmData.fps || 30));
+        this.details3DViewer.loadDynamicSequence(lmData.frames, duration, lmData.fps || 30);
+        const icon = document.getElementById("icon-details-play-pause");
+        if (icon) icon.textContent = "pause";
+      } else if (Array.isArray(lmData.frames) && lmData.frames.length > 0) {
+        // Static with frame array
+        const frame = lmData.frames[0];
+        const lm = frame.right_hand_landmarks || frame.left_hand_landmarks || frame.landmarks;
+        if (lm) {
+          this.details3DViewer.applyLandmarks(lm);
+          this.details3DViewer.pause();
+        }
+      } else if (lmData.right_hand_landmarks || lmData.left_hand_landmarks || lmData.landmarks) {
+        // Direct landmarks object
+        const lm = lmData.right_hand_landmarks || lmData.left_hand_landmarks || lmData.landmarks;
+        this.details3DViewer.applyLandmarks(lm);
+        this.details3DViewer.pause();
+      }
+    } catch (err) {
+      console.error("Error loading sample landmarks into 3D viewer:", err);
+    }
+  }
+
+  toggleDetails3DPlayPause() {
+    if (!this.details3DViewer) return;
+    const icon = document.getElementById("icon-details-play-pause");
+    if (this.details3DViewer.isPlaying) {
+      this.details3DViewer.pause();
+      if (icon) icon.textContent = "play_arrow";
+    } else {
+      this.details3DViewer.play();
+      if (icon) icon.textContent = "pause";
+    }
+  }
+
+  resetDetails3DPlayback() {
+    if (!this.details3DViewer) return;
+    this.details3DViewer.reset();
+  }
+
+  setDetails3DSpeed(speed) {
+    if (!this.details3DViewer) return;
+    this.details3DViewer.setSpeed(speed);
+  }
+
+  setDetails3DView(preset) {
+    if (!this.details3DViewer) return;
+    this.details3DViewer.setView(preset);
   }
 
   quickCollectForSigner(gestureId, signerId) {
@@ -359,6 +625,353 @@ class App {
       document.getElementById("collect-signer-input").value = signerId;
       this.handleCollectionGestureChange();
     }, 200);
+  }
+
+  // ==========================================
+  // 2B. MY COLLECTION ASSIGNMENTS (Strict 50/signer)
+  // ==========================================
+  async loadMyCollectionPage() {
+    try {
+      await this.refreshGesturesList();
+      const mySignerBadge = document.getElementById("my-collection-signer-badge");
+      if (mySignerBadge) mySignerBadge.textContent = this.activeSignerId;
+
+      const [assignments, signerData] = await Promise.all([
+        api.getAssignments({ signer_id: this.activeSignerId }).catch(() => []),
+        api.getSignerDataset(this.activeSignerId).catch(() => null)
+      ]);
+
+      // Update summary metrics
+      const totalAssigned = assignments.length;
+      const completedAssignments = assignments.filter(a => a.status === "COMPLETED" || a.collected_samples >= a.target_samples).length;
+      const totalCollected = assignments.reduce((acc, a) => acc + (a.collected_samples || 0), 0);
+      const totalTarget = assignments.reduce((acc, a) => acc + (a.target_samples || 50), 0);
+
+      const statAssigned = document.getElementById("my-stat-assigned");
+      const statCompleted = document.getElementById("my-stat-completed");
+      const statSamples = document.getElementById("my-stat-samples");
+
+      if (statAssigned) statAssigned.textContent = totalAssigned;
+      if (statCompleted) statCompleted.textContent = completedAssignments;
+      if (statSamples) statSamples.textContent = `${totalCollected} / ${totalTarget || 50}`;
+
+      const container = document.getElementById("my-assignments-grid");
+      if (!container) return;
+      container.innerHTML = "";
+
+      if (assignments.length === 0) {
+        container.innerHTML = `
+          <div class="col-span-full stat-card text-center py-12 space-y-3">
+            <span class="material-symbols-outlined text-[48px] text-outline">assignment_late</span>
+            <h4 class="text-base font-bold text-on-background">No Collection Tasks Assigned to ${this.activeSignerId}</h4>
+            <p class="text-xs text-outline max-w-md mx-auto">
+              You currently have no gesture targets assigned. Ask your team lead to assign gestures or create an assignment in Team / Signers.
+            </p>
+            <button onclick="app.openAssignGestureModal(null, '${this.activeSignerId}')" class="btn-primary px-4 py-2 rounded text-xs font-medium inline-flex items-center gap-1.5 mt-2 cursor-pointer">
+              <span class="material-symbols-outlined text-[16px]">add</span> Assign Gesture to Myself
+            </button>
+          </div>
+        `;
+        return;
+      }
+
+      assignments.forEach((assignment) => {
+        const g = this.gestures.find(item => item.gesture_id === assignment.gesture_id) || {
+          name: assignment.gesture_id,
+          kannada_meaning: "",
+          gesture_type: "STATIC"
+        };
+
+        const target = assignment.target_samples || 50;
+        const collected = assignment.collected_samples || 0;
+        const remaining = Math.max(0, target - collected);
+        const isCompleted = collected >= target || assignment.status === "COMPLETED";
+        const pct = Math.min(100, Math.round((collected / (target || 1)) * 100));
+
+        const card = document.createElement("div");
+        card.className = `stat-card flex flex-col justify-between border transition-all ${
+          isCompleted ? "border-emerald-500/40 bg-emerald-950/10" : "hover:border-primary/60"
+        }`;
+
+        const statusBadge = isCompleted
+          ? `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800">COMPLETED (${target}/${target})</span>`
+          : (collected > 0
+            ? `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-amber-950 text-amber-300 border border-amber-800">IN PROGRESS</span>`
+            : `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container-high text-outline">NOT STARTED</span>`);
+
+        const actionBtn = isCompleted
+          ? `<div class="flex items-center gap-2">
+              <button class="flex-1 py-2 rounded bg-emerald-900/40 text-emerald-300 text-xs font-medium flex items-center justify-center gap-1 cursor-default">
+                <span class="material-symbols-outlined text-[16px]">check_circle</span> Goal Reached (50/50)
+              </button>
+              <button onclick="app.startAssignmentCollection('${assignment.gesture_id}', '${assignment.signer_id}', ${target})" class="px-3 py-2 rounded bg-surface-container-high text-primary hover:bg-surface-variant text-xs font-medium cursor-pointer">
+                Collect More
+              </button>
+            </div>`
+          : `<button onclick="app.startAssignmentCollection('${assignment.gesture_id}', '${assignment.signer_id}', ${target})" class="w-full btn-primary py-2.5 rounded font-medium text-xs flex items-center justify-center gap-1.5 shadow cursor-pointer">
+              <span class="material-symbols-outlined text-[16px]">${collected > 0 ? "play_arrow" : "video_call"}</span>
+              <span>${collected > 0 ? `Continue Collection (${collected}/${target})` : `Start Collection (${target})`}</span>
+            </button>`;
+
+        card.innerHTML = `
+          <div>
+            <div class="flex justify-between items-start mb-3">
+              <span class="text-xs px-2 py-0.5 rounded font-mono ${
+                g.gesture_type === 'STATIC' ? 'bg-blue-950 text-blue-300' : 'bg-purple-950 text-purple-300'
+              }">${g.gesture_type}</span>
+              ${statusBadge}
+            </div>
+
+            <div class="mb-4">
+              <div class="flex items-baseline gap-2">
+                <h3 class="font-bold text-lg text-on-background">${g.name}</h3>
+                <span class="text-tertiary font-medium text-sm">${g.kannada_meaning || ""}</span>
+              </div>
+              <p class="text-xs font-mono text-outline mt-0.5">Key: ${assignment.gesture_id}</p>
+            </div>
+
+            <div class="space-y-2 mb-6">
+              <div class="flex justify-between text-xs font-mono">
+                <span class="text-outline">Progress</span>
+                <span class="font-bold ${isCompleted ? 'text-emerald-400' : 'text-primary'}">${collected} / ${target} samples (${pct}%)</span>
+              </div>
+              <div class="w-full h-2.5 rounded-full bg-surface-container-lowest overflow-hidden border border-outline-variant/30">
+                <div class="h-full bg-gradient-to-r ${
+                  isCompleted ? 'from-emerald-500 to-emerald-400' : 'from-indigo-500 to-emerald-400'
+                }" style="width: ${pct}%"></div>
+              </div>
+              <div class="flex justify-between text-[11px] font-mono text-outline">
+                <span>Remaining: <strong class="${remaining === 0 ? 'text-emerald-400' : 'text-amber-300'}">${remaining}</strong></span>
+                <span>Signer: <strong>${assignment.signer_id}</strong></span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            ${actionBtn}
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+
+    } catch (err) {
+      console.error("Failed to load my collection page:", err);
+    }
+  }
+
+  startAssignmentCollection(gestureId, signerId, targetSamples = 50) {
+    this.setActiveSigner(signerId);
+    this.navigateTo("collection");
+    setTimeout(() => {
+      const gestureSelect = document.getElementById("collect-gesture-select");
+      const signerInput = document.getElementById("collect-signer-input");
+      const targetInput = document.getElementById("collect-target-samples-input");
+
+      if (gestureSelect) {
+        gestureSelect.value = gestureId;
+        this.handleCollectionGestureChange();
+      }
+      if (signerInput) signerInput.value = signerId;
+      if (targetInput) targetInput.value = targetSamples;
+    }, 250);
+  }
+
+  // ==========================================
+  // 2C. TEAM & SIGNERS ROSTER
+  // ==========================================
+  async loadTeamPage() {
+    try {
+      const [signers, assignments] = await Promise.all([
+        api.getSigners().catch(() => []),
+        api.getAssignments().catch(() => [])
+      ]);
+
+      const tbodySigners = document.getElementById("team-signers-tbody");
+      if (tbodySigners) {
+        tbodySigners.innerHTML = "";
+        if (signers.length === 0) {
+          tbodySigners.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-outline">No signers registered yet.</td></tr>`;
+        } else {
+          signers.forEach((s) => {
+            const signerAssignments = assignments.filter(a => a.signer_id === s.signer_id);
+            const assignedCount = signerAssignments.length;
+            const completedCount = signerAssignments.filter(a => a.status === "COMPLETED" || a.collected_samples >= a.target_samples).length;
+            const isActive = s.signer_id === this.activeSignerId;
+
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-surface-container-high/40 transition-colors";
+            tr.innerHTML = `
+              <td class="p-3 font-bold text-primary flex items-center gap-1.5">
+                ${isActive ? '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>' : ''}
+                <span>${s.signer_id}</span>
+              </td>
+              <td class="p-3 font-medium text-on-background">${s.display_name}</td>
+              <td class="p-3">
+                <span class="text-emerald-400 font-bold">${s.valid_samples}</span>
+                <span class="text-outline">/ ${s.total_samples}</span>
+              </td>
+              <td class="p-3">${assignedCount}</td>
+              <td class="p-3 text-emerald-400 font-semibold">${completedCount}</td>
+              <td class="p-3">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono ${
+                  s.enabled ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-surface-container-high text-outline'
+                }">${s.enabled ? 'ACTIVE' : 'DISABLED'}</span>
+              </td>
+              <td class="p-3 text-right">
+                <div class="flex items-center justify-end gap-2">
+                  ${!isActive ? `<button onclick="app.setActiveSigner('${s.signer_id}')" class="px-2 py-1 rounded bg-surface-container-high hover:bg-surface-variant text-[11px] text-primary cursor-pointer">Switch Active</button>` : '<span class="text-[11px] text-emerald-400 font-medium">Active</span>'}
+                  <button onclick="app.openAssignGestureModal(null, '${s.signer_id}')" class="px-2 py-1 rounded bg-primary/10 hover:bg-primary/20 text-[11px] text-primary cursor-pointer">+ Assign</button>
+                </div>
+              </td>
+            `;
+            tbodySigners.appendChild(tr);
+          });
+        }
+      }
+
+      const tbodyAssignments = document.getElementById("team-assignments-tbody");
+      if (tbodyAssignments) {
+        tbodyAssignments.innerHTML = "";
+        if (assignments.length === 0) {
+          tbodyAssignments.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-outline">No assignments created yet.</td></tr>`;
+        } else {
+          assignments.forEach((a) => {
+            const target = a.target_samples || 50;
+            const collected = a.collected_samples || 0;
+            const isDone = collected >= target || a.status === "COMPLETED";
+            const pct = Math.min(100, Math.round((collected / (target || 1)) * 100));
+
+            const tr = document.createElement("tr");
+            tr.className = "hover:bg-surface-container-high/40 transition-colors";
+            tr.innerHTML = `
+              <td class="p-3 font-bold text-primary font-mono">${a.signer_id}</td>
+              <td class="p-3 font-medium text-on-background">${a.gesture_id}</td>
+              <td class="p-3 font-mono">${target}</td>
+              <td class="p-3 font-mono font-bold ${isDone ? 'text-emerald-400' : 'text-on-background'}">${collected}</td>
+              <td class="p-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-24 h-2 rounded-full bg-surface-container overflow-hidden">
+                    <div class="h-full bg-gradient-to-r ${isDone ? 'from-emerald-500 to-emerald-400' : 'from-indigo-500 to-emerald-400'}" style="width: ${pct}%"></div>
+                  </div>
+                  <span class="text-[10px] font-mono text-outline">${pct}%</span>
+                </div>
+              </td>
+              <td class="p-3">
+                <span class="px-2 py-0.5 rounded text-[10px] font-mono ${
+                  isDone ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : (collected > 0 ? 'bg-amber-950 text-amber-300 border border-amber-800' : 'bg-surface-container-high text-outline')
+                }">${isDone ? 'COMPLETED' : (collected > 0 ? 'IN PROGRESS' : 'NOT STARTED')}</span>
+              </td>
+              <td class="p-3 text-right">
+                <button onclick="app.deleteAssignment(${a.id})" class="text-outline hover:text-rose-400 p-1 transition-colors cursor-pointer" title="Delete Assignment">
+                  <span class="material-symbols-outlined text-[16px]">delete</span>
+                </button>
+              </td>
+            `;
+            tbodyAssignments.appendChild(tr);
+          });
+        }
+      }
+
+    } catch (err) {
+      console.error("Failed to load team page:", err);
+    }
+  }
+
+  async deleteAssignment(assignmentId) {
+    if (!confirm("Are you sure you want to delete this collection assignment?")) return;
+    try {
+      await api.deleteAssignment(assignmentId);
+      await this.loadTeamPage();
+    } catch (err) {
+      alert("Failed to delete assignment: " + err.message);
+    }
+  }
+
+  // ==========================================
+  // SIGNER & ASSIGNMENT MODALS
+  // ==========================================
+  openAddSignerModal() {
+    document.getElementById("input-signer-id").value = "";
+    document.getElementById("input-signer-name").value = "";
+    document.getElementById("add-signer-modal")?.classList.remove("hidden");
+  }
+
+  closeAddSignerModal() {
+    document.getElementById("add-signer-modal")?.classList.add("hidden");
+  }
+
+  async submitAddSignerForm(e) {
+    e.preventDefault();
+    const signerId = document.getElementById("input-signer-id").value.trim().toUpperCase();
+    const displayName = document.getElementById("input-signer-name").value.trim();
+
+    if (!signerId || !displayName) {
+      alert("Please enter both Signer ID and Display Name.");
+      return;
+    }
+
+    try {
+      await api.createSigner({ signer_id: signerId, display_name: displayName, enabled: true });
+      this.closeAddSignerModal();
+      await this.populateSignerDropdowns();
+      if (this.activeView === "team") await this.loadTeamPage();
+      alert(`Signer ${signerId} (${displayName}) registered successfully!`);
+    } catch (err) {
+      alert("Failed to create signer: " + err.message);
+    }
+  }
+
+  async openAssignGestureModal(prefillGestureId = null, prefillSignerId = null) {
+    await this.refreshGesturesList();
+    await this.populateSignerDropdowns();
+
+    const gestureSelect = document.getElementById("input-assign-gesture");
+    if (gestureSelect) {
+      gestureSelect.innerHTML = "";
+      this.gestures.forEach((g) => {
+        const opt = document.createElement("option");
+        opt.value = g.gesture_id;
+        opt.textContent = `${g.name} (${g.gesture_type})`;
+        if (prefillGestureId && g.gesture_id === prefillGestureId) opt.selected = true;
+        gestureSelect.appendChild(opt);
+      });
+    }
+
+    const signerSelect = document.getElementById("input-assign-signer");
+    if (signerSelect && prefillSignerId) {
+      signerSelect.value = prefillSignerId;
+    }
+
+    const targetInput = document.getElementById("input-assign-target");
+    if (targetInput) targetInput.value = "50";
+
+    document.getElementById("assign-gesture-modal")?.classList.remove("hidden");
+  }
+
+  closeAssignGestureModal() {
+    document.getElementById("assign-gesture-modal")?.classList.add("hidden");
+  }
+
+  async submitAssignGestureForm(e) {
+    e.preventDefault();
+    const signerId = document.getElementById("input-assign-signer").value;
+    const gestureId = document.getElementById("input-assign-gesture").value;
+    const targetSamples = parseInt(document.getElementById("input-assign-target").value, 10) || 50;
+
+    try {
+      await api.createAssignment({
+        signer_id: signerId,
+        gesture_id: gestureId,
+        target_samples: targetSamples
+      });
+      this.closeAssignGestureModal();
+      if (this.activeView === "team") await this.loadTeamPage();
+      if (this.activeView === "my-collection") await this.loadMyCollectionPage();
+      alert(`Assignment created: ${signerId} assigned to ${gestureId} (Target: ${targetSamples})`);
+    } catch (err) {
+      alert("Failed to assign gesture: " + err.message);
+    }
   }
 
   // ==========================================
@@ -520,6 +1133,7 @@ class App {
       const formData = new FormData();
       formData.append("gesture_id", this.selectedGestureId);
       formData.append("signer_id", signerId);
+      formData.append("handedness", this.capturedStaticData.handedness || "RIGHT");
       formData.append("landmarks_json", JSON.stringify(this.capturedStaticData.landmarks));
       formData.append("image_base64", this.capturedStaticData.imageBase64);
       formData.append("confidence", this.capturedStaticData.confidence);
@@ -556,7 +1170,7 @@ class App {
   // ==========================================
   async startAutoCollection() {
     const targetInput = document.getElementById("collect-target-samples-input");
-    const target = parseInt(targetInput?.value, 10) || 100;
+    const target = parseInt(targetInput?.value, 10) || 50;
     const signerId = document.getElementById("collect-signer-input").value.trim() || "S001";
     const gestureId = this.selectedGestureId;
 
@@ -618,6 +1232,7 @@ class App {
           const formData = new FormData();
           formData.append("gesture_id", gestureId);
           formData.append("signer_id", signerId);
+          formData.append("handedness", frame.handedness || "RIGHT");
           formData.append("landmarks_json", JSON.stringify(frame.landmarks));
           formData.append("image_base64", frame.imageBase64);
           formData.append("confidence", frame.confidence);
@@ -807,6 +1422,7 @@ class App {
       const formData = new FormData();
       formData.append("gesture_id", this.selectedGestureId);
       formData.append("signer_id", signerId);
+      formData.append("handedness", this.recordedDynamicData.handedness || "RIGHT");
       formData.append("video", this.recordedDynamicData.videoBlob, `recording_${Date.now()}.webm`);
       formData.append("landmarks_sequence_json", JSON.stringify(this.recordedDynamicData.frames));
       formData.append("fps", this.recordedDynamicData.fps);
@@ -906,15 +1522,23 @@ class App {
       document.getElementById("inspect-raw-json").textContent = JSON.stringify(landmarksData, null, 2);
 
       // 3D Viewer for sample
-      if (!this.sampleInspect3DViewer) {
-        this.sampleInspect3DViewer = new ThreeHandViewer("inspect-3d-viewport");
-      }
-      if (landmarksData.frames && landmarksData.frames.length > 0) {
+      if (this.sampleInspect3DViewer) this.sampleInspect3DViewer.destroy();
+      this.sampleInspect3DViewer = new ThreeHandViewer("inspect-3d-viewport");
+
+      if (landmarksData.type === "DYNAMIC" && Array.isArray(landmarksData.frames) && landmarksData.frames.length > 0) {
+        const duration = landmarksData.duration || (landmarksData.frames.length / (landmarksData.fps || 30));
+        this.sampleInspect3DViewer.loadDynamicSequence(landmarksData.frames, duration, landmarksData.fps || 30);
+      } else if (landmarksData.frames && landmarksData.frames.length > 0) {
         const firstFrame = landmarksData.frames[0];
         const lm = (firstFrame.right_hand_landmarks && firstFrame.right_hand_landmarks.length === 21)
           ? firstFrame.right_hand_landmarks
-          : firstFrame.left_hand_landmarks;
+          : (firstFrame.left_hand_landmarks && firstFrame.left_hand_landmarks.length === 21)
+            ? firstFrame.left_hand_landmarks
+            : firstFrame.landmarks;
         if (lm) this.sampleInspect3DViewer.applyLandmarks(lm);
+      } else if (landmarksData.right_hand_landmarks || landmarksData.left_hand_landmarks || landmarksData.landmarks) {
+        const lm = landmarksData.right_hand_landmarks || landmarksData.left_hand_landmarks || landmarksData.landmarks;
+        this.sampleInspect3DViewer.applyLandmarks(lm);
       }
 
       document.getElementById("sample-inspector-modal").classList.remove("hidden");
@@ -1169,6 +1793,30 @@ class App {
     });
     document.getElementById("btn-close-add-gesture")?.addEventListener("click", () => {
       document.getElementById("add-gesture-modal").classList.add("hidden");
+    });
+
+    // Team Signers & Assignments modal triggers
+    document.getElementById("btn-open-add-signer-modal")?.addEventListener("click", () => {
+      this.openAddSignerModal();
+    });
+    document.getElementById("btn-close-add-signer")?.addEventListener("click", () => {
+      this.closeAddSignerModal();
+    });
+    document.getElementById("form-create-signer")?.addEventListener("submit", (e) => {
+      this.submitAddSignerForm(e);
+    });
+
+    document.getElementById("btn-open-assign-modal")?.addEventListener("click", () => {
+      this.openAssignGestureModal();
+    });
+    document.getElementById("btn-close-assign-gesture")?.addEventListener("click", () => {
+      this.closeAssignGestureModal();
+    });
+    document.getElementById("form-create-assignment")?.addEventListener("submit", (e) => {
+      this.submitAssignGestureForm(e);
+    });
+    document.getElementById("btn-details-assign-signer")?.addEventListener("click", () => {
+      this.openAssignGestureModal(this.detailsActiveGestureId);
     });
 
     // Kannada Auto-Translation triggers (#15)

@@ -11,7 +11,7 @@ from pathlib import Path
 BASE_URL = "http://127.0.0.1:8000"
 PROJECT_DIR = Path(__file__).resolve().parent.parent
 
-def test_request(method, endpoint, data=None, headers=None):
+def send_request(method, endpoint, data=None, headers=None):
     if headers is None:
         headers = {}
     url = f"{BASE_URL}{endpoint}"
@@ -44,24 +44,24 @@ def run_tests():
     print("=== STARTING UPGRADE VERIFICATION ===")
 
     # 1. Test frontend assets served
-    status, html = test_request("GET", "/")
+    status, html = send_request("GET", "/")
     assert status == 200 and "ISL Dataset Collector" in html, f"Failed root HTML: status={status}"
     print("[PASS] Frontend index.html served with ISL Dataset Collector")
 
-    status, js = test_request("GET", "/components/mediapipe_tracker.js")
+    status, js = send_request("GET", "/components/mediapipe_tracker.js")
     assert status == 200 and "startAutoCollection" in js, "mediapipe_tracker.js missing startAutoCollection"
     print("[PASS] mediapipe_tracker.js served with startAutoCollection")
 
-    status, three_js = test_request("GET", "/components/three_viewer.js")
+    status, three_js = send_request("GET", "/components/three_viewer.js")
     assert status == 200 and "buildArticulatedRig" in three_js and "clock" in three_js, "three_viewer.js missing skin rig or clock"
     print("[PASS] three_viewer.js served with skin rig and THREE.Clock")
 
     # 2. Create a test gesture
     test_gid = "upgrade_test_gesture"
     # Clean up first if exists
-    test_request("DELETE", f"/api/gestures/{test_gid}")
+    send_request("DELETE", f"/api/gestures/{test_gid}")
 
-    status, g_res = test_request("POST", "/api/gestures", {
+    status, g_res = send_request("POST", "/api/gestures", {
         "gesture_id": test_gid,
         "name": "Upgrade Test",
         "english_meaning": "Upgrade Test",
@@ -104,7 +104,7 @@ def run_tests():
     body_parts.append(f"--{boundary}--\r\n")
     form_data = "".join(body_parts).encode("utf-8")
 
-    status, smp = test_request("POST", "/api/samples/webcam-image", data=form_data, headers={
+    status, smp = send_request("POST", "/api/samples/webcam-image", data=form_data, headers={
         "Content-Type": f"multipart/form-data; boundary={boundary}"
     })
     assert status == 201, f"Failed to create sample: {status} {smp}"
@@ -117,14 +117,14 @@ def run_tests():
     print(f"[PASS] Sample '{sample_id}' created; disk files verified on filesystem")
 
     # 4. Delete the sample and verify disk files are purged (no orphan files)
-    status, del_res = test_request("DELETE", f"/api/samples/{sample_id}")
+    status, del_res = send_request("DELETE", f"/api/samples/{sample_id}")
     assert status == 200, f"Failed to delete sample: {status} {del_res}"
     assert not stored_path.exists(), f"Image file was NOT purged on sample delete: {stored_path}"
     assert not lm_path.exists(), f"Landmark file was NOT purged on sample delete: {lm_path}"
     print(f"[PASS] Sample '{sample_id}' deleted; associated files purged cleanly from disk")
 
     # 5. Test Cascade Deletion: create another sample under gesture, then delete gesture
-    status, smp2 = test_request("POST", "/api/samples/webcam-image", data=form_data, headers={
+    status, smp2 = send_request("POST", "/api/samples/webcam-image", data=form_data, headers={
         "Content-Type": f"multipart/form-data; boundary={boundary}"
     })
     assert status == 201
@@ -133,13 +133,13 @@ def run_tests():
     lm2_path = PROJECT_DIR / smp2["landmark_file_path"]
     assert stored2_path.exists() and lm2_path.exists()
 
-    status, del_g = test_request("DELETE", f"/api/gestures/{test_gid}")
+    status, del_g = send_request("DELETE", f"/api/gestures/{test_gid}")
     assert status == 200, f"Failed to delete gesture: {status} {del_g}"
     assert not stored2_path.exists(), f"Sample image file still exists after cascade delete: {stored2_path}"
     assert not lm2_path.exists(), f"Sample landmark file still exists after cascade delete: {lm2_path}"
     print(f"[PASS] Gesture '{test_gid}' cascade-deleted: sample and disk files purged")
 
-    print("\n[ALL 7 AUTOMATED UPGRADE CHECKS PASSED]")
+    print("\n[ALL AUTOMATED UPGRADE CHECKS PASSED]")
 
 if __name__ == "__main__":
     run_tests()

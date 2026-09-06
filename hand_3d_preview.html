@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ISL 3D Hand Model Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0d1524; color: #e2e8f0; font-family: 'Segoe UI', sans-serif; height: 100vh; display: flex; flex-direction: column; }
+    #header { padding: 14px 24px; background: #111827; border-bottom: 1px solid #1e293b; display: flex; align-items: center; gap: 16px; }
+    #header h1 { font-size: 1.1rem; color: #60a5fa; font-weight: 600; }
+    #header span { font-size: 0.82rem; color: #64748b; }
+    #viewer-wrap { flex: 1; position: relative; }
+    #hand-canvas { width: 100%; height: 100%; }
+    #controls { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+    #controls button { background: rgba(30,41,59,0.92); border: 1px solid #334155; color: #cbd5e1; padding: 7px 18px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; transition: background 0.2s; }
+    #controls button:hover { background: #1e40af; border-color: #3b82f6; color: #fff; }
+    #controls button.active { background: #1d4ed8; border-color: #60a5fa; color: #fff; }
+    #pose-label { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); background: rgba(15,23,42,0.85); border: 1px solid #1e293b; padding: 6px 20px; border-radius: 20px; font-size: 0.82rem; color: #94a3b8; white-space: nowrap; }
+    #info { position: absolute; top: 16px; right: 16px; background: rgba(15,23,42,0.85); border: 1px solid #1e293b; padding: 10px 14px; border-radius: 10px; font-size: 0.75rem; color: #64748b; line-height: 1.8; }
+  </style>
+</head>
+<body>
+<div id="header">
+  <h1>🖐 ISL 3D Hand Model</h1>
+  <span>Tapered Tube Geometry · Drag to rotate · Scroll to zoom</span>
+</div>
+<div id="viewer-wrap">
+  <div id="hand-canvas"></div>
+  <div id="pose-label">Pose: <span id="pose-name">Resting Hand</span></div>
+  <div id="info">🖱 Drag → Rotate<br>🖱 Scroll → Zoom<br>📷 Buttons → Change pose</div>
+  <div id="controls">
+    <button onclick="setPose('rest')"  class="active" id="btn-rest">🖐 Resting</button>
+    <button onclick="setPose('hello')" id="btn-hello">👋 Hello</button>
+    <button onclick="setPose('one')"   id="btn-one">☝ One</button>
+    <button onclick="setPose('peace')" id="btn-peace">✌ Peace</button>
+    <button onclick="setPose('fist')"  id="btn-fist">✊ Fist</button>
+    <button onclick="setPose('ok')"    id="btn-ok">👌 OK</button>
+    <button onclick="setPose('three')" id="btn-three">🤟 Three</button>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+const POSES = {
+  rest:[
+    {x:.50,y:.80,z:0},{x:.44,y:.73,z:.05},{x:.37,y:.63,z:.08},{x:.31,y:.55,z:.10},{x:.25,y:.47,z:.11},
+    {x:.44,y:.60,z:.03},{x:.42,y:.48,z:.04},{x:.40,y:.40,z:.05},{x:.39,y:.34,z:.06},
+    {x:.50,y:.59,z:.01},{x:.49,y:.46,z:.02},{x:.49,y:.38,z:.02},{x:.49,y:.32,z:.03},
+    {x:.56,y:.60,z:.00},{x:.56,y:.48,z:.01},{x:.56,y:.40,z:.02},{x:.56,y:.34,z:.02},
+    {x:.62,y:.63,z:-.02},{x:.64,y:.53,z:-.02},{x:.65,y:.46,z:-.01},{x:.67,y:.41,z:-.01}
+  ],
+  hello:[
+    {x:.50,y:.80,z:0},{x:.40,y:.72,z:.05},{x:.32,y:.61,z:.08},{x:.27,y:.51,z:.10},{x:.22,y:.42,z:.11},
+    {x:.44,y:.58,z:.03},{x:.41,y:.44,z:.04},{x:.39,y:.35,z:.05},{x:.38,y:.28,z:.06},
+    {x:.50,y:.57,z:.01},{x:.49,y:.42,z:.02},{x:.48,y:.33,z:.02},{x:.48,y:.26,z:.03},
+    {x:.57,y:.58,z:.00},{x:.57,y:.43,z:.01},{x:.57,y:.34,z:.01},{x:.57,y:.27,z:.02},
+    {x:.63,y:.61,z:-.02},{x:.65,y:.48,z:-.02},{x:.67,y:.40,z:-.01},{x:.68,y:.33,z:-.01}
+  ],
+  one:[
+    {x:.50,y:.80,z:0},{x:.40,y:.72,z:.05},{x:.33,y:.64,z:.08},{x:.28,y:.59,z:.09},{x:.24,y:.54,z:.10},
+    {x:.44,y:.58,z:.03},{x:.41,y:.44,z:.04},{x:.39,y:.35,z:.05},{x:.38,y:.27,z:.06},
+    {x:.50,y:.60,z:.01},{x:.50,y:.70,z:.01},{x:.50,y:.74,z:.01},{x:.50,y:.76,z:.01},
+    {x:.57,y:.61,z:.00},{x:.57,y:.70,z:.01},{x:.57,y:.74,z:.01},{x:.57,y:.76,z:.01},
+    {x:.63,y:.63,z:-.02},{x:.64,y:.70,z:-.02},{x:.65,y:.73,z:-.01},{x:.66,y:.75,z:-.01}
+  ],
+  peace:[
+    {x:.50,y:.80,z:0},{x:.40,y:.72,z:.05},{x:.33,y:.65,z:.08},{x:.28,y:.59,z:.09},{x:.24,y:.54,z:.10},
+    {x:.44,y:.58,z:.03},{x:.41,y:.44,z:.04},{x:.39,y:.35,z:.05},{x:.38,y:.28,z:.06},
+    {x:.50,y:.57,z:.01},{x:.49,y:.43,z:.02},{x:.48,y:.34,z:.02},{x:.48,y:.27,z:.03},
+    {x:.57,y:.61,z:.00},{x:.57,y:.70,z:.01},{x:.57,y:.73,z:.01},{x:.57,y:.75,z:.01},
+    {x:.63,y:.63,z:-.02},{x:.64,y:.70,z:-.02},{x:.65,y:.73,z:-.01},{x:.66,y:.75,z:-.01}
+  ],
+  fist:[
+    {x:.50,y:.80,z:0},{x:.40,y:.72,z:.05},{x:.36,y:.66,z:.07},{x:.32,y:.63,z:.08},{x:.29,y:.60,z:.08},
+    {x:.44,y:.60,z:.03},{x:.44,y:.70,z:.02},{x:.45,y:.73,z:.02},{x:.45,y:.75,z:.02},
+    {x:.50,y:.59,z:.01},{x:.50,y:.69,z:.01},{x:.51,y:.72,z:.01},{x:.51,y:.74,z:.01},
+    {x:.57,y:.60,z:.00},{x:.57,y:.69,z:.00},{x:.57,y:.72,z:.00},{x:.57,y:.74,z:.00},
+    {x:.63,y:.63,z:-.02},{x:.64,y:.70,z:-.01},{x:.65,y:.73,z:-.01},{x:.65,y:.74,z:-.01}
+  ],
+  ok:[
+    {x:.50,y:.80,z:0},{x:.42,y:.72,z:.05},{x:.36,y:.64,z:.07},{x:.32,y:.62,z:.07},{x:.36,y:.66,z:.06},
+    {x:.44,y:.60,z:.03},{x:.42,y:.68,z:.03},{x:.40,y:.72,z:.02},{x:.38,y:.74,z:.02},
+    {x:.50,y:.57,z:.01},{x:.49,y:.43,z:.02},{x:.48,y:.35,z:.02},{x:.48,y:.28,z:.03},
+    {x:.57,y:.58,z:.00},{x:.57,y:.44,z:.01},{x:.57,y:.36,z:.01},{x:.57,y:.29,z:.02},
+    {x:.63,y:.62,z:-.02},{x:.65,y:.49,z:-.02},{x:.67,y:.41,z:-.01},{x:.68,y:.35,z:-.01}
+  ],
+  three:[
+    {x:.50,y:.80,z:0},{x:.40,y:.72,z:.05},{x:.34,y:.65,z:.07},{x:.30,y:.62,z:.07},{x:.28,y:.58,z:.07},
+    {x:.44,y:.58,z:.03},{x:.41,y:.44,z:.04},{x:.39,y:.35,z:.05},{x:.38,y:.28,z:.06},
+    {x:.50,y:.57,z:.01},{x:.49,y:.43,z:.02},{x:.48,y:.34,z:.02},{x:.48,y:.27,z:.03},
+    {x:.57,y:.58,z:.00},{x:.57,y:.44,z:.01},{x:.57,y:.35,z:.01},{x:.57,y:.28,z:.02},
+    {x:.63,y:.63,z:-.02},{x:.64,y:.70,z:-.02},{x:.65,y:.73,z:-.01},{x:.66,y:.75,z:-.01}
+  ]
+};
+
+const container=document.getElementById('hand-canvas');
+const scene=new THREE.Scene(); scene.background=new THREE.Color(0x0d1524);
+const camera=new THREE.PerspectiveCamera(45,container.clientWidth/container.clientHeight,0.1,1000);
+camera.position.set(0,2,32);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(container.clientWidth,container.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+container.appendChild(renderer.domElement);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=0.06;
+controls.minDistance=10; controls.maxDistance=60;
+
+scene.add(new THREE.AmbientLight(0xfff4e8,0.8));
+const key=new THREE.DirectionalLight(0xfff0d8,2.2); key.position.set(15,30,20); key.castShadow=true; scene.add(key);
+const fill=new THREE.DirectionalLight(0xd0e4ff,0.8); fill.position.set(-20,5,-15); scene.add(fill);
+const rim=new THREE.DirectionalLight(0xffddcc,0.5); rim.position.set(0,-20,-10); scene.add(rim);
+const grid=new THREE.GridHelper(40,25,0x1e293b,0x151f30); grid.position.y=-10; scene.add(grid);
+
+const skinMat=new THREE.MeshStandardMaterial({color:0xd4956a,roughness:0.55,metalness:0,emissive:0x2e1309,emissiveIntensity:.10});
+const tipMat =new THREE.MeshStandardMaterial({color:0xe8bca2,roughness:0.30,metalness:.05,emissive:0x3d1b10,emissiveIntensity:.10});
+
+const handGroup=new THREE.Group(); scene.add(handGroup);
+const CHAINS=[
+  {i:[0,1,2,3,4],    r:[.80,.60,.46,.38,.28]},
+  {i:[0,5,6,7,8],    r:[.80,.58,.46,.38,.28]},
+  {i:[0,9,10,11,12], r:[.80,.60,.48,.40,.30]},
+  {i:[0,13,14,15,16],r:[.80,.56,.44,.36,.28]},
+  {i:[0,17,18,19,20],r:[.80,.48,.38,.30,.24]},
+];
+const PALM_LM=[0,1,5,9,13,17], PT=0.55;
+let segs=[], palmMesh=null, wristMesh=null;
+
+function toWorld(lms){
+  const w=lms[0],sc=15;
+  return lms.map(l=>new THREE.Vector3((l.x-w.x)*sc,-(l.y-w.y)*sc-1.5,-(l.z||0)*sc*1.3));
+}
+function tapSeg(p1,p2,rT,rB){
+  const d=p1.distanceTo(p2);
+  const g=new THREE.CylinderGeometry(rT,rB,d,14,3);
+  const dir=new THREE.Vector3().subVectors(p2,p1).normalize();
+  const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,1,0),dir);
+  const mid=new THREE.Vector3().addVectors(p1,p2).multiplyScalar(.5);
+  g.applyMatrix4(new THREE.Matrix4().compose(mid,q,new THREE.Vector3(1,1,1)));
+  return g;
+}
+function palmGeo(nodes){
+  const h=PT*.5,pos=[];
+  PALM_LM.forEach(i=>{const p=nodes[i]; pos.push(p.x,p.y,p.z+h);});
+  PALM_LM.forEach(i=>{const p=nodes[i]; pos.push(p.x,p.y,p.z-h);});
+  const fi=[0,1,2,0,2,3,0,3,4,0,4,5],bi=[6,8,7,6,9,8,6,10,9,6,11,10],si=[];
+  for(let i=0;i<5;i++) si.push(i,i+6,i+1,i+1,i+6,i+7);
+  si.push(0,5,6,6,5,11);
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(pos),3));
+  g.setIndex([...fi,...bi,...si]); g.computeVertexNormals(); return g;
+}
+
+const NAMES={rest:'Resting Hand',hello:'Hello (Wave)',one:'Number One ☝',peace:'Peace ✌',fist:'Fist ✊',ok:'OK 👌',three:'Three Fingers'};
+
+function setPose(name){
+  const nodes=toWorld(POSES[name]);
+  segs.forEach(s=>{handGroup.remove(s);s.geometry.dispose();});
+  segs=[];
+  if(palmMesh){handGroup.remove(palmMesh);palmMesh.geometry.dispose();palmMesh=null;}
+  if(wristMesh){handGroup.remove(wristMesh);wristMesh.geometry.dispose();wristMesh=null;}
+
+  CHAINS.forEach(c=>{
+    for(let s=0;s<c.i.length-1;s++){
+      const m=new THREE.Mesh(tapSeg(nodes[c.i[s]],nodes[c.i[s+1]],c.r[s],c.r[s+1]),(s===c.i.length-2)?tipMat:skinMat);
+      m.castShadow=m.receiveShadow=true; handGroup.add(m); segs.push(m);
+    }
+  });
+  palmMesh=new THREE.Mesh(palmGeo(nodes),skinMat);
+  palmMesh.castShadow=palmMesh.receiveShadow=true; handGroup.add(palmMesh);
+  wristMesh=new THREE.Mesh(new THREE.SphereGeometry(1.10,20,20),skinMat);
+  wristMesh.castShadow=wristMesh.receiveShadow=true;
+  wristMesh.position.copy(nodes[0]); handGroup.add(wristMesh);
+
+  document.getElementById('pose-name').textContent=NAMES[name]||name;
+  document.querySelectorAll('#controls button').forEach(b=>b.classList.remove('active'));
+  const btn=document.getElementById('btn-'+name); if(btn) btn.classList.add('active');
+}
+
+setPose('rest');
+
+window.addEventListener('resize',()=>{
+  const w=container.clientWidth,h=container.clientHeight;
+  camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h);
+});
+(function animate(){requestAnimationFrame(animate);controls.update();renderer.render(scene,camera);})();
+</script>
+</body>
+</html>

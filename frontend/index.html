@@ -129,6 +129,14 @@
         <span class="material-symbols-outlined">sign_language</span>
         <span class="font-body-md">Gestures</span>
       </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="my-collection">
+        <span class="material-symbols-outlined text-emerald-400">task_alt</span>
+        <span class="font-body-md font-semibold text-emerald-300">My Collection</span>
+      </a>
+      <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="team">
+        <span class="material-symbols-outlined text-purple-400">group</span>
+        <span class="font-body-md">Team / Signers</span>
+      </a>
       <a class="flex items-center gap-3 px-4 py-3 text-on-surface-variant hover:bg-surface-variant transition-colors duration-200 cursor-pointer active:scale-95" href="#" data-nav="collection">
         <span class="material-symbols-outlined">video_call</span>
         <span class="font-body-md font-semibold text-primary">Collect Dataset</span>
@@ -155,6 +163,12 @@
   <!-- Main Content Area -->
   <div class="flex-1 flex flex-col md:ml-sidebar w-full md:w-[calc(100%-spacing.sidebar-width)]">
     
+    <!-- Offline Alert Banner -->
+    <div id="offline-alert-banner" class="hidden fixed top-0 left-0 right-0 z-50 bg-rose-900 border-b border-rose-700 text-white text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2 shadow-lg">
+      <span class="material-symbols-outlined text-[16px] animate-spin">wifi_off</span>
+      <span>Connection lost. Upload paused. Reconnecting to central server...</span>
+    </div>
+
     <!-- TopAppBar -->
     <header class="flex justify-between items-center px-container-padding-mobile md:px-gutter py-4 sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-outline-variant shadow-sm md:shadow-none">
       <div class="flex items-center gap-4">
@@ -167,10 +181,22 @@
       </div>
       
       <div class="flex items-center gap-3">
-        <!-- Live Status Pill -->
+        <!-- Remote Signer Selector -->
+        <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant/40 text-xs font-label-sm">
+          <span class="text-outline">Active Signer:</span>
+          <select id="global-active-signer-select" class="bg-surface-container-lowest border border-outline-variant/40 rounded px-2 py-1 text-xs font-mono font-bold text-primary cursor-pointer">
+            <option value="S001">S001 (Team Lead)</option>
+            <option value="S002">S002</option>
+            <option value="S003">S003</option>
+            <option value="S004">S004</option>
+            <option value="S005">S005</option>
+          </select>
+        </div>
+
+        <!-- Central Live Status Pill -->
         <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container border border-outline-variant/40 text-xs font-label-sm">
           <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span class="text-on-surface-variant">FastAPI + MediaPipe: <strong class="text-emerald-400 font-semibold">Ready</strong></span>
+          <span class="text-on-surface-variant">Central Backend: <strong class="text-emerald-400 font-semibold">Online</strong></span>
         </div>
 
         <!-- Avatar Placeholder -->
@@ -209,8 +235,8 @@
           </div>
         </section>
 
-        <!-- Stats Bento Grid (Calculated from SQLite) -->
-        <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <!-- Stats Bento Grid (Calculated from DB) -->
+        <section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
           <div class="stat-card col-span-2 lg:col-span-2 flex flex-col justify-between">
             <div class="flex justify-between items-start mb-4">
               <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Total Gestures</span>
@@ -244,6 +270,25 @@
               <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Signers</span>
             </div>
             <div id="stat-signers" class="font-display-lg text-display-lg text-on-background">0</div>
+          </div>
+
+          <div class="col-span-2 md:col-span-3 lg:col-span-1 flex flex-col gap-4">
+            <div class="stat-card flex-1 flex flex-col justify-center px-4 py-3 bg-emerald-950/20 border-emerald-900/40">
+              <div class="font-label-sm text-label-sm uppercase text-emerald-300 tracking-wider mb-1 flex items-center justify-between">
+                <span>Completed</span>
+                <span class="material-symbols-outlined text-[14px]">task_alt</span>
+              </div>
+              <div id="stat-completed-assignments" class="font-headline-md text-headline-md text-on-background">0</div>
+              <span class="text-[10px] text-outline font-mono">Assignments</span>
+            </div>
+            <div class="stat-card flex-1 flex flex-col justify-center px-4 py-3 bg-amber-950/20 border-amber-900/40">
+              <div class="font-label-sm text-label-sm uppercase text-amber-300 tracking-wider mb-1 flex items-center justify-between">
+                <span>Pending</span>
+                <span class="material-symbols-outlined text-[14px]">pending</span>
+              </div>
+              <div id="stat-pending-assignments" class="font-headline-md text-headline-md text-on-background">0</div>
+              <span class="text-[10px] text-outline font-mono">Assignments</span>
+            </div>
           </div>
 
           <div class="col-span-2 md:col-span-3 lg:col-span-1 flex flex-col gap-4">
@@ -355,6 +400,129 @@
       </div>
 
       <!-- ============================================== -->
+      <!-- VIEW: MY COLLECTION ASSIGNMENTS               -->
+      <!-- ============================================== -->
+      <div id="view-my-collection" class="hidden flex flex-col gap-6">
+        <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-outline-variant/30 pb-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800">CENTRALIZED COLLECTION</span>
+              <span class="text-xs font-mono text-outline">Strict 50 Samples/Signer</span>
+            </div>
+            <h2 class="text-2xl font-bold text-on-background">My Collection Assignments</h2>
+            <p class="text-sm text-on-surface-variant">Collect strictly 50 valid samples per assigned sign to contribute to the central ISL dataset.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-surface-container border border-outline-variant/40">
+              <span class="text-xs font-mono text-outline">Viewing Signer:</span>
+              <span id="my-collection-signer-badge" class="font-mono font-bold text-primary text-sm">S001</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Signer Progress Summary Bar -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div class="stat-card p-4 flex flex-col justify-between">
+            <span class="text-xs uppercase font-label-sm text-outline">Assigned Signs</span>
+            <div id="my-stat-assigned" class="text-2xl font-bold text-on-background mt-1">0</div>
+          </div>
+          <div class="stat-card p-4 flex flex-col justify-between">
+            <span class="text-xs uppercase font-label-sm text-outline">Completed Signs</span>
+            <div id="my-stat-completed" class="text-2xl font-bold text-emerald-400 mt-1">0</div>
+          </div>
+          <div class="stat-card p-4 flex flex-col justify-between">
+            <span class="text-xs uppercase font-label-sm text-outline">Samples Collected</span>
+            <div id="my-stat-samples" class="text-2xl font-bold text-primary mt-1">0 / 0</div>
+          </div>
+          <div class="stat-card p-4 flex flex-col justify-between">
+            <span class="text-xs uppercase font-label-sm text-outline">Target Rule</span>
+            <div class="text-xs font-mono text-outline-variant mt-1">
+              <span class="text-emerald-300 font-bold">50 valid samples</span> per assigned sign
+            </div>
+          </div>
+        </div>
+
+        <!-- Assignments Grid -->
+        <div id="my-assignments-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Populated dynamically by app.js -->
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- VIEW: TEAM / SIGNERS MANAGEMENT                -->
+      <!-- ============================================== -->
+      <div id="view-team" class="hidden flex flex-col gap-6">
+        <div class="flex flex-col md:flex-row justify-between md:items-center gap-4 border-b border-outline-variant/30 pb-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="px-2 py-0.5 rounded text-[11px] font-mono bg-purple-950 text-purple-300 border border-purple-800">REMOTE TEAM ROSTER</span>
+              <span class="text-xs font-mono text-outline">Central Multi-Signer Coordination</span>
+            </div>
+            <h2 class="text-2xl font-bold text-on-background">Team Members &amp; Signer Allocations</h2>
+            <p class="text-sm text-on-surface-variant">Manage team signers and distribute 50-sample gesture collection targets.</p>
+          </div>
+          <div class="flex items-center gap-3">
+            <button id="btn-open-add-signer-modal" class="px-4 py-2 rounded bg-surface-container-high hover:bg-surface-variant border border-outline-variant/60 text-xs font-medium text-primary flex items-center gap-1.5 transition-colors cursor-pointer">
+              <span class="material-symbols-outlined text-[18px]">person_add</span>
+              <span>Add Signer</span>
+            </button>
+            <button id="btn-open-assign-modal" class="btn-primary px-4 py-2 rounded text-xs font-medium flex items-center gap-1.5 shadow cursor-pointer">
+              <span class="material-symbols-outlined text-[18px]">assignment_turned_in</span>
+              <span>Assign Gesture</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Team Signers Table -->
+        <div class="stat-card overflow-x-auto p-0">
+          <div class="p-4 border-b border-outline-variant/30 flex items-center justify-between">
+            <h3 class="font-bold text-sm text-on-background">Active Signers Roster</h3>
+            <span class="text-xs font-mono text-outline">Target: 50 samples / sign</span>
+          </div>
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-surface-container-lowest text-outline uppercase border-b border-outline-variant/20">
+              <tr>
+                <th class="p-3">Signer ID</th>
+                <th class="p-3">Display Name</th>
+                <th class="p-3">Samples (Valid / Total)</th>
+                <th class="p-3">Assigned Gestures</th>
+                <th class="p-3">Completed Gestures</th>
+                <th class="p-3">Status</th>
+                <th class="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="team-signers-tbody" class="divide-y divide-outline-variant/10 text-on-background">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- All Assignments Table -->
+        <div class="stat-card overflow-x-auto p-0">
+          <div class="p-4 border-b border-outline-variant/30 flex items-center justify-between">
+            <h3 class="font-bold text-sm text-on-background">All Collection Assignments</h3>
+            <span class="text-xs font-mono text-outline">Tracking 50 samples per signer per sign</span>
+          </div>
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-surface-container-lowest text-outline uppercase border-b border-outline-variant/20">
+              <tr>
+                <th class="p-3">Signer</th>
+                <th class="p-3">Gesture</th>
+                <th class="p-3">Target</th>
+                <th class="p-3">Collected</th>
+                <th class="p-3">Progress</th>
+                <th class="p-3">Status</th>
+                <th class="p-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="team-assignments-tbody" class="divide-y divide-outline-variant/10 text-on-background">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
       <!-- VIEW: COLLECT DATASET (STATIC & DYNAMIC)       -->
       <!-- ============================================== -->
       <div id="view-collection" class="hidden flex flex-col gap-6">
@@ -375,7 +543,7 @@
 
             <div>
               <label class="block text-xs font-mono uppercase text-outline mb-1">Target Samples</label>
-              <input id="collect-target-samples-input" type="number" min="5" max="1000" step="5" value="100" class="bg-surface-container-lowest border border-outline-variant/40 rounded p-2 text-sm text-on-background font-mono w-28">
+              <input id="collect-target-samples-input" type="number" min="5" max="1000" step="5" value="50" class="bg-surface-container-lowest border border-outline-variant/40 rounded p-2 text-sm text-on-background font-mono w-28">
             </div>
           </div>
 
@@ -410,7 +578,7 @@
                 <span id="auto-status-indicator" class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
                 <div>
                   <h4 class="font-bold text-sm text-on-background flex items-center gap-2">
-                    <span>Auto 100-Sample Collection in Progress</span>
+                    <span>Auto 50-Sample Collection in Progress</span>
                     <span id="auto-status-badge" class="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800">COLLECTING</span>
                   </h4>
                   <p class="text-xs text-outline">Natural movement variation auto-captured. Duplicate & low-confidence frames are auto-rejected.</p>
@@ -431,7 +599,7 @@
             <!-- Progress bar -->
             <div class="space-y-1">
               <div class="flex justify-between text-xs font-mono">
-                <span class="text-on-background">Progress: <strong id="auto-prog-count" class="text-primary">0 / 100</strong> samples</span>
+                <span class="text-on-background">Progress: <strong id="auto-prog-count" class="text-primary">0 / 50</strong> samples</span>
                 <span id="auto-prog-pct" class="text-emerald-400 font-bold">0%</span>
               </div>
               <div class="w-full h-3 rounded-full bg-surface-container-lowest overflow-hidden border border-outline-variant/30">
@@ -487,11 +655,11 @@
               </div>
 
               <div class="flex flex-wrap justify-between items-center gap-3">
-                <p class="text-xs text-outline">Position hand in frame. Use Auto-Collect to capture up to 100 varied samples automatically.</p>
+                <p class="text-xs text-outline">Position hand in frame. Use Auto-Collect to capture strictly 50 varied samples for central dataset.</p>
                 <div class="flex items-center gap-2">
                   <button id="btn-start-auto-collect" class="px-5 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs flex items-center gap-2 shadow-lg transition-all cursor-pointer">
                     <span class="material-symbols-outlined text-[18px]">auto_mode</span>
-                    <span>Start Auto-Collection (100)</span>
+                    <span>Start Auto-Collection (50)</span>
                   </button>
                   <button id="btn-capture-static" class="btn-primary px-4 py-2.5 rounded-lg font-medium text-xs flex items-center gap-1.5 shadow cursor-pointer">
                     <span class="material-symbols-outlined text-[18px]">camera</span>
@@ -1011,6 +1179,33 @@
           </div>
         </div>
 
+        <!-- Signer Breakdown Section (Strict 50/signer) -->
+        <div class="p-4 rounded-lg bg-surface-container-lowest border border-outline-variant/30 space-y-3">
+          <div class="flex justify-between items-center">
+            <h4 class="text-xs font-mono uppercase text-outline font-semibold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[16px] text-primary">group</span>
+              <span>Signer Contribution Breakdown (50 Samples / Signer Target)</span>
+            </h4>
+            <button type="button" id="btn-details-assign-signer" class="text-xs text-primary font-mono hover:underline flex items-center gap-1 cursor-pointer">
+              <span class="material-symbols-outlined text-[14px]">add</span> Assign to Signer
+            </button>
+          </div>
+          <table class="w-full text-left text-xs font-mono">
+            <thead class="bg-surface-container text-outline uppercase border-b border-outline-variant/20">
+              <tr>
+                <th class="p-2">Signer</th>
+                <th class="p-2">Samples</th>
+                <th class="p-2">Target</th>
+                <th class="p-2">Progress</th>
+                <th class="p-2">Status</th>
+              </tr>
+            </thead>
+            <tbody id="details-gesture-signers-tbody" class="divide-y divide-outline-variant/10 text-on-background">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+
         <!-- Gesture Danger Zone / Delete -->
         <div class="pt-4 border-t border-[#334155] flex justify-between items-center">
           <span class="text-xs text-outline">Manage Gesture Lifecycle</span>
@@ -1026,9 +1221,62 @@
         <div id="details-signers-tree" class="space-y-3"></div>
       </div>
 
-      <!-- Tab: 3D Viewport -->
+      <!-- Tab: 3D Animated Hand Viewport -->
       <div id="tab-content-3d" class="hidden space-y-3">
-        <div id="details-3d-viewport" class="h-80 rounded three-canvas-container"></div>
+        <!-- 3D Animation Header & Sample Picker -->
+        <div class="flex flex-wrap justify-between items-center gap-2 bg-surface-container-lowest p-3 rounded border border-outline-variant/30">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary text-[20px]">sign_language</span>
+            <div>
+              <h4 class="text-xs font-bold text-on-background uppercase tracking-wider">Realistic 3D Animated Hand Playback</h4>
+              <p class="text-[11px] text-outline">Displays this gesture's exact collected hand movement as intended for deaf users</p>
+            </div>
+          </div>
+          <div class="flex items-center gap-2">
+            <label for="details-3d-sample-select" class="text-xs text-outline font-mono">Sample:</label>
+            <select id="details-3d-sample-select" class="bg-surface-container text-xs px-2.5 py-1.5 rounded border border-outline-variant text-on-background font-mono focus:border-primary">
+              <option value="">Loading gesture samples...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- 3D Canvas -->
+        <div class="relative">
+          <div id="details-3d-viewport" class="h-80 sm:h-96 rounded-lg three-canvas-container border border-outline-variant/40"></div>
+          <!-- View angle overlay buttons -->
+          <div class="absolute top-3 right-3 flex items-center gap-1 bg-background/80 backdrop-blur p-1 rounded border border-outline-variant/30 z-10">
+            <button type="button" onclick="app.setDetails3DView('front')" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background font-mono">Front</button>
+            <button type="button" onclick="app.setDetails3DView('side')" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background font-mono">Side</button>
+            <button type="button" onclick="app.setDetails3DView('top')" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background font-mono">Top</button>
+            <button type="button" onclick="app.setDetails3DView('reset')" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-primary font-mono">Reset</button>
+          </div>
+        </div>
+
+        <!-- Playback Controller Bar -->
+        <div class="p-3 rounded bg-surface-container-lowest border border-outline-variant/30 flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2">
+            <button type="button" id="btn-details-play-pause" onclick="app.toggleDetails3DPlayPause()" class="p-2 rounded bg-primary/20 hover:bg-primary/30 text-primary flex items-center justify-center cursor-pointer transition-colors" title="Play / Pause">
+              <span class="material-symbols-outlined text-[20px]" id="icon-details-play-pause">pause</span>
+            </button>
+            <button type="button" id="btn-details-reset" onclick="app.resetDetails3DPlayback()" class="p-2 rounded bg-surface-container-high hover:bg-surface-variant text-outline hover:text-on-background flex items-center justify-center cursor-pointer transition-colors" title="Replay from start">
+              <span class="material-symbols-outlined text-[18px]">replay</span>
+            </button>
+            <div class="text-xs font-mono text-outline ml-1">
+              <span id="details-3d-time-label" class="text-on-background font-bold">0.0s</span>
+              <span>/</span>
+              <span id="details-3d-duration-label">0.0s</span>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <span class="text-xs text-outline font-mono">Speed:</span>
+            <div class="flex items-center gap-1">
+              <button type="button" onclick="app.setDetails3DSpeed(0.5)" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-outline font-mono">0.5x</button>
+              <button type="button" onclick="app.setDetails3DSpeed(1.0)" class="px-2 py-1 text-[11px] rounded bg-primary/20 text-primary font-bold font-mono">1.0x</button>
+              <button type="button" onclick="app.setDetails3DSpeed(1.5)" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-outline font-mono">1.5x</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1069,6 +1317,75 @@
         <p class="text-xs text-outline mb-1">Stored 21-Point Landmark JSON</p>
         <pre id="inspect-raw-json" class="h-40 overflow-y-auto p-3 rounded bg-surface-container-lowest font-mono text-[11px] text-primary border border-outline-variant/30"></pre>
       </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: ADD SIGNER                                      -->
+  <!-- ======================================================= -->
+  <div id="add-signer-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-md w-full p-6 md:p-8 shadow-2xl relative">
+      <button id="btn-close-add-signer" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant cursor-pointer">
+        <span class="material-symbols-outlined text-[22px]">close</span>
+      </button>
+
+      <h2 class="text-xl font-bold text-on-background mb-1">Add Team Member / Signer</h2>
+      <p class="text-xs text-on-surface-variant mb-6">Registers a new signer profile in the central database.</p>
+
+      <form id="form-create-signer" class="space-y-4">
+        <div>
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Signer ID (e.g. S006) *</label>
+          <input id="input-signer-id" type="text" required placeholder="S006" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono uppercase">
+        </div>
+        <div>
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Display Name *</label>
+          <input id="input-signer-name" type="text" required placeholder="e.g. Rahul Sharma" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+        </div>
+        <div class="flex justify-end gap-3 pt-4 border-t border-[#334155]">
+          <button type="submit" class="btn-primary px-6 py-2.5 rounded font-medium text-xs cursor-pointer">
+            Register Signer
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: ASSIGN GESTURE TO SIGNER                         -->
+  <!-- ======================================================= -->
+  <div id="assign-gesture-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-md w-full p-6 md:p-8 shadow-2xl relative">
+      <button id="btn-close-assign-gesture" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant cursor-pointer">
+        <span class="material-symbols-outlined text-[22px]">close</span>
+      </button>
+
+      <h2 class="text-xl font-bold text-on-background mb-1">Assign Gesture Target</h2>
+      <p class="text-xs text-on-surface-variant mb-6">Assigns a 50-sample collection task to a team member.</p>
+
+      <form id="form-create-assignment" class="space-y-4">
+        <div>
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Select Signer *</label>
+          <select id="input-assign-signer" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono" required>
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Select Gesture *</label>
+          <select id="input-assign-gesture" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background" required>
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Target Valid Samples</label>
+          <input id="input-assign-target" type="number" value="50" min="5" max="500" step="5" required class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono">
+          <span class="text-[11px] text-outline mt-1 block">Rule: Each signer collects strictly 50 valid samples.</span>
+        </div>
+        <div class="flex justify-end gap-3 pt-4 border-t border-[#334155]">
+          <button type="submit" class="btn-primary px-6 py-2.5 rounded font-medium text-xs cursor-pointer">
+            Create Assignment
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 

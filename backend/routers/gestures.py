@@ -6,8 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..database import get_db
-from ..models import Gesture, DatasetSample, ThreeDModel, LandmarkSequence
-from ..schemas import GestureCreate, GestureUpdate, GestureOut
+from ..models import Gesture, DatasetSample, ThreeDModel, LandmarkSequence, Signer, CollectionAssignment
+from ..schemas import GestureCreate, GestureUpdate, GestureOut, GestureDatasetBreakdownOut, GestureSignerStat
 from ..services.storage_service import delete_sample_files, delete_gesture_folder
 
 router = APIRouter(prefix="/api/gestures", tags=["gestures"])
@@ -47,7 +47,8 @@ def list_gestures(db: Session = Depends(get_db)):
 
 @router.post("", response_model=GestureOut, status_code=status.HTTP_201_CREATED)
 def create_gesture(gesture_in: GestureCreate, db: Session = Depends(get_db)):
-    existing = db.query(Gesture).filter(Gesture.gesture_id == gesture_in.gesture_id).first()
+    clean_id = gesture_in.gesture_id.strip().lower()
+    existing = db.query(Gesture).filter(Gesture.gesture_id == clean_id).first()
     if existing:
         raise HTTPException(
             status_code=400,
@@ -55,7 +56,7 @@ def create_gesture(gesture_in: GestureCreate, db: Session = Depends(get_db)):
         )
 
     db_gesture = Gesture(
-        gesture_id=gesture_in.gesture_id,
+        gesture_id=gesture_in.gesture_id.strip().lower(),
         name=gesture_in.name,
         english_meaning=gesture_in.english_meaning,
         kannada_meaning=gesture_in.kannada_meaning,
@@ -90,7 +91,8 @@ def create_gesture(gesture_in: GestureCreate, db: Session = Depends(get_db)):
 
 @router.get("/{gesture_id}", response_model=GestureOut)
 def get_gesture(gesture_id: str, db: Session = Depends(get_db)):
-    g = db.query(Gesture).filter(Gesture.gesture_id == gesture_id).first()
+    clean_id = gesture_id.strip().lower()
+    g = db.query(Gesture).filter(Gesture.gesture_id == clean_id).first()
     if not g:
         raise HTTPException(status_code=404, detail="Gesture not found")
 
@@ -121,7 +123,8 @@ def get_gesture(gesture_id: str, db: Session = Depends(get_db)):
 
 @router.put("/{gesture_id}", response_model=GestureOut)
 def update_gesture(gesture_id: str, update_in: GestureUpdate, db: Session = Depends(get_db)):
-    g = db.query(Gesture).filter(Gesture.gesture_id == gesture_id).first()
+    clean_id = gesture_id.strip().lower()
+    g = db.query(Gesture).filter(Gesture.gesture_id == clean_id).first()
     if not g:
         raise HTTPException(status_code=404, detail="Gesture not found")
 
@@ -131,7 +134,54 @@ def update_gesture(gesture_id: str, update_in: GestureUpdate, db: Session = Depe
 
     db.commit()
     db.refresh(g)
-    return get_gesture(gesture_id, db)
+    return get_gesture(clean_id, db)
+
+@router.get("/{gesture_id}/dataset", response_model=GestureDatasetBreakdownOut)
+def get_gesture_dataset(gesture_id: str, db: Session = Depends(get_db)):
+    clean_id = gesture_id.strip().lower()
+    g = db.query(Gesture).filter(Gesture.gesture_id == clean_id).first()
+    if not g:
+        raise HTTPException(status_code=404, detail=f"Gesture '{gesture_id}' not found.")
+
+    signer_ids_from_samples = [r[0] for r in db.query(DatasetSample.signer_id).filter(DatasetSample.gesture_id == clean_id).distinct().all()]
+    signer_ids_from_assignments = [r[0] for r in db.query(CollectionAssignment.signer_id).filter(CollectionAssignment.gesture_id == clean_id).distinct().all()]
+    all_signer_ids = sorted(list(set(signer_ids_from_samples + signer_ids_from_assignments)))
+
+    signers_stats = []
+    total_valid = 0
+    for sid in all_signer_ids:
+        signer_obj = db.query(Signer).filter(Signer.signer_id == sid).first()
+        valid_count = db.query(DatasetSample).filter(
+            DatasetSample.gesture_id == clean_id,
+            DatasetSample.signer_id == sid,
+            DatasetSample.detection_confidence >= 0.70
+        ).count()
+        total_valid += valid_count
+
+        assign = db.query(CollectionAssignment).filter(
+            CollectionAssignment.gesture_id == clean_id,
+            CollectionAssignment.signer_id == sid
+        ).first()
+        target = assign.target_samples if assign else 50
+        status_str = assign.status if assign else ("COMPLETED" if valid_count >= target else ("IN_PROGRESS" if valid_count > 0 else "NOT_STARTED"))
+
+        signers_stats.append(GestureSignerStat(
+            signer_id=sid,
+            signer_name=signer_obj.display_name if signer_obj else sid,
+            valid_samples=valid_count,
+            target_samples=target,
+            status=status_str
+        ))
+
+    return GestureDatasetBreakdownOut(
+        gesture_id=g.gesture_id,
+        name=g.name,
+        kannada_meaning=g.kannada_meaning,
+        gesture_type=g.gesture_type,
+        total_samples=total_valid,
+        unique_signers_count=len(all_signer_ids),
+        signers=signers_stats
+    )
 
 @router.delete("/{gesture_id}")
 def delete_gesture(gesture_id: str, db: Session = Depends(get_db)):
