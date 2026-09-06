@@ -1221,62 +1221,9 @@
         <div id="details-signers-tree" class="space-y-3"></div>
       </div>
 
-      <!-- Tab: 3D Animated Hand Viewport -->
+      <!-- Tab: 3D Viewport -->
       <div id="tab-content-3d" class="hidden space-y-3">
-        <!-- 3D Animation Header & Sample Picker -->
-        <div class="flex flex-wrap justify-between items-center gap-2 bg-surface-container-lowest p-3 rounded border border-outline-variant/30">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-primary text-[20px]">sign_language</span>
-            <div>
-              <h4 class="text-xs font-bold text-on-background uppercase tracking-wider">Realistic 3D Animated Hand Playback</h4>
-              <p class="text-[11px] text-outline">Displays this gesture's exact collected hand movement as intended for deaf users</p>
-            </div>
-          </div>
-          <div class="flex items-center gap-2">
-            <label for="details-3d-sample-select" class="text-xs text-outline font-mono">Sample:</label>
-            <select id="details-3d-sample-select" class="bg-surface-container text-xs px-2.5 py-1.5 rounded border border-outline-variant text-on-background font-mono focus:border-primary">
-              <option value="">Loading gesture samples...</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- 3D Canvas -->
-        <div class="relative">
-          <div id="details-3d-viewport" class="h-80 sm:h-96 rounded-lg three-canvas-container border border-outline-variant/40"></div>
-          <!-- View angle overlay buttons -->
-          <div class="absolute top-3 right-3 flex items-center gap-1 bg-background/80 backdrop-blur p-1 rounded border border-outline-variant/30 z-10">
-            <button type="button" onclick="app.setDetails3DView('front')" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background font-mono">Front</button>
-            <button type="button" onclick="app.setDetails3DView('side')" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background font-mono">Side</button>
-            <button type="button" onclick="app.setDetails3DView('top')" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background font-mono">Top</button>
-            <button type="button" onclick="app.setDetails3DView('reset')" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-primary font-mono">Reset</button>
-          </div>
-        </div>
-
-        <!-- Playback Controller Bar -->
-        <div class="p-3 rounded bg-surface-container-lowest border border-outline-variant/30 flex flex-wrap items-center justify-between gap-3">
-          <div class="flex items-center gap-2">
-            <button type="button" id="btn-details-play-pause" onclick="app.toggleDetails3DPlayPause()" class="p-2 rounded bg-primary/20 hover:bg-primary/30 text-primary flex items-center justify-center cursor-pointer transition-colors" title="Play / Pause">
-              <span class="material-symbols-outlined text-[20px]" id="icon-details-play-pause">pause</span>
-            </button>
-            <button type="button" id="btn-details-reset" onclick="app.resetDetails3DPlayback()" class="p-2 rounded bg-surface-container-high hover:bg-surface-variant text-outline hover:text-on-background flex items-center justify-center cursor-pointer transition-colors" title="Replay from start">
-              <span class="material-symbols-outlined text-[18px]">replay</span>
-            </button>
-            <div class="text-xs font-mono text-outline ml-1">
-              <span id="details-3d-time-label" class="text-on-background font-bold">0.0s</span>
-              <span>/</span>
-              <span id="details-3d-duration-label">0.0s</span>
-            </div>
-          </div>
-
-          <div class="flex items-center gap-3">
-            <span class="text-xs text-outline font-mono">Speed:</span>
-            <div class="flex items-center gap-1">
-              <button type="button" onclick="app.setDetails3DSpeed(0.5)" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-outline font-mono">0.5x</button>
-              <button type="button" onclick="app.setDetails3DSpeed(1.0)" class="px-2 py-1 text-[11px] rounded bg-primary/20 text-primary font-bold font-mono">1.0x</button>
-              <button type="button" onclick="app.setDetails3DSpeed(1.5)" class="px-2 py-1 text-[11px] rounded bg-surface-container hover:bg-surface-variant text-outline font-mono">1.5x</button>
-            </div>
-          </div>
-        </div>
+        <div id="details-3d-viewport" class="h-80 rounded three-canvas-container"></div>
       </div>
     </div>
   </div>

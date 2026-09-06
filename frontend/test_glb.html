@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Test Hand GLB</title>
+  <style>body { margin: 0; background: #111; overflow: hidden; }</style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+</head>
+<body>
+<script>
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x0e1726);
+
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.01, 100);
+  camera.position.set(0, 0, 0.35);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.shadowMap.enabled = true;
+  document.body.appendChild(renderer.domElement);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+
+  scene.add(new THREE.AmbientLight(0xfff0e6, 1.2));
+  const light = new THREE.DirectionalLight(0xffffff, 1.5);
+  light.position.set(1, 2, 1);
+  scene.add(light);
+  const fill = new THREE.DirectionalLight(0x88bbff, 0.8);
+  fill.position.set(-1, -1, -1);
+  scene.add(fill);
+
+  const loader = new THREE.GLTFLoader();
+  loader.load('assets/hand.glb', (gltf) => {
+    console.log("GLTF loaded:", gltf);
+    const model = gltf.scene;
+
+    model.traverse((child) => {
+      if (child.isMesh) {
+        child.material = new THREE.MeshStandardMaterial({
+          color: 0xd4956a,
+          roughness: 0.5,
+          metalness: 0.05,
+          emissive: 0x221008,
+          emissiveIntensity: 0.15
+        });
+        child.castShadow = true;
+        child.receiveShadow = true;
+      }
+    });
+
+    // Center model
+    const box = new THREE.Box3().setFromObject(model);
+    const center = box.getCenter(new THREE.Vector3());
+    model.position.sub(center);
+
+    scene.add(model);
+    console.log("Model added to scene. Center:", center, "Box size:", box.getSize(new THREE.Vector3()));
+  }, undefined, (err) => console.error("Load error:", err));
+
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+</script>
+</body>
+</html>

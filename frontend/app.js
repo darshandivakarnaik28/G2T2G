@@ -509,112 +509,10 @@ class App {
 
     if (tab === "3d") {
       setTimeout(() => {
-        this.loadDetails3DAnimation();
+        if (this.details3DViewer) this.details3DViewer.destroy();
+        this.details3DViewer = new ThreeHandViewer("details-3d-viewport");
       }, 100);
     }
-  }
-
-  async loadDetails3DAnimation() {
-    if (this.details3DViewer) this.details3DViewer.destroy();
-    this.details3DViewer = new ThreeHandViewer("details-3d-viewport");
-
-    const sampleSelect = document.getElementById("details-3d-sample-select");
-    const timeLabel = document.getElementById("details-3d-time-label");
-    const durationLabel = document.getElementById("details-3d-duration-label");
-    const playPauseIcon = document.getElementById("icon-details-play-pause");
-
-    this.details3DViewer.onTimelineUpdate = (currentTime, duration) => {
-      if (timeLabel) timeLabel.textContent = `${currentTime.toFixed(1)}s`;
-      if (durationLabel) durationLabel.textContent = `${duration.toFixed(1)}s`;
-    };
-
-    try {
-      // Fetch all collected samples for this gesture
-      const samples = await api.getSamples({ gesture_id: this.detailsActiveGestureId });
-      if (!samples || samples.length === 0) {
-        if (sampleSelect) {
-          sampleSelect.innerHTML = `<option value="">No samples collected yet for this gesture</option>`;
-        }
-        return;
-      }
-
-      if (sampleSelect) {
-        sampleSelect.innerHTML = samples.map((s, idx) => `
-          <option value="${s.sample_id}">
-            Sample #${idx + 1} (${s.signer_id} - ${s.sample_type})
-          </option>
-        `).join("");
-
-        sampleSelect.onchange = (e) => {
-          this.loadSampleIntoDetails3D(e.target.value);
-        };
-      }
-
-      // Automatically load the first valid sample into the 3D animated viewer
-      const firstSample = samples[0];
-      await this.loadSampleIntoDetails3D(firstSample.sample_id);
-
-    } catch (err) {
-      console.warn("Could not load gesture samples into 3D viewer:", err);
-    }
-  }
-
-  async loadSampleIntoDetails3D(sampleId) {
-    if (!this.details3DViewer || !sampleId) return;
-    try {
-      const lmData = await api.getSampleLandmarks(sampleId);
-      if (!lmData) return;
-
-      if (lmData.type === "DYNAMIC" && Array.isArray(lmData.frames) && lmData.frames.length > 0) {
-        // Play temporal dynamic sequence on loop
-        const duration = lmData.duration || (lmData.frames.length / (lmData.fps || 30));
-        this.details3DViewer.loadDynamicSequence(lmData.frames, duration, lmData.fps || 30);
-        const icon = document.getElementById("icon-details-play-pause");
-        if (icon) icon.textContent = "pause";
-      } else if (Array.isArray(lmData.frames) && lmData.frames.length > 0) {
-        // Static with frame array
-        const frame = lmData.frames[0];
-        const lm = frame.right_hand_landmarks || frame.left_hand_landmarks || frame.landmarks;
-        if (lm) {
-          this.details3DViewer.applyLandmarks(lm);
-          this.details3DViewer.pause();
-        }
-      } else if (lmData.right_hand_landmarks || lmData.left_hand_landmarks || lmData.landmarks) {
-        // Direct landmarks object
-        const lm = lmData.right_hand_landmarks || lmData.left_hand_landmarks || lmData.landmarks;
-        this.details3DViewer.applyLandmarks(lm);
-        this.details3DViewer.pause();
-      }
-    } catch (err) {
-      console.error("Error loading sample landmarks into 3D viewer:", err);
-    }
-  }
-
-  toggleDetails3DPlayPause() {
-    if (!this.details3DViewer) return;
-    const icon = document.getElementById("icon-details-play-pause");
-    if (this.details3DViewer.isPlaying) {
-      this.details3DViewer.pause();
-      if (icon) icon.textContent = "play_arrow";
-    } else {
-      this.details3DViewer.play();
-      if (icon) icon.textContent = "pause";
-    }
-  }
-
-  resetDetails3DPlayback() {
-    if (!this.details3DViewer) return;
-    this.details3DViewer.reset();
-  }
-
-  setDetails3DSpeed(speed) {
-    if (!this.details3DViewer) return;
-    this.details3DViewer.setSpeed(speed);
-  }
-
-  setDetails3DView(preset) {
-    if (!this.details3DViewer) return;
-    this.details3DViewer.setView(preset);
   }
 
   quickCollectForSigner(gestureId, signerId) {
@@ -1522,23 +1420,15 @@ class App {
       document.getElementById("inspect-raw-json").textContent = JSON.stringify(landmarksData, null, 2);
 
       // 3D Viewer for sample
-      if (this.sampleInspect3DViewer) this.sampleInspect3DViewer.destroy();
-      this.sampleInspect3DViewer = new ThreeHandViewer("inspect-3d-viewport");
-
-      if (landmarksData.type === "DYNAMIC" && Array.isArray(landmarksData.frames) && landmarksData.frames.length > 0) {
-        const duration = landmarksData.duration || (landmarksData.frames.length / (landmarksData.fps || 30));
-        this.sampleInspect3DViewer.loadDynamicSequence(landmarksData.frames, duration, landmarksData.fps || 30);
-      } else if (landmarksData.frames && landmarksData.frames.length > 0) {
+      if (!this.sampleInspect3DViewer) {
+        this.sampleInspect3DViewer = new ThreeHandViewer("inspect-3d-viewport");
+      }
+      if (landmarksData.frames && landmarksData.frames.length > 0) {
         const firstFrame = landmarksData.frames[0];
         const lm = (firstFrame.right_hand_landmarks && firstFrame.right_hand_landmarks.length === 21)
           ? firstFrame.right_hand_landmarks
-          : (firstFrame.left_hand_landmarks && firstFrame.left_hand_landmarks.length === 21)
-            ? firstFrame.left_hand_landmarks
-            : firstFrame.landmarks;
+          : firstFrame.left_hand_landmarks;
         if (lm) this.sampleInspect3DViewer.applyLandmarks(lm);
-      } else if (landmarksData.right_hand_landmarks || landmarksData.left_hand_landmarks || landmarksData.landmarks) {
-        const lm = landmarksData.right_hand_landmarks || landmarksData.left_hand_landmarks || landmarksData.landmarks;
-        this.sampleInspect3DViewer.applyLandmarks(lm);
       }
 
       document.getElementById("sample-inspector-modal").classList.remove("hidden");

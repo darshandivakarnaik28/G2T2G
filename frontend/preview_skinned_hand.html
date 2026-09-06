@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Real 3D Rigged Hand (GLB) - Operating Live Preview</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #070d18; color: #f1f5f9; font-family: 'Segoe UI', system-ui, sans-serif; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+
+    #header {
+      padding: 12px 24px;
+      background: #0d1527;
+      border-bottom: 1px solid #1e293b;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    #header h1 { font-size: 1.15rem; color: #38bdf8; display: flex; align-items: center; gap: 8px; font-weight: 600; }
+    #header .badge { background: #0284c7; color: white; font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; font-weight: 500; }
+    #header .desc { font-size: 0.8rem; color: #94a3b8; }
+
+    #viewer-container {
+      flex: 1;
+      position: relative;
+    }
+    #canvas3d { width: 100%; height: 100%; }
+
+    #status-overlay {
+      position: absolute; top: 16px; left: 20px;
+      background: rgba(13, 21, 39, 0.92);
+      border: 1px solid #334155;
+      padding: 12px 18px;
+      border-radius: 12px;
+      font-size: 0.82rem;
+      color: #cbd5e1;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.6);
+      line-height: 1.6;
+    }
+    #status-overlay strong { color: #38bdf8; }
+    .status-active { color: #4ade80; font-weight: 600; }
+
+    #controls-bar {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      background: rgba(13, 21, 39, 0.92);
+      border: 1px solid #334155;
+      padding: 10px 16px;
+      border-radius: 14px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 20px 25px -5px rgba(0,0,0,0.7);
+      flex-wrap: wrap;
+      justify-content: center;
+      max-width: 90%;
+    }
+    #controls-bar button {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #e2e8f0;
+      padding: 9px 18px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #controls-bar button:hover {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: white;
+      transform: translateY(-1px);
+    }
+    #controls-bar button.active {
+      background: #0284c7;
+      border-color: #38bdf8;
+      color: white;
+      box-shadow: 0 0 14px rgba(56, 189, 248, 0.5);
+    }
+    #btn-auto {
+      background: #15803d !important;
+      border-color: #4ade80 !important;
+      color: white !important;
+    }
+    #btn-auto.active {
+      background: #16a34a !important;
+      box-shadow: 0 0 16px rgba(74, 222, 128, 0.5) !important;
+    }
+
+    #options-panel {
+      position: absolute;
+      top: 16px;
+      right: 20px;
+      background: rgba(13, 21, 39, 0.92);
+      border: 1px solid #334155;
+      padding: 14px 18px;
+      border-radius: 12px;
+      font-size: 0.78rem;
+      color: #cbd5e1;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .opt-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .opt-row input[type="color"] { border: none; width: 28px; height: 24px; border-radius: 4px; cursor: pointer; background: transparent; }
+    .opt-row input[type="range"] { accent-color: #38bdf8; width: 90px; }
+  </style>
+</head>
+<body>
+
+<div id="header">
+  <div style="display: flex; align-items: center; gap: 12px;">
+    <h1>🖐 Real 3D Rigged Hand <span class="badge">Live SkinnedMesh</span></h1>
+    <span class="desc">MediaPipe Landmark Bone Deformation with GPU Skinning</span>
+  </div>
+</div>
+
+<div id="viewer-container">
+  <div id="canvas3d"></div>
+
+  <div id="status-overlay">
+    <div>Model: <strong>assets/hand.glb</strong></div>
+    <div>Status: <span id="load-status" class="status-active">Loading 3D mesh...</span></div>
+    <div>Current Sign: <strong id="cur-sign">Natural Rest</strong></div>
+    <div style="margin-top: 6px; font-size: 0.72rem; color: #94a3b8;">
+      💡 Drag to Rotate | Scroll to Zoom
+    </div>
+  </div>
+
+  <div id="options-panel">
+    <div style="font-weight: 600; color: #38bdf8; margin-bottom: 2px;">Skin Material & Rig</div>
+    <div class="opt-row">
+      <label>Skin Color:</label>
+      <input type="color" id="color-picker" value="#d4956a" />
+    </div>
+    <div class="opt-row">
+      <label>Roughness:</label>
+      <input type="range" id="roughness-slider" min="0.1" max="1.0" step="0.05" value="0.55" />
+    </div>
+    <div class="opt-row">
+      <label>Wireframe:</label>
+      <input type="checkbox" id="wireframe-toggle" />
+    </div>
+    <div class="opt-row">
+      <label>Show Skeleton:</label>
+      <input type="checkbox" id="skeleton-toggle" />
+    </div>
+  </div>
+
+  <div id="controls-bar">
+    <button onclick="setHandPose('rest')" class="active" id="btn-rest">🖐 Natural Rest</button>
+    <button onclick="setHandPose('hello')" id="btn-hello">👋 Hello (Wave)</button>
+    <button onclick="setHandPose('one')" id="btn-one">☝ Number One</button>
+    <button onclick="setHandPose('peace')" id="btn-peace">✌ Peace Sign</button>
+    <button onclick="setHandPose('fist')" id="btn-fist">✊ Closed Fist</button>
+    <button onclick="setHandPose('ok')" id="btn-ok">👌 OK Sign</button>
+    <button onclick="toggleAutoDemo()" id="btn-auto">▶ Auto Demo Loop</button>
+  </div>
+</div>
+
+<!-- Three.js + Controls + GLTFLoader -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script>
+  // ─────────────────────────────────────────────────────────────
+  //  MEDIAPIPE 21-LANDMARK POSES (Normalized Coordinates)
+  // ─────────────────────────────────────────────────────────────
+  const POSES = {
+    rest: [
+      {x:0.50,y:0.80,z:0},{x:0.44,y:0.73,z:0.05},{x:0.37,y:0.63,z:0.08},{x:0.31,y:0.55,z:0.10},{x:0.25,y:0.47,z:0.11},
+      {x:0.44,y:0.60,z:0.03},{x:0.42,y:0.48,z:0.04},{x:0.40,y:0.40,z:0.05},{x:0.39,y:0.34,z:0.06},
+      {x:0.50,y:0.59,z:0.01},{x:0.49,y:0.46,z:0.02},{x:0.49,y:0.38,z:0.02},{x:0.49,y:0.32,z:0.03},
+      {x:0.56,y:0.60,z:0.00},{x:0.56,y:0.48,z:0.01},{x:0.56,y:0.40,z:0.02},{x:0.56,y:0.34,z:0.02},
+      {x:0.62,y:0.63,z:-0.02},{x:0.64,y:0.53,z:-0.02},{x:0.65,y:0.46,z:-0.01},{x:0.67,y:0.41,z:-0.01}
+    ],
+    hello: [
+      {x:0.50,y:0.80,z:0},{x:0.38,y:0.72,z:0.05},{x:0.28,y:0.61,z:0.08},{x:0.22,y:0.51,z:0.10},{x:0.16,y:0.42,z:0.11},
+      {x:0.43,y:0.58,z:0.03},{x:0.39,y:0.44,z:0.04},{x:0.36,y:0.35,z:0.05},{x:0.34,y:0.26,z:0.06},
+      {x:0.50,y:0.57,z:0.01},{x:0.49,y:0.41,z:0.02},{x:0.48,y:0.31,z:0.02},{x:0.48,y:0.24,z:0.03},
+      {x:0.57,y:0.58,z:0.00},{x:0.59,y:0.43,z:0.01},{x:0.60,y:0.33,z:0.01},{x:0.61,y:0.26,z:0.02},
+      {x:0.64,y:0.61,z:-0.02},{x:0.68,y:0.48,z:-0.02},{x:0.71,y:0.40,z:-0.01},{x:0.73,y:0.33,z:-0.01}
+    ],
+    one: [
+      {x:0.50,y:0.80,z:0},{x:0.44,y:0.73,z:0.05},{x:0.42,y:0.68,z:0.08},{x:0.42,y:0.66,z:0.09},{x:0.44,y:0.64,z:0.10},
+      {x:0.44,y:0.58,z:0.03},{x:0.41,y:0.44,z:0.04},{x:0.39,y:0.34,z:0.05},{x:0.38,y:0.25,z:0.06},
+      {x:0.50,y:0.60,z:0.01},{x:0.50,y:0.68,z:0.01},{x:0.50,y:0.72,z:0.01},{x:0.50,y:0.74,z:0.01},
+      {x:0.56,y:0.61,z:0.00},{x:0.56,y:0.68,z:0.01},{x:0.56,y:0.72,z:0.01},{x:0.56,y:0.74,z:0.01},
+      {x:0.62,y:0.63,z:-0.02},{x:0.63,y:0.69,z:-0.02},{x:0.63,y:0.72,z:-0.01},{x:0.63,y:0.74,z:-0.01}
+    ],
+    peace: [
+      {x:0.50,y:0.80,z:0},{x:0.44,y:0.73,z:0.05},{x:0.42,y:0.68,z:0.08},{x:0.42,y:0.66,z:0.09},{x:0.44,y:0.64,z:0.10},
+      {x:0.45,y:0.58,z:0.03},{x:0.41,y:0.44,z:0.04},{x:0.38,y:0.34,z:0.05},{x:0.35,y:0.25,z:0.06},
+      {x:0.50,y:0.57,z:0.01},{x:0.51,y:0.43,z:0.02},{x:0.53,y:0.33,z:0.02},{x:0.55,y:0.25,z:0.03},
+      {x:0.56,y:0.61,z:0.00},{x:0.56,y:0.68,z:0.01},{x:0.56,y:0.72,z:0.01},{x:0.56,y:0.74,z:0.01},
+      {x:0.62,y:0.63,z:-0.02},{x:0.63,y:0.69,z:-0.02},{x:0.63,y:0.72,z:-0.01},{x:0.63,y:0.74,z:-0.01}
+    ],
+    fist: [
+      {x:0.50,y:0.80,z:0},{x:0.44,y:0.73,z:0.05},{x:0.41,y:0.68,z:0.07},{x:0.40,y:0.66,z:0.08},{x:0.42,y:0.64,z:0.08},
+      {x:0.45,y:0.60,z:0.03},{x:0.45,y:0.70,z:0.02},{x:0.46,y:0.73,z:0.02},{x:0.46,y:0.75,z:0.02},
+      {x:0.50,y:0.59,z:0.01},{x:0.50,y:0.69,z:0.01},{x:0.51,y:0.72,z:0.01},{x:0.51,y:0.74,z:0.01},
+      {x:0.56,y:0.60,z:0.00},{x:0.56,y:0.69,z:0.00},{x:0.56,y:0.72,z:0.00},{x:0.56,y:0.74,z:0.00},
+      {x:0.62,y:0.63,z:-0.02},{x:0.63,y:0.70,z:-0.01},{x:0.63,y:0.72,z:-0.01},{x:0.63,y:0.74,z:-0.01}
+    ],
+    ok: [
+      {x:0.50,y:0.80,z:0},{x:0.44,y:0.73,z:0.05},{x:0.40,y:0.66,z:0.07},{x:0.38,y:0.64,z:0.07},{x:0.41,y:0.65,z:0.06},
+      {x:0.45,y:0.60,z:0.03},{x:0.43,y:0.66,z:0.03},{x:0.41,y:0.67,z:0.02},{x:0.40,y:0.66,z:0.02},
+      {x:0.50,y:0.57,z:0.01},{x:0.49,y:0.42,z:0.02},{x:0.48,y:0.33,z:0.02},{x:0.48,y:0.26,z:0.03},
+      {x:0.57,y:0.58,z:0.00},{x:0.58,y:0.43,z:0.01},{x:0.59,y:0.34,z:0.01},{x:0.60,y:0.27,z:0.02},
+      {x:0.63,y:0.62,z:-0.02},{x:0.66,y:0.49,z:-0.02},{x:0.68,y:0.41,z:-0.01},{x:0.70,y:0.35,z:-0.01}
+    ]
+  };
+
+  const container = document.getElementById('canvas3d');
+  const W = container.clientWidth, H = container.clientHeight;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x070d18);
+
+  const camera = new THREE.PerspectiveCamera(45, W / H, 0.01, 100);
+  camera.position.set(0, 0.02, 0.38);
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(W, H);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  container.appendChild(renderer.domElement);
+
+  const controls = new THREE.OrbitControls(camera, renderer.domElement);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.06;
+  controls.minDistance = 0.15;
+  controls.maxDistance = 1.0;
+  controls.target.set(0, 0, 0);
+
+  // Lighting
+  scene.add(new THREE.AmbientLight(0xffecd6, 1.4));
+  const keyLight = new THREE.DirectionalLight(0xfff5ea, 2.4);
+  keyLight.position.set(0.5, 1.0, 0.8);
+  keyLight.castShadow = true;
+  scene.add(keyLight);
+
+  const fillLight = new THREE.DirectionalLight(0xbfdbfe, 1.0);
+  fillLight.position.set(-0.8, 0.2, -0.5);
+  scene.add(fillLight);
+
+  const rimLight = new THREE.DirectionalLight(0xfed7aa, 0.8);
+  rimLight.position.set(0, -0.6, -0.6);
+  scene.add(rimLight);
+
+  const grid = new THREE.GridHelper(1.5, 20, 0x1e293b, 0x131d2e);
+  grid.position.y = -0.16;
+  scene.add(grid);
+
+  let handModel = null;
+  let skinnedMesh = null;
+  let skeletonHelper = null;
+  let boneMap = {};
+  let restPositions = {};
+  let targetBonePositions = {};
+  let currentBonePositions = {};
+
+  const skinMaterial = new THREE.MeshStandardMaterial({
+    color: 0xd4956a,
+    roughness: 0.55,
+    metalness: 0.02,
+    emissive: 0x241108,
+    emissiveIntensity: 0.12,
+    side: THREE.FrontSide
+  });
+
+  const BONE_NAMES = [
+    'wrist',
+    'thumb-metacarpal', 'thumb-phalanx-proximal', 'thumb-phalanx-distal', 'thumb-tip',
+    'index-finger-metacarpal', 'index-finger-phalanx-proximal', 'index-finger-phalanx-intermediate', 'index-finger-phalanx-distal', 'index-finger-tip',
+    'middle-finger-metacarpal', 'middle-finger-phalanx-proximal', 'middle-finger-phalanx-intermediate', 'middle-finger-phalanx-distal', 'middle-finger-tip',
+    'ring-finger-metacarpal', 'ring-finger-phalanx-proximal', 'ring-finger-phalanx-intermediate', 'ring-finger-phalanx-distal', 'ring-finger-tip',
+    'pinky-finger-metacarpal', 'pinky-finger-phalanx-proximal', 'pinky-finger-phalanx-intermediate', 'pinky-finger-phalanx-distal', 'pinky-finger-tip'
+  ];
+
+  const loader = new THREE.GLTFLoader();
+  loader.load('assets/hand.glb', (gltf) => {
+    handModel = gltf.scene;
+
+    // Point fingers upright (+Y)
+    handModel.rotation.z = Math.PI;
+
+    handModel.traverse((child) => {
+      if (child.isSkinnedMesh) {
+        skinnedMesh = child;
+        child.material = skinMaterial;
+        child.castShadow = true;
+        child.receiveShadow = true;
+
+        child.skeleton.bones.forEach((bone) => {
+          boneMap[bone.name] = bone;
+          restPositions[bone.name] = bone.position.clone();
+          targetBonePositions[bone.name] = bone.position.clone();
+          currentBonePositions[bone.name] = bone.position.clone();
+        });
+      }
+    });
+
+    if (skinnedMesh) {
+      document.getElementById('load-status').textContent = 'Live & Deforming 25 Bones';
+      skeletonHelper = new THREE.SkeletonHelper(skinnedMesh);
+      skeletonHelper.visible = false;
+      scene.add(skeletonHelper);
+    }
+
+    // Center model around palm/wrist
+    const box = new THREE.Box3().setFromObject(handModel);
+    const center = box.getCenter(new THREE.Vector3());
+    handModel.position.sub(center);
+
+    scene.add(handModel);
+
+    // Apply starting rest pose
+    setHandPose('rest');
+  }, undefined, (err) => {
+    console.error("Error loading hand.glb:", err);
+    document.getElementById('load-status').textContent = 'Error loading assets/hand.glb';
+  });
+
+  // ─────────────────────────────────────────────────────────────
+  //  CONVERT MEDIAPIPE LANDMARKS TO 25 HAND.GLB BONES
+  // ─────────────────────────────────────────────────────────────
+  function mapLandmarksToTargets(landmarks) {
+    if (!landmarks || landmarks.length < 21 || !restPositions['wrist']) return;
+    const wrist = landmarks[0];
+    const restWrist = restPositions['wrist'];
+    const scale = 0.36;
+
+    function setBone(boneName, lm) {
+      if (!restPositions[boneName] || !targetBonePositions[boneName]) return;
+      const dx = -(lm.x - wrist.x) * scale;
+      const dy = (lm.y - wrist.y) * scale;
+      const dz = (lm.z || 0) * scale;
+      targetBonePositions[boneName].set(restWrist.x + dx, restWrist.y + dy, restWrist.z + dz);
+    }
+
+    targetBonePositions['wrist'].copy(restWrist);
+
+    // Thumb
+    setBone('thumb-metacarpal', landmarks[1]);
+    setBone('thumb-phalanx-proximal', landmarks[2]);
+    setBone('thumb-phalanx-distal', landmarks[3]);
+    setBone('thumb-tip', landmarks[4]);
+
+    // Index
+    setBone('index-finger-metacarpal', {
+      x: (wrist.x + landmarks[5].x) * 0.5,
+      y: (wrist.y + landmarks[5].y) * 0.5,
+      z: ((wrist.z || 0) + (landmarks[5].z || 0)) * 0.5
+    });
+    setBone('index-finger-phalanx-proximal', landmarks[5]);
+    setBone('index-finger-phalanx-intermediate', landmarks[6]);
+    setBone('index-finger-phalanx-distal', landmarks[7]);
+    setBone('index-finger-tip', landmarks[8]);
+
+    // Middle
+    setBone('middle-finger-metacarpal', {
+      x: (wrist.x + landmarks[9].x) * 0.5,
+      y: (wrist.y + landmarks[9].y) * 0.5,
+      z: ((wrist.z || 0) + (landmarks[9].z || 0)) * 0.5
+    });
+    setBone('middle-finger-phalanx-proximal', landmarks[9]);
+    setBone('middle-finger-phalanx-intermediate', landmarks[10]);
+    setBone('middle-finger-phalanx-distal', landmarks[11]);
+    setBone('middle-finger-tip', landmarks[12]);
+
+    // Ring
+    setBone('ring-finger-metacarpal', {
+      x: (wrist.x + landmarks[13].x) * 0.5,
+      y: (wrist.y + landmarks[13].y) * 0.5,
+      z: ((wrist.z || 0) + (landmarks[13].z || 0)) * 0.5
+    });
+    setBone('ring-finger-phalanx-proximal', landmarks[13]);
+    setBone('ring-finger-phalanx-intermediate', landmarks[14]);
+    setBone('ring-finger-phalanx-distal', landmarks[15]);
+    setBone('ring-finger-tip', landmarks[16]);
+
+    // Pinky
+    setBone('pinky-finger-metacarpal', {
+      x: (wrist.x + landmarks[17].x) * 0.5,
+      y: (wrist.y + landmarks[17].y) * 0.5,
+      z: ((wrist.z || 0) + (landmarks[17].z || 0)) * 0.5
+    });
+    setBone('pinky-finger-phalanx-proximal', landmarks[17]);
+    setBone('pinky-finger-phalanx-intermediate', landmarks[18]);
+    setBone('pinky-finger-phalanx-distal', landmarks[19]);
+    setBone('pinky-finger-tip', landmarks[20]);
+  }
+
+  const SIGN_NAMES = {
+    rest: 'Natural Rest', hello: 'Hello (Wave)', one: 'Number One ☝',
+    peace: 'Peace Sign ✌', fist: 'Closed Fist ✊', ok: 'OK Sign 👌'
+  };
+
+  function setHandPose(name) {
+    if (POSES[name]) {
+      mapLandmarksToTargets(POSES[name]);
+      document.getElementById('cur-sign').textContent = SIGN_NAMES[name] || name;
+      document.querySelectorAll('#controls-bar button:not(#btn-auto)').forEach(b => b.classList.remove('active'));
+      const btn = document.getElementById('btn-' + name);
+      if (btn) btn.classList.add('active');
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  AUTO DEMO LOOP
+  // ─────────────────────────────────────────────────────────────
+  let autoDemoInterval = null;
+  const demoList = ['rest', 'hello', 'one', 'peace', 'fist', 'ok'];
+  let demoIdx = 0;
+
+  function toggleAutoDemo() {
+    const btn = document.getElementById('btn-auto');
+    if (autoDemoInterval) {
+      clearInterval(autoDemoInterval);
+      autoDemoInterval = null;
+      btn.textContent = '▶ Auto Demo Loop';
+      btn.classList.remove('active');
+    } else {
+      btn.textContent = '⏹ Stop Auto Demo';
+      btn.classList.add('active');
+      autoDemoInterval = setInterval(() => {
+        demoIdx = (demoIdx + 1) % demoList.length;
+        setHandPose(demoList[demoIdx]);
+      }, 1600);
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────
+  //  SMOOTH LERP & GPU SKELETON UPDATE EVERY FRAME
+  // ─────────────────────────────────────────────────────────────
+  function updateBoneInterpolation() {
+    if (!skinnedMesh) return;
+
+    BONE_NAMES.forEach(name => {
+      const bone = boneMap[name];
+      const target = targetBonePositions[name];
+      const current = currentBonePositions[name];
+      if (!bone || !target || !current) return;
+
+      // Smooth interpolation (lerp factor 0.14)
+      current.lerp(target, 0.14);
+      bone.position.copy(current);
+    });
+
+    // Essential: tells Three.js GPU skinning shader to recalculate bone matrices
+    skinnedMesh.skeleton.update();
+
+    if (skeletonHelper && skeletonHelper.visible) {
+      skeletonHelper.update();
+    }
+  }
+
+  // UI Event Handlers
+  document.getElementById('color-picker').addEventListener('input', (e) => {
+    if (skinMaterial) skinMaterial.color.set(e.target.value);
+  });
+  document.getElementById('roughness-slider').addEventListener('input', (e) => {
+    if (skinMaterial) skinMaterial.roughness = parseFloat(e.target.value);
+  });
+  document.getElementById('wireframe-toggle').addEventListener('change', (e) => {
+    if (skinMaterial) skinMaterial.wireframe = e.target.checked;
+  });
+  document.getElementById('skeleton-toggle').addEventListener('change', (e) => {
+    if (skeletonHelper) skeletonHelper.visible = e.target.checked;
+  });
+
+  window.addEventListener('resize', () => {
+    const w = container.clientWidth, h = container.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+  });
+
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    updateBoneInterpolation();
+    renderer.render(scene, camera);
+  }
+  animate();
+</script>
+</body>
+</html>

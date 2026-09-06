@@ -1,7 +1,6 @@
 /**
- * Three.js 3D Articulated Hand Viewer — Tube-based Realistic Hand
- * Uses CatmullRomCurve3 + TubeGeometry for smooth, continuous finger skin.
- * No separate joint spheres / cylinders — fingers are solid extruded tubes.
+ * Three.js 3D Articulated Hand Viewer — Upgraded
+ * Fixes: dynamic playback timing, realistic skin-tone visuals, palm mesh, accurate timestamp-based frame seek
  */
 
 export class ThreeHandViewer {
@@ -16,12 +15,11 @@ export class ThreeHandViewer {
     this.gltfLoader = null;
     this.clock = null;
 
-    // Hand geometry
+    // Hand meshes
     this.handGroup = null;
-    this.jointNodes = [];       // invisible Vector3 position holders (plain Objects)
-    this.fingerTubes = [];      // { tubeGroup, chains }  — rebuilt each frame
+    this.jointNodes = [];
+    this.boneMeshes = [];
     this.palmMesh = null;
-    this.wristMesh = null;
     this.loadedModel = null;
     this.isRiggedModel = false;
 
@@ -44,13 +42,13 @@ export class ThreeHandViewer {
   }
 
   init() {
-    const width  = this.container.clientWidth  || 600;
+    const width = this.container.clientWidth || 600;
     const height = this.container.clientHeight || 420;
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x0d1524);
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    this.clock  = new THREE.Clock();
+    this.clock = new THREE.Clock();
     this.updateCamera();
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -61,6 +59,7 @@ export class ThreeHandViewer {
     this.container.innerHTML = "";
     this.container.appendChild(this.renderer.domElement);
 
+    // OrbitControls (preferred) or internal orbit math
     if (typeof THREE.OrbitControls !== "undefined") {
       this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
       this.controls.enableDamping = true;
@@ -71,21 +70,22 @@ export class ThreeHandViewer {
       this.setupMouseOrbit();
     }
 
-    // Lighting for warm skin appearance
-    this.scene.add(new THREE.AmbientLight(0xfff4e8, 0.7));
+    // Lighting for realistic skin appearance
+    const ambientLight = new THREE.AmbientLight(0xfff4e8, 0.6);
+    this.scene.add(ambientLight);
 
-    const keyLight = new THREE.DirectionalLight(0xfff0d8, 2.0);
+    const keyLight = new THREE.DirectionalLight(0xfff0d8, 1.8);
     keyLight.position.set(15, 30, 20);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width  = 1024;
+    keyLight.shadow.mapSize.width = 1024;
     keyLight.shadow.mapSize.height = 1024;
     this.scene.add(keyLight);
 
-    const fillLight = new THREE.DirectionalLight(0xd0e4ff, 0.7);
+    const fillLight = new THREE.DirectionalLight(0xd0e4ff, 0.6);
     fillLight.position.set(-20, 5, -15);
     this.scene.add(fillLight);
 
-    const rimLight = new THREE.DirectionalLight(0xffddcc, 0.5);
+    const rimLight = new THREE.DirectionalLight(0xffddcc, 0.4);
     rimLight.position.set(0, -20, -10);
     this.scene.add(rimLight);
 
@@ -98,6 +98,7 @@ export class ThreeHandViewer {
       this.gltfLoader = new THREE.GLTFLoader();
     }
 
+    // Build the default realistic articulated rig
     this.buildArticulatedRig();
     this.renderLoop();
     window.addEventListener("resize", () => this.onResize());
@@ -114,14 +115,12 @@ export class ThreeHandViewer {
   }
 
   updateCamera() {
-    const r   = this.zoom;
+    const r = this.zoom;
     const phi = Math.PI / 2 - this.rotation.x;
-    const tht = this.rotation.y;
-    this.camera.position.set(
-      r * Math.sin(phi) * Math.sin(tht),
-      r * Math.cos(phi),
-      r * Math.sin(phi) * Math.cos(tht)
-    );
+    const theta = this.rotation.y;
+    this.camera.position.x = r * Math.sin(phi) * Math.sin(theta);
+    this.camera.position.y = r * Math.cos(phi);
+    this.camera.position.z = r * Math.sin(phi) * Math.cos(theta);
     this.camera.lookAt(0, 0, 0);
   }
 
@@ -135,7 +134,7 @@ export class ThreeHandViewer {
       if (!this.isDragging) return;
       const dx = e.clientX - this.prevMouse.x, dy = e.clientY - this.prevMouse.y;
       this.rotation.y += dx * 0.01;
-      this.rotation.x  = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, this.rotation.x + dy * 0.01));
+      this.rotation.x = Math.max(-Math.PI / 2.5, Math.min(Math.PI / 2.5, this.rotation.x + dy * 0.01));
       this.prevMouse = { x: e.clientX, y: e.clientY };
       this.updateCamera();
     });
@@ -147,305 +146,214 @@ export class ThreeHandViewer {
     }, { passive: false });
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  MATERIALS
-  // ─────────────────────────────────────────────────────────────
-  _buildMaterials() {
-    this.skinMat = new THREE.MeshStandardMaterial({
-      color: 0xd4956a,
-      roughness: 0.55,
-      metalness: 0.0,
-      emissive: 0x2e1309,
-      emissiveIntensity: 0.10,
-    });
-    this.skinMat2 = new THREE.MeshStandardMaterial({
-      color: 0xc07d52,
-      roughness: 0.60,
-      metalness: 0.0,
-      emissive: 0x1e0c04,
-      emissiveIntensity: 0.08,
-      side: THREE.DoubleSide,
-    });
-    this.tipMat = new THREE.MeshStandardMaterial({
-      color: 0xe8bca2,
-      roughness: 0.30,
-      metalness: 0.05,
-      emissive: 0x3d1b10,
-      emissiveIntensity: 0.10,
-    });
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  //  RIG BUILD
-  // ─────────────────────────────────────────────────────────────
-
-  /**
-   * Anatomical resting pose — 21 MediaPipe landmarks in world space.
-   * Used only for the initial "idle" display before real landmarks arrive.
-   */
-  _defaultPose() {
-    return [
-      [0,    -5.2, 0   ],  // 0  Wrist
-      [-2.4, -4.0, 0.8 ],  // 1  Thumb CMC
-      [-3.9, -2.4, 1.4 ],  // 2  Thumb MCP
-      [-4.6, -0.8, 1.8 ],  // 3  Thumb IP
-      [-5.1,  0.8, 2.0 ],  // 4  Thumb TIP
-      [-1.8, -1.2, 0.5 ],  // 5  Index MCP
-      [-2.2,  1.4, 0.8 ],  // 6  Index PIP
-      [-2.4,  3.4, 0.9 ],  // 7  Index DIP
-      [-2.5,  5.2, 1.0 ],  // 8  Index TIP
-      [-0.2, -0.9, 0.2 ],  // 9  Middle MCP
-      [-0.3,  1.9, 0.4 ],  // 10 Middle PIP
-      [-0.3,  4.2, 0.5 ],  // 11 Middle DIP
-      [-0.3,  6.2, 0.6 ],  // 12 Middle TIP
-      [ 1.4, -1.1, 0.0 ],  // 13 Ring MCP
-      [ 1.7,  1.5, 0.1 ],  // 14 Ring PIP
-      [ 1.9,  3.7, 0.2 ],  // 15 Ring DIP
-      [ 2.0,  5.5, 0.3 ],  // 16 Ring TIP
-      [ 3.0, -1.5,-0.3 ],  // 17 Pinky MCP
-      [ 3.6,  0.7,-0.3 ],  // 18 Pinky PIP
-      [ 4.0,  2.3,-0.2 ],  // 19 Pinky DIP
-      [ 4.3,  3.9,-0.2 ]   // 20 Pinky TIP
-    ];
-  }
-
+  /** Build realistic skin-tone articulated hand rig */
   buildArticulatedRig() {
     if (this.handGroup) this.scene.remove(this.handGroup);
     this.handGroup = new THREE.Group();
     this.scene.add(this.handGroup);
 
-    this._buildMaterials();
-
-    // Initialize 21 position holders as plain Vector3
-    const pose = this._defaultPose();
-    this.jointNodes = pose.map(c => new THREE.Vector3(c[0], c[1], c[2]));
-
-    // Finger chains: each chain is a sequence of landmark indices
-    // Tube will be extruded along a CatmullRom spline through these points.
-    this.fingerChains = [
-      { indices: [0, 1, 2, 3, 4],        radii: [0.80, 0.60, 0.46, 0.38, 0.28], isTip: 4 },  // Thumb
-      { indices: [0, 5, 6, 7, 8],         radii: [0.80, 0.58, 0.46, 0.38, 0.28], isTip: 8 },  // Index
-      { indices: [0, 9, 10, 11, 12],      radii: [0.80, 0.60, 0.48, 0.40, 0.30], isTip: 12 }, // Middle
-      { indices: [0, 13, 14, 15, 16],     radii: [0.80, 0.56, 0.44, 0.36, 0.28], isTip: 16 }, // Ring
-      { indices: [0, 17, 18, 19, 20],     radii: [0.80, 0.48, 0.38, 0.30, 0.24], isTip: 20 }, // Pinky
+    // MediaPipe 21-landmark template (resting hand pose)
+    const baseCoords = [
+      [0, -5, 0],        // 0 Wrist
+      [-2.4, -3.8, 0.8], // 1 Thumb CMC
+      [-3.8, -2.2, 1.4], // 2 Thumb MCP
+      [-4.5, -0.6, 1.8], // 3 Thumb IP
+      [-5.0,  1.0, 2.0], // 4 Thumb TIP
+      [-1.8, -1.2, 0.5], // 5 Index MCP
+      [-2.2,  1.4, 0.8], // 6 Index PIP
+      [-2.4,  3.4, 0.9], // 7 Index DIP
+      [-2.5,  5.2, 1.0], // 8 Index TIP
+      [-0.2, -0.9, 0.2], // 9 Middle MCP
+      [-0.3,  1.9, 0.4], // 10 Middle PIP
+      [-0.3,  4.2, 0.5], // 11 Middle DIP
+      [-0.3,  6.2, 0.6], // 12 Middle TIP
+      [ 1.4, -1.1, 0.0], // 13 Ring MCP
+      [ 1.7,  1.5, 0.1], // 14 Ring PIP
+      [ 1.9,  3.7, 0.2], // 15 Ring DIP
+      [ 2.0,  5.5, 0.3], // 16 Ring TIP
+      [ 3.0, -1.5,-0.3], // 17 Pinky MCP
+      [ 3.6,  0.7,-0.3], // 18 Pinky PIP
+      [ 4.0,  2.3,-0.2], // 19 Pinky DIP
+      [ 4.3,  3.9,-0.2]  // 20 Pinky TIP
     ];
 
-    // Build tube meshes
-    this.fingerTubes = [];
-    for (const chain of this.fingerChains) {
-      const tubeGroup = this._buildFingerTube(chain);
-      this.handGroup.add(tubeGroup);
-      this.fingerTubes.push({ tubeGroup, chain });
-    }
+    this.landmarkBase = baseCoords.map(c => new THREE.Vector3(...c));
+    this.jointNodes = [];
 
-    // Palm mesh
-    this._buildPalmMesh();
+    // Skin-tone materials
+    const skinColor = 0xd4956a;
+    const skinDark  = 0xb87850;
 
-    // Wrist sphere (thick rounded base)
-    const wristGeo = new THREE.SphereGeometry(1.10, 20, 20);
-    this.wristMesh = new THREE.Mesh(wristGeo, this.skinMat);
-    this.wristMesh.castShadow = true;
-    this.wristMesh.receiveShadow = true;
-    this.wristMesh.position.copy(this.jointNodes[0]);
-    this.handGroup.add(this.wristMesh);
-  }
+    // Joint spheres — tapered sizes (wrist larger, tips smaller)
+    const jointSizes = [
+      0.55, 0.38, 0.34, 0.30, 0.24, // wrist, thumb
+      0.38, 0.32, 0.28, 0.22,       // index
+      0.38, 0.32, 0.28, 0.22,       // middle
+      0.36, 0.30, 0.26, 0.20,       // ring
+      0.32, 0.26, 0.22, 0.18        // pinky
+    ];
 
-  // ─────────────────────────────────────────────────────────────
-  //  TUBE GEOMETRY PER FINGER
-  // ─────────────────────────────────────────────────────────────
-
-  /**
-   * Build a Group containing per-segment tapered TubeGeometry objects
-   * connected smoothly for one finger chain.
-   */
-  _buildFingerTube(chain) {
-    const group = new THREE.Group();
-    const { indices, radii } = chain;
-
-    // One tube per segment pair (e.g. 0→1, 1→2, 2→3, 3→4)
-    const segMeshes = [];
-    for (let s = 0; s < indices.length - 1; s++) {
-      const p0 = this.jointNodes[indices[s]].clone();
-      const p1 = this.jointNodes[indices[s + 1]].clone();
-
-      // Add a mid-point for a slightly curved spline
-      const mid = new THREE.Vector3().addVectors(p0, p1).multiplyScalar(0.5);
-      // Tiny forward bias on mid for anatomical curvature
-      mid.z += 0.12;
-
-      const curve  = new THREE.CatmullRomCurve3([p0, mid, p1]);
-      const rTop   = radii[s];
-      const rBot   = radii[s + 1];
-      // Interpolate radius along tube using a tapered CylinderGeometry instead
-      // TubeGeometry can't taper — so we build a tapered cylinder aligned to the segment
-      const segGeo = this._taperedTube(p0, p1, rTop, rBot);
-      const mat    = (s === indices.length - 2) ? this.tipMat : this.skinMat;
-      const mesh   = new THREE.Mesh(segGeo, mat);
-      mesh.castShadow    = true;
-      mesh.receiveShadow = true;
-      group.add(mesh);
-      segMeshes.push({ mesh, segIdx: s, indices, radii });
-    }
-    group.userData.segMeshes = segMeshes;
-    return group;
-  }
-
-  /**
-   * Create a tapered cylinder (cone frustum) perfectly aligned between two 3D points.
-   * Returns BufferGeometry already positioned/rotated in world space via matrix baking.
-   */
-  _taperedTube(p1, p2, rTop, rBot) {
-    const dist = p1.distanceTo(p2);
-    // Extra segments (8) so the tapered skin rounds nicely
-    const geo = new THREE.CylinderGeometry(rTop, rBot, dist, 14, 3);
-
-    // Align the cylinder (default Y-up) from p1 to p2 via a matrix transform
-    const dir    = new THREE.Vector3().subVectors(p2, p1).normalize();
-    const up     = new THREE.Vector3(0, 1, 0);
-    const quat   = new THREE.Quaternion().setFromUnitVectors(up, dir);
-    const mid    = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-
-    const matrix = new THREE.Matrix4();
-    matrix.compose(mid, quat, new THREE.Vector3(1, 1, 1));
-
-    // Bake the transform into the geometry so the Mesh can stay at origin
-    geo.applyMatrix4(matrix);
-    return geo;
-  }
-
-  // ─────────────────────────────────────────────────────────────
-  //  PALM MESH — thick slab connecting knuckles to wrist
-  // ─────────────────────────────────────────────────────────────
-
-  _buildPalmMesh() {
-    if (this.palmMesh) { this.handGroup.remove(this.palmMesh); this.palmMesh = null; }
-
-    // Palm vertices: front (+z) and back (-z) face, bridged at edges
-    // Landmarks used: wrist(0), thumb_cmc(1), idx_mcp(5), mid_mcp(9), ring_mcp(13), pinky_mcp(17)
-    const palmLm = [0, 1, 5, 9, 13, 17];
-    const thickness = 0.55;
-
-    const verts = [];
-    const front = [];
-    const back  = [];
-
-    palmLm.forEach(idx => {
-      const p = this.jointNodes[idx];
-      front.push(new THREE.Vector3(p.x, p.y, p.z + thickness * 0.5));
-      back.push( new THREE.Vector3(p.x, p.y, p.z - thickness * 0.5));
+    const jointMat = new THREE.MeshPhongMaterial({
+      color: skinColor,
+      specular: 0xffcca0,
+      shininess: 35,
+      emissive: 0x2a1008,
+      emissiveIntensity: 0.08
     });
 
-    // 6 front + 6 back = 12 vertices
-    const positions = [...front, ...back].flatMap(v => [v.x, v.y, v.z]);
-    // Front face triangles (fan from wrist = index 0)
-    const fIdx = [
-      0,1,2,  0,2,3,  0,3,4,  0,4,5
-    ];
-    // Back face triangles (reversed winding)
-    const bIdx = [
-      6,8,7,  6,9,8,  6,10,9,  6,11,10
-    ];
-    // Side edges connecting front[i]→front[i+1]→back[i+1]→back[i]
-    const sideIdx = [];
-    for (let i = 0; i < 5; i++) {
-      const f0 = i, f1 = i + 1;
-      const b0 = i + 6, b1 = i + 7;
-      sideIdx.push(f0, b0, f1,  f1, b0, b1);
+    for (let i = 0; i < 21; i++) {
+      const geo = new THREE.SphereGeometry(jointSizes[i] || 0.30, 14, 14);
+      const mesh = new THREE.Mesh(geo, jointMat);
+      mesh.position.copy(this.landmarkBase[i]);
+      mesh.castShadow = true;
+      this.handGroup.add(mesh);
+      this.jointNodes.push(mesh);
     }
-    // Close the side between back[0] and back[5] / front[0] and front[5]
-    sideIdx.push(0, 5, 6,  6, 5, 11);
 
-    const geo  = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(positions), 3));
-    geo.setIndex([...fIdx, ...bIdx, ...sideIdx]);
-    geo.computeVertexNormals();
+    // Bone cylinders — realistic tapered finger segments
+    const connections = [
+      [0, 1], [1, 2], [2, 3], [3, 4],
+      [0, 5], [5, 6], [6, 7], [7, 8],
+      [0, 9], [9, 10], [10, 11], [11, 12],
+      [0, 13], [13, 14], [14, 15], [15, 16],
+      [0, 17], [17, 18], [18, 19], [19, 20],
+      [5, 9], [9, 13], [13, 17]
+    ];
 
-    this.palmMesh = new THREE.Mesh(geo, this.skinMat);
-    this.palmMesh.castShadow    = true;
-    this.palmMesh.receiveShadow = true;
-    this.handGroup.add(this.palmMesh);
+    // Radii for each segment (proximal, distal) — tapered
+    const boneRadii = {
+      "0,1": [0.30, 0.26], "1,2": [0.26, 0.22], "2,3": [0.22, 0.18], "3,4": [0.18, 0.14],
+      "0,5": [0.28, 0.26], "5,6": [0.26, 0.22], "6,7": [0.22, 0.18], "7,8": [0.18, 0.14],
+      "0,9": [0.30, 0.28], "9,10": [0.28, 0.24], "10,11": [0.24, 0.20], "11,12": [0.20, 0.15],
+      "0,13": [0.26, 0.24], "13,14": [0.24, 0.20], "14,15": [0.20, 0.16], "15,16": [0.16, 0.12],
+      "0,17": [0.22, 0.20], "17,18": [0.20, 0.16], "18,19": [0.16, 0.13], "19,20": [0.13, 0.10],
+      "5,9": [0.22, 0.22], "9,13": [0.22, 0.22], "13,17": [0.20, 0.20]
+    };
 
-    // Save reference indices for live update
-    this.palmLm = palmLm;
-    this._palmThickness = thickness;
+    const boneMat = new THREE.MeshPhongMaterial({
+      color: skinColor,
+      specular: 0xffcca0,
+      shininess: 30,
+      emissive: 0x1e0c04,
+      emissiveIntensity: 0.06
+    });
+
+    this.boneMeshes = [];
+    connections.forEach(([fromIdx, toIdx]) => {
+      const p1 = this.landmarkBase[fromIdx], p2 = this.landmarkBase[toIdx];
+      const dist = p1.distanceTo(p2);
+      const key = `${fromIdx},${toIdx}`;
+      const [rTop, rBot] = boneRadii[key] || [0.20, 0.16];
+      const boneGeo = new THREE.CylinderGeometry(rTop, rBot, dist, 10, 1);
+      const boneMesh = new THREE.Mesh(boneGeo, boneMat);
+      boneMesh.castShadow = true;
+      this.handGroup.add(boneMesh);
+      this.boneMeshes.push({ mesh: boneMesh, from: fromIdx, to: toIdx });
+    });
+
+    // Palm skin patch (convex polygon between base knuckles 0,5,9,13,17)
+    this._buildPalmMesh(skinDark);
+
+    this.updateBones();
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  LIVE UPDATE — rebuild tubes and palm every frame
-  // ─────────────────────────────────────────────────────────────
+  _buildPalmMesh(color) {
+    if (this.palmMesh) this.handGroup.remove(this.palmMesh);
+    // Simple flat polygon for palm area — wrist + knuckle landmarks
+    const palmIndices = [0, 17, 13, 9, 5, 1];
+    const geo = new THREE.BufferGeometry();
+    const positions = [];
+    palmIndices.forEach(idx => {
+      const p = this.landmarkBase[idx];
+      positions.push(p.x, p.y, p.z - 0.1);
+    });
+    // Fan triangulation from wrist (index 0)
+    const indices = [];
+    for (let i = 1; i < palmIndices.length - 1; i++) {
+      indices.push(0, i, i + 1);
+    }
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+    const mat = new THREE.MeshPhongMaterial({
+      color: 0xc97f50,
+      specular: 0xffcca0,
+      shininess: 20,
+      side: THREE.DoubleSide,
+      emissive: 0x1a0a00,
+      emissiveIntensity: 0.05
+    });
+    this.palmMesh = new THREE.Mesh(geo, mat);
+    this.palmMesh.castShadow = true;
+    this.handGroup.add(this.palmMesh);
+  }
 
   updateBones() {
-    // Rebuild each finger tube segment in place (dispose old geo, create new one)
-    for (const ft of this.fingerTubes) {
-      const segMeshes = ft.tubeGroup.userData.segMeshes;
-      const { indices, radii } = ft.chain;
-      segMeshes.forEach((sm, s) => {
-        const p0 = this.jointNodes[indices[s]];
-        const p1 = this.jointNodes[indices[s + 1]];
-        sm.mesh.geometry.dispose();
-        sm.mesh.geometry = this._taperedTube(p0, p1, radii[s], radii[s + 1]);
-      });
-    }
+    this.boneMeshes.forEach(b => {
+      const p1 = this.jointNodes[b.from].position;
+      const p2 = this.jointNodes[b.to].position;
+      const distance = p1.distanceTo(p2);
+      b.mesh.scale.set(1, Math.max(0.01, distance / (b.mesh.geometry.parameters.height || 1)), 1);
+      const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+      b.mesh.position.copy(mid);
+      const dir = new THREE.Vector3().subVectors(p2, p1).normalize();
+      const axis = new THREE.Vector3(0, 1, 0);
+      b.mesh.quaternion.setFromUnitVectors(axis, dir);
+    });
 
-    // Update wrist sphere position
-    if (this.wristMesh) {
-      this.wristMesh.position.copy(this.jointNodes[0]);
-    }
-
-    // Update palm mesh vertices
+    // Update palm mesh vertices to follow joints
     if (this.palmMesh) {
-      const pAttr = this.palmMesh.geometry.attributes.position;
-      const half  = this._palmThickness * 0.5;
-      this.palmLm.forEach((idx, i) => {
-        const p = this.jointNodes[idx];
-        // front vertex (first 6)
-        pAttr.setXYZ(i,     p.x, p.y, p.z + half);
-        // back vertex (last 6)
-        pAttr.setXYZ(i + 6, p.x, p.y, p.z - half);
+      const palmIndices = [0, 17, 13, 9, 5, 1];
+      const posAttr = this.palmMesh.geometry.attributes.position;
+      palmIndices.forEach((idx, i) => {
+        const p = this.jointNodes[idx].position;
+        posAttr.setXYZ(i, p.x, p.y, p.z - 0.1);
       });
-      pAttr.needsUpdate = true;
+      posAttr.needsUpdate = true;
       this.palmMesh.geometry.computeVertexNormals();
     }
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  APPLY MEDIAPIPE LANDMARKS
-  // ─────────────────────────────────────────────────────────────
-
+  /** Map real MediaPipe 21 landmarks to the 3D hand rig */
   applyLandmarks(landmarks) {
     if (!landmarks || landmarks.length < 21) return;
     const wrist = landmarks[0];
-    const scale = 15;
+    const scale = 14;
     landmarks.slice(0, 21).forEach((lm, i) => {
-      this.jointNodes[i].set(
-        (lm.x - wrist.x) * scale,
-        -(lm.y - wrist.y) * scale - 1.5,
-        -(lm.z || 0) * (scale * 1.3)
-      );
+      if (this.jointNodes[i]) {
+        this.jointNodes[i].position.set(
+          (lm.x - wrist.x) * scale,
+          -(lm.y - wrist.y) * scale - 2,
+          -(lm.z || 0) * (scale * 1.2)
+        );
+      }
     });
     this.updateBones();
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  GLB LOADER (unchanged)
-  // ─────────────────────────────────────────────────────────────
-
+  /** Load a .glb / .gltf file from backend storage */
   async loadGLBModel(url) {
     if (!this.gltfLoader) { console.warn("GLTFLoader not available."); return; }
     return new Promise((resolve, reject) => {
       this.gltfLoader.load(url, (gltf) => {
         if (this.loadedModel) this.scene.remove(this.loadedModel);
         this.loadedModel = gltf.scene;
+
         let hasBones = false;
         this.loadedModel.traverse(child => {
           if (child.isSkinnedMesh || child.isBone) hasBones = true;
         });
         this.isRiggedModel = hasBones;
+
         const box = new THREE.Box3().setFromObject(this.loadedModel);
         const size = box.getSize(new THREE.Vector3()).length();
         const center = box.getCenter(new THREE.Vector3());
         this.loadedModel.position.sub(center);
-        if (size > 0) { const sf = 12 / size; this.loadedModel.scale.set(sf, sf, sf); }
+        if (size > 0) {
+          const sf = 12 / size;
+          this.loadedModel.scale.set(sf, sf, sf);
+        }
+
         this.scene.add(this.loadedModel);
         if (this.handGroup) this.handGroup.visible = false;
         resolve({ success: true, isRigged: hasBones });
@@ -453,13 +361,19 @@ export class ThreeHandViewer {
     });
   }
 
-  // ─────────────────────────────────────────────────────────────
-  //  DYNAMIC SEQUENCE PLAYBACK (unchanged API)
-  // ─────────────────────────────────────────────────────────────
+  // ============================================================
+  //  DYNAMIC SEQUENCE PLAYBACK
+  // ============================================================
 
+  /**
+   * Load an array of landmark frames for animated playback.
+   * Each frame: { frame_index, timestamp, right_hand_landmarks, left_hand_landmarks, ... }
+   */
   loadDynamicSequence(frames, duration, fps = 30) {
     this.animationFrames = frames || [];
     if (this.animationFrames.length === 0) { this.duration = duration || 4.0; return; }
+
+    // Compute duration from last frame's actual timestamp if available
     const lastFrame = this.animationFrames[this.animationFrames.length - 1];
     if (lastFrame && typeof lastFrame.timestamp === "number" && lastFrame.timestamp > 0) {
       this.duration = lastFrame.timestamp;
@@ -468,8 +382,9 @@ export class ThreeHandViewer {
     } else {
       this.duration = this.animationFrames.length / (fps || 30);
     }
+
     this.currentTime = 0;
-    this.isPlaying   = true;
+    this.isPlaying = true;
     this.clock.start();
   }
 
@@ -486,8 +401,12 @@ export class ThreeHandViewer {
 
   applySequenceFrameAt(timeSec) {
     if (!this.animationFrames || this.animationFrames.length === 0) return;
+
     let frame = null;
+
+    // Find frame by timestamp if timestamps are present
     if (typeof this.animationFrames[0].timestamp === "number") {
+      // Binary-search or linear scan for nearest frame
       let best = 0, bestDiff = Infinity;
       for (let i = 0; i < this.animationFrames.length; i++) {
         const diff = Math.abs(this.animationFrames[i].timestamp - timeSec);
@@ -495,23 +414,28 @@ export class ThreeHandViewer {
       }
       frame = this.animationFrames[best];
     } else {
+      // Fallback: progress-based index
       const progress = Math.min(1.0, timeSec / (this.duration || 1.0));
-      frame = this.animationFrames[Math.floor(progress * (this.animationFrames.length - 1))];
+      const idx = Math.floor(progress * (this.animationFrames.length - 1));
+      frame = this.animationFrames[idx];
     }
+
     if (frame) {
       const lm = (frame.right_hand_landmarks && frame.right_hand_landmarks.length === 21)
         ? frame.right_hand_landmarks
         : (frame.left_hand_landmarks && frame.left_hand_landmarks.length === 21)
-          ? frame.left_hand_landmarks : null;
+          ? frame.left_hand_landmarks
+          : null;
       if (lm) this.applyLandmarks(lm);
     }
+
     if (this.onTimelineUpdate) this.onTimelineUpdate(timeSec, this.duration);
   }
 
   setView(preset) {
-    if (preset === "front")      { this.rotation = { x: 0, y: 0 }; }
-    else if (preset === "side")  { this.rotation = { x: 0, y: Math.PI / 2 }; }
-    else if (preset === "top")   { this.rotation = { x: Math.PI / 2 - 0.05, y: 0 }; }
+    if (preset === "front")  { this.rotation = { x: 0, y: 0 }; }
+    else if (preset === "side") { this.rotation = { x: 0, y: Math.PI / 2 }; }
+    else if (preset === "top")  { this.rotation = { x: Math.PI / 2 - 0.05, y: 0 }; }
     else { this.rotation = { x: 0.2, y: -0.3 }; this.zoom = 28; }
     this.updateCamera();
     if (this.controls) this.controls.reset();
@@ -520,14 +444,21 @@ export class ThreeHandViewer {
   renderLoop() {
     this.animFrameId = requestAnimationFrame(() => this.renderLoop());
     if (this.controls) this.controls.update();
+
+    // Advance animation time using accurate THREE.Clock delta
     if (this.isPlaying && this.animationFrames.length > 0) {
       const delta = this.clock.getDelta();
       this.currentTime += delta * this.playbackSpeed;
-      if (this.currentTime >= this.duration) { this.currentTime = 0; this.clock.start(); }
+      if (this.currentTime >= this.duration) {
+        this.currentTime = 0; // Loop
+        this.clock.start();
+      }
       this.applySequenceFrameAt(this.currentTime);
     } else {
+      // Keep clock ticking so getDelta() is accurate when playback restarts
       this.clock.getDelta();
     }
+
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
