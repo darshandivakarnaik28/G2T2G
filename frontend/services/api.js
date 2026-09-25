@@ -2,10 +2,26 @@
  * API Service for Centralized Remote ISL Dataset Collector
  */
 
-// Dynamically determine backend URL (uses current remote origin or fallback to local port 8000)
-const API_BASE_URL = (typeof window !== "undefined" && window.location.origin && window.location.origin.startsWith("http"))
-  ? (window.location.origin.includes(":5173") ? "http://localhost:8000" : window.location.origin)
-  : "http://localhost:8000";
+// Dynamically determine backend URL (supports direct port 8000, VS Code Live Server 5500, Vite, React, etc.)
+function getApiBaseUrl() {
+  if (typeof window === "undefined" || !window.location) {
+    return "http://localhost:8000";
+  }
+  const origin = window.location.origin || "";
+  const port = window.location.port;
+  const protocol = window.location.protocol;
+
+  if (protocol === "file:" || !origin.startsWith("http")) {
+    return "http://localhost:8000";
+  }
+  // If running from web dev servers (VS Code Live Server 5500, Vite 5173, Create-React-App 3000, etc.)
+  if (["5500", "5501", "5502", "5173", "3000", "8080", "4200"].includes(port)) {
+    return "http://localhost:8000";
+  }
+  return origin;
+}
+
+const API_BASE_URL = getApiBaseUrl();
 
 class ApiService {
   constructor() {
@@ -22,7 +38,15 @@ class ApiService {
       });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || `HTTP Error ${res.status}: ${res.statusText}`);
+        let detailMsg = "";
+        if (typeof errData.detail === "string") {
+          detailMsg = errData.detail;
+        } else if (Array.isArray(errData.detail)) {
+          detailMsg = errData.detail.map(d => d.msg || JSON.stringify(d)).join(", ");
+        } else if (errData.detail) {
+          detailMsg = JSON.stringify(errData.detail);
+        }
+        throw new Error(detailMsg || `HTTP Error ${res.status}: ${res.statusText}`);
       }
       return await res.json();
     } catch (err) {
@@ -87,6 +111,24 @@ class ApiService {
     return await this.fetchJson(`/api/signers/${signerId}/dataset`);
   }
 
+  async toggleSignerStatus(signerId) {
+    return await this.fetchJson(`/api/signers/${signerId}/toggle-status`, {
+      method: "PUT"
+    });
+  }
+
+  async deleteSigner(signerId) {
+    return await this.fetchJson(`/api/signers/${signerId}`, {
+      method: "DELETE"
+    });
+  }
+
+  async removeAllSigners() {
+    return await this.fetchJson("/api/signers", {
+      method: "DELETE"
+    });
+  }
+
   // Assignments
   async getAssignments(filters = {}) {
     const params = new URLSearchParams();
@@ -99,6 +141,14 @@ class ApiService {
 
   async createAssignment(data) {
     return await this.fetchJson("/api/assignments", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
+  }
+
+  async assignGesture(data) {
+    return await this.fetchJson("/api/assignments/assign-gesture", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data)

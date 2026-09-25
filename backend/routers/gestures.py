@@ -170,7 +170,8 @@ def get_gesture_dataset(gesture_id: str, db: Session = Depends(get_db)):
             signer_name=signer_obj.display_name if signer_obj else sid,
             valid_samples=valid_count,
             target_samples=target,
-            status=status_str
+            status=status_str,
+            signer_enabled=signer_obj.enabled if signer_obj else True
         ))
 
     return GestureDatasetBreakdownOut(

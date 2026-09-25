@@ -26,9 +26,13 @@ class SignerOut(BaseModel):
 
 # Collection Assignment schemas
 class CollectionAssignmentCreate(BaseModel):
-    signer_id: str
+    signer_id: Optional[str] = None # If None, assigns to all active signers
     gesture_id: str
     target_samples: int = 50 # Default 50 samples per signer per sign
+
+class GestureAssignRequest(BaseModel):
+    gesture_id: str
+    target_samples: int = 50
 
 class CollectionAssignmentUpdate(BaseModel):
     target_samples: Optional[int] = None
@@ -47,6 +51,7 @@ class CollectionAssignmentOut(BaseModel):
     remaining_samples: int = 50
     completion_percentage: float = 0.0
     status: str = "NOT_STARTED"
+    signer_enabled: bool = True
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -88,6 +93,7 @@ class GestureSignerStat(BaseModel):
     valid_samples: int
     target_samples: int
     status: str
+    signer_enabled: bool = True
 
 class GestureDatasetBreakdownOut(BaseModel):
     gesture_id: str

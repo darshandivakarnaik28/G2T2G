@@ -23,26 +23,32 @@ router = APIRouter(prefix="/api/samples", tags=["samples"])
 
 def _sync_signer_and_assignment(db: Session, gesture_id: str, signer_id: str):
     """Ensure signer exists and sync assignment progress"""
-    clean_sid = signer_id.strip().upper()
+    from sqlalchemy import func
+    raw_sid = signer_id.strip()
     clean_gid = gesture_id.strip().lower()
 
-    # Auto-register signer if new
-    signer = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
+    # Look up existing signer case-insensitively
+    signer = db.query(Signer).filter(
+        (Signer.signer_id == raw_sid) | (func.lower(Signer.signer_id) == raw_sid.lower())
+    ).first()
     if not signer:
-        signer = Signer(signer_id=clean_sid, display_name=f"Signer {clean_sid}")
+        signer = Signer(signer_id=raw_sid, display_name=f"Signer {raw_sid}")
         db.add(signer)
         db.commit()
+        db.refresh(signer)
+
+    clean_sid = signer.signer_id
 
     # Count valid samples (confidence >= 0.70)
     valid_count = db.query(DatasetSample).filter(
         DatasetSample.gesture_id == clean_gid,
-        DatasetSample.signer_id == clean_sid,
+        (DatasetSample.signer_id == clean_sid) | (func.lower(DatasetSample.signer_id) == clean_sid.lower()),
         DatasetSample.detection_confidence >= 0.70
     ).count()
 
     assignment = db.query(CollectionAssignment).filter(
         CollectionAssignment.gesture_id == clean_gid,
-        CollectionAssignment.signer_id == clean_sid
+        (CollectionAssignment.signer_id == clean_sid) | (func.lower(CollectionAssignment.signer_id) == clean_sid.lower())
     ).first()
 
     if assignment:
@@ -66,7 +72,12 @@ def list_samples(
     if gesture_id:
         query = query.filter(DatasetSample.gesture_id == gesture_id.strip().lower())
     if signer_id:
-        query = query.filter(DatasetSample.signer_id == signer_id.strip().upper())
+        from sqlalchemy import func
+        sid_clean = signer_id.strip()
+        query = query.filter(
+            (DatasetSample.signer_id == sid_clean) |
+            (func.lower(DatasetSample.signer_id) == sid_clean.lower())
+        )
     if sample_type:
         query = query.filter(DatasetSample.sample_type == sample_type.strip().upper())
 
@@ -112,13 +123,19 @@ async def create_webcam_image_sample(
     db: Session = Depends(get_db)
 ):
     clean_gid = gesture_id.strip().lower()
-    clean_sid = signer_id.strip().upper()
+    raw_sid = signer_id.strip()
 
     gesture = db.query(Gesture).filter(Gesture.gesture_id == clean_gid).first()
     if not gesture:
         raise HTTPException(status_code=404, detail=f"Gesture '{clean_gid}' not found.")
 
-    # Ensure signer exists
+    # Ensure signer exists and get canonical ID
+    from sqlalchemy import func
+    signer_match = db.query(Signer).filter(
+        (Signer.signer_id == raw_sid) | (func.lower(Signer.signer_id) == raw_sid.lower())
+    ).first()
+    clean_sid = signer_match.signer_id if signer_match else raw_sid
+
     _sync_signer_and_assignment(db, clean_gid, clean_sid)
 
     sample_id = f"smp_{uuid.uuid4().hex[:8]}"
@@ -147,10 +164,15 @@ async def create_webcam_image_sample(
     except Exception:
         parsed_lm = {}
 
+    signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
+    signer_name = signer_obj.display_name if signer_obj else clean_sid
+
     lm_payload = {
         "gesture_id": clean_gid,
-        "sample_id": sample_id,
+        "gesture_name": gesture.name,
         "signer_id": clean_sid,
+        "signer_name": signer_name,
+        "sample_id": sample_id,
         "type": "STATIC",
         "fps": None,
         "frames": [parsed_lm] if isinstance(parsed_lm, dict) and "right_hand_landmarks" in parsed_lm else parsed_lm
@@ -250,11 +272,17 @@ async def create_image_sample(
     db: Session = Depends(get_db)
 ):
     clean_gid = gesture_id.strip().lower()
-    clean_sid = signer_id.strip().upper()
+    raw_sid = signer_id.strip()
 
     gesture = db.query(Gesture).filter(Gesture.gesture_id == clean_gid).first()
     if not gesture:
         raise HTTPException(status_code=404, detail=f"Gesture '{clean_gid}' not found.")
+
+    from sqlalchemy import func
+    signer_match = db.query(Signer).filter(
+        (Signer.signer_id == raw_sid) | (func.lower(Signer.signer_id) == raw_sid.lower())
+    ).first()
+    clean_sid = signer_match.signer_id if signer_match else raw_sid
 
     _sync_signer_and_assignment(db, clean_gid, clean_sid)
 
@@ -269,10 +297,15 @@ async def create_image_sample(
     except Exception:
         parsed_lm = {}
 
+    signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
+    signer_name = signer_obj.display_name if signer_obj else clean_sid
+
     lm_payload = {
         "gesture_id": clean_gid,
-        "sample_id": sample_id,
+        "gesture_name": gesture.name,
         "signer_id": clean_sid,
+        "signer_name": signer_name,
+        "sample_id": sample_id,
         "type": "STATIC",
         "fps": None,
         "frames": [parsed_lm] if isinstance(parsed_lm, dict) and "right_hand_landmarks" in parsed_lm else parsed_lm
@@ -355,11 +388,17 @@ async def create_webcam_video_sample(
     db: Session = Depends(get_db)
 ):
     clean_gid = gesture_id.strip().lower()
-    clean_sid = signer_id.strip().upper()
+    raw_sid = signer_id.strip()
 
     gesture = db.query(Gesture).filter(Gesture.gesture_id == clean_gid).first()
     if not gesture:
         raise HTTPException(status_code=404, detail=f"Gesture '{clean_gid}' not found.")
+
+    from sqlalchemy import func
+    signer_match = db.query(Signer).filter(
+        (Signer.signer_id == raw_sid) | (func.lower(Signer.signer_id) == raw_sid.lower())
+    ).first()
+    clean_sid = signer_match.signer_id if signer_match else raw_sid
 
     _sync_signer_and_assignment(db, clean_gid, clean_sid)
 
@@ -378,10 +417,15 @@ async def create_webcam_video_sample(
 
     actual_frames_count = len(frames_list) if len(frames_list) > 0 else frame_count
 
+    signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
+    signer_name = signer_obj.display_name if signer_obj else clean_sid
+
     lm_payload = {
         "gesture_id": clean_gid,
-        "sample_id": sample_id,
+        "gesture_name": gesture.name,
         "signer_id": clean_sid,
+        "signer_name": signer_name,
+        "sample_id": sample_id,
         "type": "DYNAMIC",
         "fps": fps,
         "duration": duration,

@@ -40,8 +40,9 @@ def sanitize_filename(filename: str) -> str:
 
 def save_image_bytes(gesture_id: str, image_bytes: bytes, ext: str = "jpg", signer_id: str = "S001") -> str:
     """
-    Save raw image bytes to global storage and hierarchical signer folder:
-    storage/gestures/{gesture_id}/{signer_id}/images/{filename}
+    Save raw image bytes to global storage and gesture folder:
+    storage/gestures/{gesture_id}/images/{filename}
+    Note: Folder organization is strictly by gesture. Signer ID is preserved in filename and metadata.
     """
     init_storage()
     clean_gesture = sanitize_filename(gesture_id)
@@ -54,10 +55,10 @@ def save_image_bytes(gesture_id: str, image_bytes: bytes, ext: str = "jpg", sign
     with open(dest_path, "wb") as f:
         f.write(image_bytes)
         
-    # 2. Hierarchical signer-partitioned storage
-    signer_img_dir = DIRS["gestures"] / clean_gesture / clean_signer / "images"
-    os.makedirs(signer_img_dir, exist_ok=True)
-    with open(signer_img_dir / filename, "wb") as f:
+    # 2. Gesture-based storage (All teammates collecting for same gesture contribute to same gesture folder)
+    gesture_img_dir = DIRS["gestures"] / clean_gesture / "images"
+    os.makedirs(gesture_img_dir, exist_ok=True)
+    with open(gesture_img_dir / filename, "wb") as f:
         f.write(image_bytes)
 
     # Return normalized relative path
@@ -66,8 +67,9 @@ def save_image_bytes(gesture_id: str, image_bytes: bytes, ext: str = "jpg", sign
 
 def save_video_bytes(gesture_id: str, video_bytes: bytes, ext: str = "webm", signer_id: str = "S001") -> str:
     """
-    Save video bytes to global storage and hierarchical signer folder:
-    storage/gestures/{gesture_id}/{signer_id}/videos/{filename}
+    Save video bytes to global storage and gesture folder:
+    storage/gestures/{gesture_id}/videos/{filename}
+    Note: Folder organization is strictly by gesture.
     """
     init_storage()
     clean_gesture = sanitize_filename(gesture_id)
@@ -80,10 +82,10 @@ def save_video_bytes(gesture_id: str, video_bytes: bytes, ext: str = "webm", sig
     with open(dest_path, "wb") as f:
         f.write(video_bytes)
 
-    # 2. Hierarchical signer-partitioned storage
-    signer_vid_dir = DIRS["gestures"] / clean_gesture / clean_signer / "videos"
-    os.makedirs(signer_vid_dir, exist_ok=True)
-    with open(signer_vid_dir / filename, "wb") as f:
+    # 2. Gesture-based storage
+    gesture_vid_dir = DIRS["gestures"] / clean_gesture / "videos"
+    os.makedirs(gesture_vid_dir, exist_ok=True)
+    with open(gesture_vid_dir / filename, "wb") as f:
         f.write(video_bytes)
 
     return f"storage/videos/{filename}"
@@ -91,12 +93,12 @@ def save_video_bytes(gesture_id: str, video_bytes: bytes, ext: str = "webm", sig
 def save_landmarks_json(gesture_id: str, sample_id: str, payload: Dict[str, Any], signer_id: str = "S001") -> str:
     """
     Save landmark sequence payload as formatted JSON:
-    storage/gestures/{gesture_id}/{signer_id}/landmarks/{sample_id}.json
+    storage/gestures/{gesture_id}/landmarks/{sample_id}.json
+    Note: Folder organization is strictly by gesture. Payload metadata identifies the signer.
     """
     init_storage()
     clean_gesture = sanitize_filename(gesture_id)
     clean_sample = sanitize_filename(sample_id)
-    clean_signer = sanitize_filename(signer_id or "S001")
     filename = f"{clean_sample}.json"
     
     # 1. Global landmarks
@@ -104,10 +106,10 @@ def save_landmarks_json(gesture_id: str, sample_id: str, payload: Dict[str, Any]
     with open(dest_path, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
 
-    # 2. Hierarchical signer-partitioned storage
-    signer_lm_dir = DIRS["gestures"] / clean_gesture / clean_signer / "landmarks"
-    os.makedirs(signer_lm_dir, exist_ok=True)
-    with open(signer_lm_dir / filename, "w", encoding="utf-8") as f:
+    # 2. Gesture-based storage
+    gesture_lm_dir = DIRS["gestures"] / clean_gesture / "landmarks"
+    os.makedirs(gesture_lm_dir, exist_ok=True)
+    with open(gesture_lm_dir / filename, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
 
     return f"storage/landmarks/{filename}"

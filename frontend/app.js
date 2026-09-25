@@ -70,13 +70,27 @@ class App {
 
       if (globalSelect) {
         globalSelect.innerHTML = "";
-        signers.forEach((s) => {
+        if (signers.length === 0) {
           const opt = document.createElement("option");
-          opt.value = s.signer_id;
-          opt.textContent = `${s.signer_id} (${s.display_name})`;
-          if (s.signer_id === this.activeSignerId) opt.selected = true;
+          opt.value = "";
+          opt.textContent = "No signers registered";
           globalSelect.appendChild(opt);
-        });
+        } else {
+          // If activeSignerId is not among existing signers, pick the first one
+          const exists = signers.some(s => s.signer_id.toLowerCase() === (this.activeSignerId || "").toLowerCase());
+          if (!exists && signers.length > 0) {
+            this.activeSignerId = signers[0].signer_id;
+            localStorage.setItem("isl_active_signer", this.activeSignerId);
+          }
+
+          signers.forEach((s) => {
+            const opt = document.createElement("option");
+            opt.value = s.signer_id;
+            opt.textContent = `${s.signer_id} (${s.display_name})`;
+            if (s.signer_id.toLowerCase() === (this.activeSignerId || "").toLowerCase()) opt.selected = true;
+            globalSelect.appendChild(opt);
+          });
+        }
       }
 
       if (assignSignerSelect) {
@@ -91,11 +105,11 @@ class App {
 
       const collectSignerInput = document.getElementById("collect-signer-input");
       if (collectSignerInput) {
-        collectSignerInput.value = this.activeSignerId;
+        collectSignerInput.value = this.activeSignerId || "";
       }
       const mySignerBadge = document.getElementById("my-collection-signer-badge");
       if (mySignerBadge) {
-        mySignerBadge.textContent = this.activeSignerId;
+        mySignerBadge.textContent = this.activeSignerId || "None";
       }
     } catch (err) {
       console.warn("Failed to populate signers dropdown:", err);
@@ -689,37 +703,45 @@ class App {
       if (tbodySigners) {
         tbodySigners.innerHTML = "";
         if (signers.length === 0) {
-          tbodySigners.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-outline">No signers registered yet.</td></tr>`;
+          tbodySigners.innerHTML = `<tr><td colspan="7" class="p-4 text-center text-outline">No signers registered yet. Click "Add Signer" to add team members.</td></tr>`;
         } else {
           signers.forEach((s) => {
             const signerAssignments = assignments.filter(a => a.signer_id === s.signer_id);
             const assignedCount = signerAssignments.length;
             const completedCount = signerAssignments.filter(a => a.status === "COMPLETED" || a.collected_samples >= a.target_samples).length;
-            const isActive = s.signer_id === this.activeSignerId;
+            const isSelected = s.signer_id === this.activeSignerId;
+            const isActive = Boolean(s.enabled);
 
             const tr = document.createElement("tr");
             tr.className = "hover:bg-surface-container-high/40 transition-colors";
             tr.innerHTML = `
               <td class="p-3 font-bold text-primary flex items-center gap-1.5">
-                ${isActive ? '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>' : ''}
-                <span>${s.signer_id}</span>
+                ${isSelected ? '<span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" title="Currently selected signer in this browser"></span>' : ''}
+                <span class="font-mono">${s.signer_id}</span>
               </td>
               <td class="p-3 font-medium text-on-background">${s.display_name}</td>
               <td class="p-3">
-                <span class="text-emerald-400 font-bold">${s.valid_samples}</span>
-                <span class="text-outline">/ ${s.total_samples}</span>
+                <span class="text-emerald-400 font-bold">${s.valid_samples ?? s.sample_count ?? 0}</span>
+                <span class="text-outline">/ ${s.total_samples ?? s.sample_count ?? 0}</span>
               </td>
               <td class="p-3">${assignedCount}</td>
               <td class="p-3 text-emerald-400 font-semibold">${completedCount}</td>
               <td class="p-3">
-                <span class="px-2 py-0.5 rounded text-[10px] font-mono ${
-                  s.enabled ? 'bg-emerald-950 text-emerald-300 border border-emerald-800' : 'bg-surface-container-high text-outline'
-                }">${s.enabled ? 'ACTIVE' : 'DISABLED'}</span>
+                <button onclick="app.toggleSignerStatus('${s.signer_id}')" class="px-2 py-0.5 rounded text-[10px] font-mono cursor-pointer transition-colors ${
+                  isActive ? 'bg-emerald-950 text-emerald-300 border border-emerald-800 hover:bg-emerald-900/60' : 'bg-surface-container-high text-outline hover:text-on-background'
+                }" title="Click to toggle Active / Inactive status">
+                  ${isActive ? '● ACTIVE' : '○ INACTIVE'}
+                </button>
               </td>
               <td class="p-3 text-right">
                 <div class="flex items-center justify-end gap-2">
-                  ${!isActive ? `<button onclick="app.setActiveSigner('${s.signer_id}')" class="px-2 py-1 rounded bg-surface-container-high hover:bg-surface-variant text-[11px] text-primary cursor-pointer">Switch Active</button>` : '<span class="text-[11px] text-emerald-400 font-medium">Active</span>'}
-                  <button onclick="app.openAssignGestureModal(null, '${s.signer_id}')" class="px-2 py-1 rounded bg-primary/10 hover:bg-primary/20 text-[11px] text-primary cursor-pointer">+ Assign</button>
+                  ${!isSelected ? `<button onclick="app.setActiveSigner('${s.signer_id}')" class="px-2 py-1 rounded bg-surface-container-high hover:bg-surface-variant text-[11px] text-primary cursor-pointer">Select</button>` : '<span class="text-[11px] text-emerald-400 font-medium">Selected</span>'}
+                  <button onclick="app.toggleSignerStatus('${s.signer_id}')" class="px-2 py-1 rounded bg-surface-container-high hover:bg-surface-variant text-[11px] text-outline hover:text-on-background cursor-pointer">
+                    ${isActive ? 'Set Inactive' : 'Set Active'}
+                  </button>
+                  <button onclick="app.deleteSigner('${s.signer_id}')" class="text-outline hover:text-rose-400 p-1 transition-colors cursor-pointer" title="Delete signer ${s.signer_id}">
+                    <span class="material-symbols-outlined text-[16px]">delete</span>
+                  </button>
                 </div>
               </td>
             `;
@@ -728,6 +750,115 @@ class App {
         }
       }
 
+      // Populate Grouped Gesture Assignment Status Display
+      const gestureContainer = document.getElementById("team-gesture-assignments-container");
+      if (gestureContainer) {
+        gestureContainer.innerHTML = "";
+        
+        // Group assignments by gesture_id
+        const gestureGroups = {};
+        assignments.forEach((a) => {
+          if (!gestureGroups[a.gesture_id]) {
+            gestureGroups[a.gesture_id] = [];
+          }
+          gestureGroups[a.gesture_id].push(a);
+        });
+
+        const gestureKeys = Object.keys(gestureGroups);
+        if (gestureKeys.length === 0) {
+          gestureContainer.innerHTML = `
+            <div class="text-center py-8 text-outline text-xs space-y-2">
+              <span class="material-symbols-outlined text-[36px]">assignment</span>
+              <p>No gestures currently assigned to teammates. Click "Assign Gesture" above to assign an existing gesture.</p>
+            </div>
+          `;
+        } else {
+          gestureKeys.forEach((gid) => {
+            const memberAssignments = gestureGroups[gid];
+            const firstA = memberAssignments[0];
+            const gestureObj = this.gestures.find(g => g.gesture_id === gid) || {
+              name: firstA.gesture_name || gid,
+              kannada_meaning: firstA.gesture_kannada || "",
+              gesture_type: firstA.gesture_type || "STATIC"
+            };
+
+            const card = document.createElement("div");
+            card.className = "p-4 rounded-lg bg-surface-container-lowest border border-outline-variant/30 space-y-3";
+
+            // Status badge helper
+            const getStatusBadge = (statusStr, collected, target) => {
+              const upper = (statusStr || "").toUpperCase();
+              if (upper === "COMPLETED" || collected >= target) {
+                return `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">Completed</span>`;
+              }
+              if (upper === "IN_PROGRESS" || upper === "STARTED" || collected > 0) {
+                return `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-amber-950 text-amber-300 border border-amber-800 font-bold">In Progress</span>`;
+              }
+              return `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container-high text-outline">Not Started</span>`;
+            };
+
+            let membersHtml = memberAssignments.map((a) => {
+              const signerObj = signers.find(s => s.signer_id === a.signer_id);
+              const signerName = signerObj ? signerObj.display_name : (a.signer_name || a.signer_id);
+              const isActive = signerObj ? Boolean(signerObj.enabled) : Boolean(a.signer_enabled ?? true);
+              const target = a.target_samples || 50;
+              const collected = a.collected_samples || 0;
+              const statusBadge = getStatusBadge(a.status, collected, target);
+
+              return `
+                <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded bg-surface-container/60 border border-outline-variant/20 hover:border-outline-variant/50 transition-colors">
+                  <div class="flex items-center gap-3">
+                    <span class="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded bg-primary/10 border border-primary/20">${a.signer_id}</span>
+                    <span class="text-sm font-semibold text-on-background">${signerName}</span>
+                    <span class="text-xs text-outline font-mono">(${collected}/${target} samples)</span>
+                  </div>
+                  <div class="flex items-center gap-2 self-start sm:self-auto">
+                    ${statusBadge}
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono ${
+                      isActive ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/80' : 'bg-surface-container-high text-outline'
+                    }">
+                      ${isActive ? 'Active' : 'Inactive'}
+                    </span>
+                    <button onclick="app.startAssignmentCollection('${a.gesture_id}', '${a.signer_id}', ${target})" class="px-2.5 py-1 rounded bg-primary/10 hover:bg-primary/20 text-xs font-medium text-primary cursor-pointer transition-colors" title="Collect for this assignment">
+                      Collect
+                    </button>
+                    <button onclick="app.deleteAssignment(${a.id})" class="text-outline hover:text-rose-400 p-1 transition-colors cursor-pointer" title="Delete assignment">
+                      <span class="material-symbols-outlined text-[16px]">close</span>
+                    </button>
+                  </div>
+                </li>
+              `;
+            }).join("");
+
+            card.innerHTML = `
+              <div class="flex items-start justify-between">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <h4 class="text-base font-bold text-on-background">${gestureObj.name}</h4>
+                    <span class="text-tertiary text-xs font-medium">${gestureObj.kannada_meaning || ""}</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded font-mono ${
+                      gestureObj.gesture_type === 'STATIC' ? 'bg-blue-950 text-blue-300' : 'bg-purple-950 text-purple-300'
+                    }">${gestureObj.gesture_type}</span>
+                  </div>
+                  <p class="text-xs font-mono text-outline mt-0.5">Gesture ID: <span class="text-on-surface-variant font-bold">${gid}</span></p>
+                </div>
+                <span class="text-xs font-mono text-outline bg-surface-container px-2 py-1 rounded border border-outline-variant/30">
+                  ${memberAssignments.length} Assigned Member${memberAssignments.length === 1 ? '' : 's'}
+                </span>
+              </div>
+              <div>
+                <p class="text-[11px] font-mono uppercase text-outline mb-2">Assigned Members:</p>
+                <ul class="space-y-2">
+                  ${membersHtml}
+                </ul>
+              </div>
+            `;
+            gestureContainer.appendChild(card);
+          });
+        }
+      }
+
+      // Detailed assignments table
       const tbodyAssignments = document.getElementById("team-assignments-tbody");
       if (tbodyAssignments) {
         tbodyAssignments.innerHTML = "";
@@ -739,12 +870,14 @@ class App {
             const collected = a.collected_samples || 0;
             const isDone = collected >= target || a.status === "COMPLETED";
             const pct = Math.min(100, Math.round((collected / (target || 1)) * 100));
+            const signerObj = signers.find(s => s.signer_id === a.signer_id);
+            const signerName = signerObj ? signerObj.display_name : (a.signer_name || a.signer_id);
 
             const tr = document.createElement("tr");
             tr.className = "hover:bg-surface-container-high/40 transition-colors";
             tr.innerHTML = `
-              <td class="p-3 font-bold text-primary font-mono">${a.signer_id}</td>
-              <td class="p-3 font-medium text-on-background">${a.gesture_id}</td>
+              <td class="p-3 font-bold text-primary font-mono">${a.signer_id} <span class="text-outline font-normal">(${signerName})</span></td>
+              <td class="p-3 font-medium text-on-background">${a.gesture_name || a.gesture_id}</td>
               <td class="p-3 font-mono">${target}</td>
               <td class="p-3 font-mono font-bold ${isDone ? 'text-emerald-400' : 'text-on-background'}">${collected}</td>
               <td class="p-3">
@@ -786,89 +919,235 @@ class App {
     }
   }
 
+  async toggleSignerStatus(signerId) {
+    try {
+      await api.toggleSignerStatus(signerId);
+      if (this.activeView === "team") await this.loadTeamPage();
+      await this.populateSignerDropdowns();
+    } catch (err) {
+      alert("Failed to toggle signer status: " + err.message);
+    }
+  }
+
+  async deleteSigner(signerId) {
+    if (!confirm(`Are you sure you want to delete signer "${signerId}" and their assignments?`)) return;
+    try {
+      await api.deleteSigner(signerId);
+      if (this.activeSignerId === signerId) {
+        this.activeSignerId = "signer_001";
+        localStorage.removeItem("isl_active_signer");
+      }
+      await this.populateSignerDropdowns();
+      if (this.activeView === "team") await this.loadTeamPage();
+      if (this.activeView === "my-collection") await this.loadMyCollectionPage();
+      alert(`Signer "${signerId}" removed successfully.`);
+    } catch (err) {
+      alert("Failed to delete signer: " + err.message);
+    }
+  }
+
+  async removeAllSigners() {
+    if (!confirm("Are you sure you want to remove ALL registered signers and their assignments?")) return;
+    try {
+      await api.removeAllSigners();
+      this.activeSignerId = "signer_001";
+      localStorage.removeItem("isl_active_signer");
+      await this.populateSignerDropdowns();
+      if (this.activeView === "team") await this.loadTeamPage();
+      if (this.activeView === "my-collection") await this.loadMyCollectionPage();
+      alert("All signers and assignments have been removed. You can now add fresh signers.");
+    } catch (err) {
+      alert("Failed to remove all signers: " + err.message);
+    }
+  }
+
   // ==========================================
   // SIGNER & ASSIGNMENT MODALS
   // ==========================================
   openAddSignerModal() {
-    document.getElementById("input-signer-id").value = "";
-    document.getElementById("input-signer-name").value = "";
-    document.getElementById("add-signer-modal")?.classList.remove("hidden");
+    const modal = document.getElementById("add-signer-modal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
+    const idInput = document.getElementById("input-signer-id");
+    const nameInput = document.getElementById("input-signer-name");
+    if (idInput) {
+      idInput.value = "";
+      setTimeout(() => idInput.focus(), 50);
+    }
+    if (nameInput) nameInput.value = "";
   }
 
   closeAddSignerModal() {
-    document.getElementById("add-signer-modal")?.classList.add("hidden");
+    const modal = document.getElementById("add-signer-modal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
   }
 
   async submitAddSignerForm(e) {
-    e.preventDefault();
-    const signerId = document.getElementById("input-signer-id").value.trim().toUpperCase();
-    const displayName = document.getElementById("input-signer-name").value.trim();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (this._isSubmittingSigner) return;
+
+    const signerId = document.getElementById("input-signer-id")?.value.trim();
+    const displayName = document.getElementById("input-signer-name")?.value.trim();
 
     if (!signerId || !displayName) {
-      alert("Please enter both Signer ID and Display Name.");
+      alert("Please enter both Signer ID and Signer Name.");
       return;
     }
 
+    this._isSubmittingSigner = true;
     try {
       await api.createSigner({ signer_id: signerId, display_name: displayName, enabled: true });
       this.closeAddSignerModal();
       await this.populateSignerDropdowns();
       if (this.activeView === "team") await this.loadTeamPage();
-      alert(`Signer ${signerId} (${displayName}) registered successfully!`);
+      await this.loadDashboard();
+      alert(`Signer "${signerId}" (${displayName}) registered successfully!`);
     } catch (err) {
       alert("Failed to create signer: " + err.message);
+    } finally {
+      this._isSubmittingSigner = false;
     }
   }
 
-  async openAssignGestureModal(prefillGestureId = null, prefillSignerId = null) {
-    await this.refreshGesturesList();
-    await this.populateSignerDropdowns();
+  async openAssignGestureModal(prefillGestureId = null) {
+    // 1. Immediately show modal so the user gets instant visual response
+    const modal = document.getElementById("assign-gesture-modal");
+    if (modal) {
+      modal.classList.remove("hidden");
+      modal.style.display = "flex";
+    }
 
     const gestureSelect = document.getElementById("input-assign-gesture");
-    if (gestureSelect) {
-      gestureSelect.innerHTML = "";
-      this.gestures.forEach((g) => {
-        const opt = document.createElement("option");
-        opt.value = g.gesture_id;
-        opt.textContent = `${g.name} (${g.gesture_type})`;
-        if (prefillGestureId && g.gesture_id === prefillGestureId) opt.selected = true;
-        gestureSelect.appendChild(opt);
-      });
-    }
-
-    const signerSelect = document.getElementById("input-assign-signer");
-    if (signerSelect && prefillSignerId) {
-      signerSelect.value = prefillSignerId;
-    }
-
     const targetInput = document.getElementById("input-assign-target");
+    const infoContainer = document.getElementById("assign-signers-info");
+    const submitBtn = document.getElementById("btn-submit-assign-gesture");
+
     if (targetInput) targetInput.value = "50";
 
-    document.getElementById("assign-gesture-modal")?.classList.remove("hidden");
+    const populateGesturesDropdown = (list) => {
+      if (!gestureSelect) return;
+      gestureSelect.innerHTML = "";
+      if (!list || list.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "No gestures found";
+        gestureSelect.appendChild(opt);
+        return;
+      }
+      list.forEach((g) => {
+        const opt = document.createElement("option");
+        opt.value = g.gesture_id;
+        opt.textContent = `${g.name} (${g.kannada_meaning || ""}) [${g.gesture_type}]`;
+        if (prefillGestureId && g.gesture_id.toLowerCase() === prefillGestureId.toLowerCase()) {
+          opt.selected = true;
+        }
+        gestureSelect.appendChild(opt);
+      });
+    };
+
+    // Pre-populate immediately with existing cached gestures
+    if (this.gestures && this.gestures.length > 0) {
+      populateGesturesDropdown(this.gestures);
+    } else {
+      populateGesturesDropdown([]);
+    }
+
+    // Check active signers to inform the admin
+    if (infoContainer) {
+      infoContainer.className = "p-2.5 rounded bg-surface-container-lowest border border-outline-variant/30 text-xs font-mono text-outline";
+      infoContainer.innerHTML = `Checking registered signers...`;
+    }
+
+    try {
+      const [freshGestures, signers] = await Promise.all([
+        api.getGestures().catch(() => this.gestures || []),
+        api.getSigners().catch(() => [])
+      ]);
+
+      if (freshGestures && freshGestures.length > 0) {
+        this.gestures = freshGestures;
+        populateGesturesDropdown(freshGestures);
+      }
+
+      if (infoContainer) {
+        if (!signers || signers.length === 0) {
+          infoContainer.className = "p-2.5 rounded bg-amber-950/40 border border-amber-800 text-amber-300 text-xs font-mono flex items-center justify-between";
+          infoContainer.innerHTML = `
+            <span>⚠️ No team signers registered yet.</span>
+            <button type="button" onclick="closeAssignGestureModal(); openAddSignerModal();" class="text-primary hover:underline font-bold ml-2">Add Signer First</button>
+          `;
+          if (submitBtn) submitBtn.disabled = true;
+        } else {
+          const activeSigners = signers.filter(s => s.enabled);
+          const count = activeSigners.length || signers.length;
+          const names = (activeSigners.length ? activeSigners : signers).map(s => `${s.signer_id} (${s.display_name})`).join(", ");
+          infoContainer.className = "p-2.5 rounded bg-emerald-950/30 border border-emerald-800/60 text-emerald-300 text-xs font-mono";
+          infoContainer.innerHTML = `Will assign to <strong>${count} signer${count === 1 ? '' : 's'}</strong>: ${names}`;
+          if (submitBtn) submitBtn.disabled = false;
+        }
+      }
+    } catch (err) {
+      console.warn("Error refreshing assign modal data:", err);
+    }
   }
 
   closeAssignGestureModal() {
-    document.getElementById("assign-gesture-modal")?.classList.add("hidden");
+    const modal = document.getElementById("assign-gesture-modal");
+    if (modal) {
+      modal.classList.add("hidden");
+      modal.style.display = "none";
+    }
   }
 
   async submitAssignGestureForm(e) {
-    e.preventDefault();
-    const signerId = document.getElementById("input-assign-signer").value;
-    const gestureId = document.getElementById("input-assign-gesture").value;
-    const targetSamples = parseInt(document.getElementById("input-assign-target").value, 10) || 50;
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    if (this._isSubmittingAssignment) return;
+
+    const gestureId = document.getElementById("input-assign-gesture")?.value;
+    const targetSamples = parseInt(document.getElementById("input-assign-target")?.value, 10) || 50;
+    const submitBtn = document.getElementById("btn-submit-assign-gesture");
+
+    if (!gestureId) {
+      alert("Please select an existing gesture to assign.");
+      return;
+    }
+
+    this._isSubmittingAssignment = true;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Assigning...";
+    }
 
     try {
-      await api.createAssignment({
-        signer_id: signerId,
+      const res = await api.assignGesture({
         gesture_id: gestureId,
         target_samples: targetSamples
       });
       this.closeAssignGestureModal();
       if (this.activeView === "team") await this.loadTeamPage();
       if (this.activeView === "my-collection") await this.loadMyCollectionPage();
-      alert(`Assignment created: ${signerId} assigned to ${gestureId} (Target: ${targetSamples})`);
+      await this.loadDashboard();
+      const count = Array.isArray(res) ? res.length : 1;
+      alert(`Gesture '${gestureId}' successfully assigned to ${count} team signer(s) (Target: ${targetSamples} samples each)!`);
     } catch (err) {
       alert("Failed to assign gesture: " + err.message);
+    } finally {
+      this._isSubmittingAssignment = false;
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = "Assign Gesture";
+      }
     }
   }
 
@@ -956,36 +1235,57 @@ class App {
     try {
       await this.tracker.startCamera(video, canvas, {
         onResults: (landmarksData) => {
-          document.getElementById("static-hud-fps").textContent = landmarksData.fps;
-          document.getElementById("static-hud-hands").textContent = landmarksData.handCount;
-          document.getElementById("static-hud-conf").textContent = `${Math.round(landmarksData.confidence * 100)}%`;
+          const fpsEl = document.getElementById("static-hud-fps");
+          const handsEl = document.getElementById("static-hud-hands");
+          const confHudEl = document.getElementById("static-hud-conf");
+          const handEl = document.getElementById("static-hud-physical-hand");
+
+          if (fpsEl) fpsEl.textContent = landmarksData.fps;
+          if (handsEl) handsEl.textContent = landmarksData.handCount;
+          if (confHudEl) confHudEl.textContent = `${Math.round(landmarksData.confidence * 100)}%`;
 
           const physicalHand = landmarksData.right_hand_present && landmarksData.left_hand_present
             ? "Both Hands"
             : (landmarksData.right_hand_present ? "Right Hand" : (landmarksData.left_hand_present ? "Left Hand" : "—"));
-          const handEl = document.getElementById("static-hud-physical-hand");
           if (handEl) handEl.textContent = physicalHand;
 
           // Live quality checklist update
           const hasHand = landmarksData.handCount > 0;
           const confValid = landmarksData.confidence >= 0.70;
 
-          document.getElementById("check-hand-detected").innerHTML = hasHand
-            ? `<span class="text-emerald-400">✓ Hand detected</span>`
-            : `<span class="text-red-400">✗ No hand detected</span>`;
-          document.getElementById("check-landmarks").innerHTML = hasHand
-            ? `<span class="text-emerald-400">✓ 21/21 landmarks tracked</span>`
-            : `<span class="text-outline">○ 21 landmarks waiting</span>`;
-          document.getElementById("check-confidence").innerHTML = confValid
-            ? `<span class="text-emerald-400">✓ Confidence: ${Math.round(landmarksData.confidence * 100)}%</span>`
-            : `<span class="text-amber-400">⚠ Confidence: ${Math.round(landmarksData.confidence * 100)}%</span>`;
+          const checkHand = document.getElementById("check-hand-detected");
+          const checkLm = document.getElementById("check-landmarks");
+          const checkConf = document.getElementById("check-confidence");
+
+          if (checkHand) {
+            checkHand.innerHTML = hasHand
+              ? `<span class="text-emerald-400 font-semibold">✓ Hand detected (${landmarksData.handCount})</span>`
+              : `<span class="text-amber-400">○ Hand detection waiting...</span>`;
+          }
+          if (checkLm) {
+            checkLm.innerHTML = hasHand
+              ? `<span class="text-emerald-400 font-semibold">✓ 21/21 landmarks tracked</span>`
+              : `<span class="text-outline">○ 21 landmarks waiting</span>`;
+          }
+          if (checkConf) {
+            checkConf.innerHTML = hasHand
+              ? (confValid
+                  ? `<span class="text-emerald-400 font-semibold">✓ Confidence: ${Math.round(landmarksData.confidence * 100)}%</span>`
+                  : `<span class="text-amber-400">⚠ Confidence: ${Math.round(landmarksData.confidence * 100)}% (min 70%)</span>`)
+              : `<span class="text-outline">○ Confidence threshold (≥70%)</span>`;
+          }
         },
         onError: (errMsg) => {
+          console.error("[Camera] Error:", errMsg);
+          const checkHand = document.getElementById("check-hand-detected");
+          if (checkHand) {
+            checkHand.innerHTML = `<span class="text-rose-400 font-medium">✗ ${errMsg}</span>`;
+          }
           alert(errMsg);
         }
       });
     } catch (e) {
-      console.error(e);
+      console.error("[Camera] startStaticCamera exception:", e);
     }
   }
 
@@ -1685,26 +1985,7 @@ class App {
       document.getElementById("add-gesture-modal").classList.add("hidden");
     });
 
-    // Team Signers & Assignments modal triggers
-    document.getElementById("btn-open-add-signer-modal")?.addEventListener("click", () => {
-      this.openAddSignerModal();
-    });
-    document.getElementById("btn-close-add-signer")?.addEventListener("click", () => {
-      this.closeAddSignerModal();
-    });
-    document.getElementById("form-create-signer")?.addEventListener("submit", (e) => {
-      this.submitAddSignerForm(e);
-    });
-
-    document.getElementById("btn-open-assign-modal")?.addEventListener("click", () => {
-      this.openAssignGestureModal();
-    });
-    document.getElementById("btn-close-assign-gesture")?.addEventListener("click", () => {
-      this.closeAssignGestureModal();
-    });
-    document.getElementById("form-create-assignment")?.addEventListener("submit", (e) => {
-      this.submitAssignGestureForm(e);
-    });
+    // Gesture Details 'Assign to Signer' trigger
     document.getElementById("btn-details-assign-signer")?.addEventListener("click", () => {
       this.openAssignGestureModal(this.detailsActiveGestureId);
     });
@@ -1829,8 +2110,38 @@ class App {
   }
 }
 
-// Global App instantiation
-window.app = null;
-window.addEventListener("DOMContentLoaded", () => {
-  window.app = new App();
-});
+// Global App instantiation & window bridge
+function initISLApp() {
+  try {
+    if (!window.app) {
+      const appInstance = new App();
+      window.app = appInstance;
+      console.log("[ISL] App initialized successfully, window.app =", window.app);
+    }
+  } catch (err) {
+    console.error("[ISL] CRITICAL: App constructor failed:", err);
+  }
+}
+
+if (document.readyState === "loading") {
+  window.addEventListener("DOMContentLoaded", initISLApp);
+} else {
+  initISLApp();
+}
+
+// Global helpers so inline HTML onclick handlers always resolve reliably
+window.openAssignGestureModal = (gid) => {
+  console.log("[ISL] openAssignGestureModal called, app=", !!window.app);
+  if (window.app) window.app.openAssignGestureModal(gid);
+  else console.error("[ISL] window.app is not initialized!");
+};
+window.closeAssignGestureModal = () => window.app?.closeAssignGestureModal();
+window.submitAssignGestureForm = (e) => window.app?.submitAssignGestureForm(e);
+window.openAddSignerModal = () => {
+  console.log("[ISL] openAddSignerModal called, app=", !!window.app);
+  if (window.app) window.app.openAddSignerModal();
+  else console.error("[ISL] window.app is not initialized!");
+};
+window.closeAddSignerModal = () => window.app?.closeAddSignerModal();
+window.submitAddSignerForm = (e) => window.app?.submitAddSignerForm(e);
+window.removeAllSigners = () => window.app?.removeAllSigners();

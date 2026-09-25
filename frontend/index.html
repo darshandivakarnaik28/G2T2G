@@ -2,8 +2,79 @@
 <html class="dark" lang="en">
 <head>
   <meta charset="utf-8">
-  <meta content="width=device-width, initial-scale=1.0" name="viewport">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>ISL Dataset Collector - Production System</title>
+
+  <!-- Immediate Global UI Bridge: Guarantees modal functions exist synchronously from first render -->
+  <script>
+    window.openAssignGestureModal = function(gid) {
+      const modal = document.getElementById("assign-gesture-modal");
+      if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+      }
+      if (window.app && typeof window.app.openAssignGestureModal === "function") {
+        window.app.openAssignGestureModal(gid);
+      }
+    };
+    window.closeAssignGestureModal = function() {
+      const modal = document.getElementById("assign-gesture-modal");
+      if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+      }
+      if (window.app && typeof window.app.closeAssignGestureModal === "function") {
+        window.app.closeAssignGestureModal();
+      }
+    };
+    window.submitAssignGestureForm = function(e) {
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      if (window.app && typeof window.app.submitAssignGestureForm === "function") {
+        return window.app.submitAssignGestureForm(e);
+      }
+      return false;
+    };
+    window.openAddSignerModal = function() {
+      const modal = document.getElementById("add-signer-modal");
+      if (modal) {
+        modal.classList.remove("hidden");
+        modal.style.display = "flex";
+      }
+      if (window.app && typeof window.app.openAddSignerModal === "function") {
+        window.app.openAddSignerModal();
+      }
+    };
+    window.closeAddSignerModal = function() {
+      const modal = document.getElementById("add-signer-modal");
+      if (modal) {
+        modal.classList.add("hidden");
+        modal.style.display = "none";
+      }
+      if (window.app && typeof window.app.closeAddSignerModal === "function") {
+        window.app.closeAddSignerModal();
+      }
+    };
+    window.submitAddSignerForm = function(e) {
+      if (e) {
+        if (e.preventDefault) e.preventDefault();
+        if (e.stopPropagation) e.stopPropagation();
+      }
+      if (window.app && typeof window.app.submitAddSignerForm === "function") {
+        return window.app.submitAddSignerForm(e);
+      }
+      return false;
+    };
+    window.removeAllSigners = function() {
+      if (window.app && typeof window.app.removeAllSigners === "function") {
+        return window.app.removeAllSigners();
+      }
+    };
+  </script>
   
   <!-- Tailwind CSS & Plugins -->
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -22,7 +93,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20260925_fix2">
 
   <script id="tailwind-config">
     tailwind.config = {
@@ -185,11 +256,7 @@
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant/40 text-xs font-label-sm">
           <span class="text-outline">Active Signer:</span>
           <select id="global-active-signer-select" class="bg-surface-container-lowest border border-outline-variant/40 rounded px-2 py-1 text-xs font-mono font-bold text-primary cursor-pointer">
-            <option value="S001">S001 (Team Lead)</option>
-            <option value="S002">S002</option>
-            <option value="S003">S003</option>
-            <option value="S004">S004</option>
-            <option value="S005">S005</option>
+            <!-- Dynamically populated from registered signers -->
           </select>
         </div>
 
@@ -462,13 +529,17 @@
             <p class="text-sm text-on-surface-variant">Manage team signers and distribute 50-sample gesture collection targets.</p>
           </div>
           <div class="flex items-center gap-3">
-            <button id="btn-open-add-signer-modal" class="px-4 py-2 rounded bg-surface-container-high hover:bg-surface-variant border border-outline-variant/60 text-xs font-medium text-primary flex items-center gap-1.5 transition-colors cursor-pointer">
+            <button id="btn-open-add-signer-modal" onclick="openAddSignerModal()" class="px-4 py-2 rounded bg-surface-container-high hover:bg-surface-variant border border-outline-variant/60 text-xs font-medium text-primary flex items-center gap-1.5 transition-colors cursor-pointer">
               <span class="material-symbols-outlined text-[18px]">person_add</span>
               <span>Add Signer</span>
             </button>
-            <button id="btn-open-assign-modal" class="btn-primary px-4 py-2 rounded text-xs font-medium flex items-center gap-1.5 shadow cursor-pointer">
+            <button id="btn-open-assign-modal" onclick="openAssignGestureModal()" class="btn-primary px-4 py-2 rounded text-xs font-medium flex items-center gap-1.5 shadow cursor-pointer">
               <span class="material-symbols-outlined text-[18px]">assignment_turned_in</span>
               <span>Assign Gesture</span>
+            </button>
+            <button id="btn-remove-all-signers" onclick="removeAllSigners()" class="px-3 py-2 rounded bg-rose-950/40 hover:bg-rose-900/60 text-rose-300 border border-rose-800/60 text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer" title="Remove all active signers">
+              <span class="material-symbols-outlined text-[16px]">person_remove</span>
+              <span>Remove All Signers</span>
             </button>
           </div>
         </div>
@@ -497,10 +568,27 @@
           </table>
         </div>
 
-        <!-- All Assignments Table -->
+        <!-- Assigned Gestures Display (Organized by Gesture) -->
+        <div class="stat-card p-5 space-y-4">
+          <div class="flex items-center justify-between border-b border-outline-variant/30 pb-3">
+            <div>
+              <h3 class="font-bold text-sm text-on-background">Gesture Assignment Status</h3>
+              <p class="text-xs text-outline">Real-time collection progress and active status of all assigned teammates grouped by gesture</p>
+            </div>
+            <button onclick="openAssignGestureModal()" class="btn-primary px-3 py-1.5 rounded text-xs font-medium flex items-center gap-1 cursor-pointer">
+              <span class="material-symbols-outlined text-[16px]">add_task</span>
+              <span>Assign Another Gesture</span>
+            </button>
+          </div>
+          <div id="team-gesture-assignments-container" class="space-y-4">
+            <!-- Dynamically populated gesture cards with assigned members breakdown -->
+          </div>
+        </div>
+
+        <!-- All Assignments Table (Detailed) -->
         <div class="stat-card overflow-x-auto p-0">
           <div class="p-4 border-b border-outline-variant/30 flex items-center justify-between">
-            <h3 class="font-bold text-sm text-on-background">All Collection Assignments</h3>
+            <h3 class="font-bold text-sm text-on-background">Detailed Assignment Matrix</h3>
             <span class="text-xs font-mono text-outline">Tracking 50 samples per signer per sign</span>
           </div>
           <table class="w-full text-left text-xs font-mono">
@@ -1272,21 +1360,21 @@
   <!-- ======================================================= -->
   <div id="add-signer-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
     <div class="bg-surface-container border border-[#334155] rounded-xl max-w-md w-full p-6 md:p-8 shadow-2xl relative">
-      <button id="btn-close-add-signer" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant cursor-pointer">
+      <button id="btn-close-add-signer" onclick="closeAddSignerModal()" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant cursor-pointer">
         <span class="material-symbols-outlined text-[22px]">close</span>
       </button>
 
       <h2 class="text-xl font-bold text-on-background mb-1">Add Team Member / Signer</h2>
       <p class="text-xs text-on-surface-variant mb-6">Registers a new signer profile in the central database.</p>
 
-      <form id="form-create-signer" class="space-y-4">
+      <form id="form-create-signer" onsubmit="submitAddSignerForm(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-mono uppercase text-outline mb-1">Signer ID (e.g. S006) *</label>
-          <input id="input-signer-id" type="text" required placeholder="S006" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono uppercase">
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Unique Signer ID *</label>
+          <input id="input-signer-id" type="text" required placeholder="e.g. signer_001" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono">
         </div>
         <div>
-          <label class="block text-xs font-mono uppercase text-outline mb-1">Display Name *</label>
-          <input id="input-signer-name" type="text" required placeholder="e.g. Rahul Sharma" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Signer Name *</label>
+          <input id="input-signer-name" type="text" required placeholder="e.g. Darshan" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
         </div>
         <div class="flex justify-end gap-3 pt-4 border-t border-[#334155]">
           <button type="submit" class="btn-primary px-6 py-2.5 rounded font-medium text-xs cursor-pointer">
@@ -1302,41 +1390,41 @@
   <!-- ======================================================= -->
   <div id="assign-gesture-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
     <div class="bg-surface-container border border-[#334155] rounded-xl max-w-md w-full p-6 md:p-8 shadow-2xl relative">
-      <button id="btn-close-assign-gesture" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant cursor-pointer">
+      <button id="btn-close-assign-gesture" onclick="closeAssignGestureModal()" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant cursor-pointer">
         <span class="material-symbols-outlined text-[22px]">close</span>
       </button>
 
-      <h2 class="text-xl font-bold text-on-background mb-1">Assign Gesture Target</h2>
-      <p class="text-xs text-on-surface-variant mb-6">Assigns a 50-sample collection task to a team member.</p>
+      <h2 class="text-xl font-bold text-on-background mb-1">Assign Gesture</h2>
+      <p class="text-xs text-on-surface-variant mb-6">Select an existing gesture to assign to registered team signers.</p>
 
-      <form id="form-create-assignment" class="space-y-4">
+      <form id="form-create-assignment" onsubmit="submitAssignGestureForm(event)" class="space-y-4">
         <div>
-          <label class="block text-xs font-mono uppercase text-outline mb-1">Select Signer *</label>
-          <select id="input-assign-signer" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono" required>
-            <!-- Populated dynamically -->
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-mono uppercase text-outline mb-1">Select Gesture *</label>
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Select Existing Gesture *</label>
           <select id="input-assign-gesture" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background" required>
-            <!-- Populated dynamically -->
+            <!-- Populated dynamically with existing gestures -->
           </select>
         </div>
         <div>
-          <label class="block text-xs font-mono uppercase text-outline mb-1">Target Valid Samples</label>
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Target Valid Samples Per Signer</label>
           <input id="input-assign-target" type="number" value="50" min="5" max="500" step="5" required class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono">
-          <span class="text-[11px] text-outline mt-1 block">Rule: Each signer collects strictly 50 valid samples.</span>
+          <span class="text-[11px] text-outline mt-1 block">Assigns this gesture to all registered team members (Default: 50 valid samples).</span>
+        </div>
+        <div id="assign-signers-info" class="p-2.5 rounded bg-surface-container-lowest border border-outline-variant/30 text-xs font-mono text-outline">
+          Checking registered team signers...
         </div>
         <div class="flex justify-end gap-3 pt-4 border-t border-[#334155]">
-          <button type="submit" class="btn-primary px-6 py-2.5 rounded font-medium text-xs cursor-pointer">
-            Create Assignment
+          <button type="button" onclick="closeAssignGestureModal()" class="px-4 py-2.5 rounded bg-surface-container-high hover:bg-surface-variant text-outline text-xs font-medium cursor-pointer">
+            Cancel
+          </button>
+          <button id="btn-submit-assign-gesture" type="submit" class="btn-primary px-6 py-2.5 rounded font-medium text-xs cursor-pointer">
+            Assign Gesture
           </button>
         </div>
       </form>
     </div>
   </div>
 
-  <!-- Root Application JS Module -->
-  <script type="module" src="app.js"></script>
+  <!-- Root Application JS Module (cache-busting query param ensures fresh load) -->
+  <script type="module" src="app.js?v=20260925_fix3"></script>
 </body>
 </html>

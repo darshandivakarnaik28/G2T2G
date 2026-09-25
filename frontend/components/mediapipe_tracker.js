@@ -66,17 +66,50 @@ export class MediaPipeTracker {
   async startCamera(videoElement, canvasElement, options = {}) {
     this.videoElement = videoElement;
     this.canvasElement = canvasElement;
-    this.canvasCtx = canvasElement.getContext("2d");
+    this.canvasCtx = canvasElement ? canvasElement.getContext("2d") : null;
     this.onResultsCallback = options.onResults || null;
     this.onErrorCallback = options.onError || null;
 
     try {
       await this.initMediaPipe();
     } catch (err) {
+      console.error("[MediaPipe] Initialization failed:", err);
       if (this.onErrorCallback) this.onErrorCallback("Hand tracking could not be initialized: " + err.message);
       throw err;
     }
 
+    this.isTracking = true;
+    this._isSendingFrame = false;
+    this.lastFrameTime = performance.now();
+
+    // Strategy 1: Official MediaPipe Camera utility (serializes frames, prevents WASM memory clashes)
+    if (typeof window.Camera !== "undefined") {
+      try {
+        this.camera = new window.Camera(this.videoElement, {
+          onFrame: async () => {
+            if (!this.isTracking || !this.hands || this._isSendingFrame) return;
+            if (!this.videoElement || this.videoElement.videoWidth === 0 || this.videoElement.videoHeight === 0) return;
+            this._isSendingFrame = true;
+            try {
+              await this.hands.send({ image: this.videoElement });
+            } catch (err) {
+              console.warn("[MediaPipe] Frame send error:", err);
+            } finally {
+              this._isSendingFrame = false;
+            }
+          },
+          width: 640,
+          height: 480
+        });
+        await this.camera.start();
+        console.log("[MediaPipe] Camera utility started successfully.");
+        return;
+      } catch (cameraErr) {
+        console.warn("[MediaPipe] window.Camera start failed, falling back to getUserMedia:", cameraErr);
+      }
+    }
+
+    // Strategy 2: Direct getUserMedia with strictly sequenced frames
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       const msg = "WebRTC Camera API is not supported in this browser.";
       if (this.onErrorCallback) this.onErrorCallback(msg);
@@ -90,18 +123,30 @@ export class MediaPipeTracker {
       });
       this.videoElement.srcObject = stream;
       await this.videoElement.play();
-      this.isTracking = true;
-      this.lastFrameTime = performance.now();
 
       const processLoop = async () => {
         if (!this.isTracking) return;
-        if (this.videoElement && this.videoElement.readyState >= 2) {
-          try { await this.hands.send({ image: this.videoElement }); } catch (e) { /* skip */ }
+        if (
+          this.videoElement &&
+          this.videoElement.readyState >= 2 &&
+          this.videoElement.videoWidth > 0 &&
+          this.videoElement.videoHeight > 0 &&
+          !this._isSendingFrame &&
+          this.hands
+        ) {
+          this._isSendingFrame = true;
+          try {
+            await this.hands.send({ image: this.videoElement });
+          } catch (e) {
+            console.warn("[MediaPipe] Send loop error:", e);
+          } finally {
+            this._isSendingFrame = false;
+          }
         }
         if (this.isTracking) requestAnimationFrame(processLoop);
       };
       requestAnimationFrame(processLoop);
-
+      console.log("[MediaPipe] Fallback getUserMedia stream started.");
     } catch (err) {
       let friendlyError = "Camera access error: " + err.message;
       if (err.name === "NotAllowedError" || err.name === "PermissionDeniedError") {
@@ -469,8 +514,15 @@ export class MediaPipeTracker {
     this.stopAutoCollection();
     this.isTracking = false;
     this.isRecording = false;
+    this._isSendingFrame = false;
+    if (this.camera) {
+      try { this.camera.stop(); } catch (e) {}
+      this.camera = null;
+    }
     if (this.videoElement && this.videoElement.srcObject) {
-      this.videoElement.srcObject.getTracks().forEach(t => t.stop());
+      try {
+        this.videoElement.srcObject.getTracks().forEach(t => t.stop());
+      } catch (e) {}
       this.videoElement.srcObject = null;
     }
     if (this.canvasCtx && this.canvasElement) {

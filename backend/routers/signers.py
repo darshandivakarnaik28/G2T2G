@@ -34,8 +34,8 @@ def list_signers(db: Session = Depends(get_db)):
 
 @router.post("", response_model=SignerOut, status_code=status.HTTP_201_CREATED)
 def create_signer(signer_in: SignerCreate, db: Session = Depends(get_db)):
-    clean_id = signer_in.signer_id.strip().upper()
-    existing = db.query(Signer).filter(Signer.signer_id == clean_id).first()
+    clean_id = signer_in.signer_id.strip()
+    existing = db.query(Signer).filter(func.lower(Signer.signer_id) == clean_id.lower()).first()
     if existing:
         raise HTTPException(
             status_code=400,
@@ -64,13 +64,16 @@ def create_signer(signer_in: SignerCreate, db: Session = Depends(get_db)):
 
 @router.get("/{signer_id}", response_model=SignerOut)
 def get_signer(signer_id: str, db: Session = Depends(get_db)):
-    clean_id = signer_id.strip().upper()
-    signer = db.query(Signer).filter(Signer.signer_id == clean_id).first()
+    clean_id = signer_id.strip()
+    signer = db.query(Signer).filter(
+        (Signer.signer_id == clean_id) | (func.lower(Signer.signer_id) == clean_id.lower())
+    ).first()
     if not signer:
         raise HTTPException(status_code=404, detail=f"Signer '{signer_id}' not found.")
 
-    sample_count = db.query(DatasetSample).filter(DatasetSample.signer_id == clean_id).count()
-    assignments = db.query(CollectionAssignment).filter(CollectionAssignment.signer_id == clean_id).all()
+    sid = signer.signer_id
+    sample_count = db.query(DatasetSample).filter(DatasetSample.signer_id == sid).count()
+    assignments = db.query(CollectionAssignment).filter(CollectionAssignment.signer_id == sid).all()
     completed_count = sum(1 for a in assignments if a.status == "COMPLETED")
 
     return SignerOut(
@@ -86,13 +89,16 @@ def get_signer(signer_id: str, db: Session = Depends(get_db)):
 
 @router.get("/{signer_id}/dataset", response_model=SignerDatasetBreakdownOut)
 def get_signer_dataset(signer_id: str, db: Session = Depends(get_db)):
-    clean_id = signer_id.strip().upper()
-    signer = db.query(Signer).filter(Signer.signer_id == clean_id).first()
+    clean_id = signer_id.strip()
+    signer = db.query(Signer).filter(
+        (Signer.signer_id == clean_id) | (func.lower(Signer.signer_id) == clean_id.lower())
+    ).first()
     if not signer:
         raise HTTPException(status_code=404, detail=f"Signer '{signer_id}' not found.")
 
-    total_samples = db.query(DatasetSample).filter(DatasetSample.signer_id == clean_id).count()
-    assignments = db.query(CollectionAssignment).filter(CollectionAssignment.signer_id == clean_id).all()
+    sid = signer.signer_id
+    total_samples = db.query(DatasetSample).filter(DatasetSample.signer_id == sid).count()
+    assignments = db.query(CollectionAssignment).filter(CollectionAssignment.signer_id == sid).all()
 
     assigned_progress = []
     completed = 0
@@ -140,3 +146,57 @@ def get_signer_dataset(signer_id: str, db: Session = Depends(get_db)):
         in_progress_assignments=in_progress,
         assigned_gestures=assigned_progress
     )
+
+@router.put("/{signer_id}/toggle-status", response_model=SignerOut)
+def toggle_signer_status(signer_id: str, db: Session = Depends(get_db)):
+    clean_id = signer_id.strip()
+    signer = db.query(Signer).filter(
+        (Signer.signer_id == clean_id) | (func.lower(Signer.signer_id) == clean_id.lower())
+    ).first()
+    if not signer:
+        raise HTTPException(status_code=404, detail=f"Signer '{signer_id}' not found.")
+
+    signer.enabled = not signer.enabled
+    db.commit()
+    db.refresh(signer)
+
+    sample_count = db.query(DatasetSample).filter(DatasetSample.signer_id == signer.signer_id).count()
+    assignments = db.query(CollectionAssignment).filter(CollectionAssignment.signer_id == signer.signer_id).all()
+    completed_count = sum(1 for a in assignments if a.status == "COMPLETED")
+
+    return SignerOut(
+        id=signer.id,
+        signer_id=signer.signer_id,
+        display_name=signer.display_name,
+        enabled=signer.enabled,
+        created_at=signer.created_at,
+        sample_count=sample_count,
+        assigned_gestures_count=len(assignments),
+        completed_assignments_count=completed_count
+    )
+
+@router.delete("/{signer_id}")
+def delete_signer(signer_id: str, db: Session = Depends(get_db)):
+    clean_id = signer_id.strip()
+    signer = db.query(Signer).filter(
+        (Signer.signer_id == clean_id) | (func.lower(Signer.signer_id) == clean_id.lower())
+    ).first()
+    if not signer:
+        raise HTTPException(status_code=404, detail=f"Signer '{signer_id}' not found.")
+
+    # Remove signer assignments and samples associated or cascade
+    db.query(CollectionAssignment).filter(
+        (CollectionAssignment.signer_id == signer.signer_id) | (func.lower(CollectionAssignment.signer_id) == signer.signer_id.lower())
+    ).delete(synchronize_session=False)
+
+    db.delete(signer)
+    db.commit()
+    return {"message": f"Signer {clean_id} deleted successfully."}
+
+@router.delete("")
+def remove_all_signers(db: Session = Depends(get_db)):
+    """Removes all registered signers and their assignments (leaves gestures intact)."""
+    db.query(CollectionAssignment).delete(synchronize_session=False)
+    db.query(Signer).delete(synchronize_session=False)
+    db.commit()
+    return {"message": "All signers and their assignments have been removed."}

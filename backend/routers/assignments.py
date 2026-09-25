@@ -4,6 +4,7 @@ Collection Assignments API Router for Centralized Remote ISL Dataset Collector
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from ..database import get_db
 from ..models import CollectionAssignment, Signer, Gesture, DatasetSample
 from ..schemas import (
@@ -53,6 +54,7 @@ def _hydrate_assignment_out(a: CollectionAssignment, db: Session) -> CollectionA
         remaining_samples=remaining,
         completion_percentage=pct,
         status=a.status,
+        signer_enabled=signer.enabled if signer else True,
         created_at=a.created_at,
         updated_at=a.updated_at
     )
@@ -66,7 +68,12 @@ def list_assignments(
 ):
     query = db.query(CollectionAssignment)
     if signer_id:
-        query = query.filter(CollectionAssignment.signer_id == signer_id.strip().upper())
+        sid_clean = signer_id.strip()
+        from sqlalchemy import func
+        query = query.filter(
+            (CollectionAssignment.signer_id == sid_clean) |
+            (func.lower(CollectionAssignment.signer_id) == sid_clean.lower())
+        )
     if gesture_id:
         query = query.filter(CollectionAssignment.gesture_id == gesture_id.strip().lower())
     if status:
@@ -77,47 +84,83 @@ def list_assignments(
 
 @router.post("", response_model=CollectionAssignmentOut, status_code=status.HTTP_201_CREATED)
 def create_assignment(assign_in: CollectionAssignmentCreate, db: Session = Depends(get_db)):
-    signer_clean = assign_in.signer_id.strip().upper()
     gesture_clean = assign_in.gesture_id.strip().lower()
+    gesture = db.query(Gesture).filter(Gesture.gesture_id == gesture_clean).first()
+    if not gesture:
+        raise HTTPException(status_code=404, detail=f"Gesture '{gesture_clean}' not found.")
 
-    # Ensure signer exists (auto-create if new)
-    signer = db.query(Signer).filter(Signer.signer_id == signer_clean).first()
+    target = assign_in.target_samples if (assign_in.target_samples and assign_in.target_samples > 0) else 50
+
+    # If signer_id is not specified, assign to all existing active signers
+    if not assign_in.signer_id or assign_in.signer_id.strip().upper() == "ALL":
+        signers = db.query(Signer).filter(Signer.enabled == True).all()
+        if not signers:
+            signers = db.query(Signer).all()
+        last_assignment = None
+        for s in signers:
+            existing = db.query(CollectionAssignment).filter(
+                CollectionAssignment.signer_id == s.signer_id,
+                CollectionAssignment.gesture_id == gesture_clean
+            ).first()
+            if existing:
+                existing.target_samples = target
+                db.commit()
+                last_assignment = existing
+            else:
+                valid_count = db.query(DatasetSample).filter(
+                    DatasetSample.gesture_id == gesture_clean,
+                    DatasetSample.signer_id == s.signer_id,
+                    DatasetSample.detection_confidence >= 0.70
+                ).count()
+                init_status = "COMPLETED" if valid_count >= target else ("IN_PROGRESS" if valid_count > 0 else "NOT_STARTED")
+                new_a = CollectionAssignment(
+                    signer_id=s.signer_id,
+                    gesture_id=gesture_clean,
+                    target_samples=target,
+                    collected_samples=valid_count,
+                    status=init_status
+                )
+                db.add(new_a)
+                db.commit()
+                last_assignment = new_a
+
+        if last_assignment:
+            return _hydrate_assignment_out(last_assignment, db)
+        else:
+            raise HTTPException(status_code=400, detail="No signers found to assign gesture.")
+
+    signer_clean = assign_in.signer_id.strip()
+    signer = db.query(Signer).filter(
+        (Signer.signer_id == signer_clean) | (func.lower(Signer.signer_id) == signer_clean.lower())
+    ).first()
     if not signer:
         signer = Signer(signer_id=signer_clean, display_name=f"Signer {signer_clean}")
         db.add(signer)
         db.commit()
         db.refresh(signer)
 
-    # Ensure gesture exists
-    gesture = db.query(Gesture).filter(Gesture.gesture_id == gesture_clean).first()
-    if not gesture:
-        raise HTTPException(status_code=404, detail=f"Gesture '{gesture_clean}' not found.")
-
-    # Check if assignment already exists
+    sid = signer.signer_id
     existing = db.query(CollectionAssignment).filter(
-        CollectionAssignment.signer_id == signer_clean,
+        CollectionAssignment.signer_id == sid,
         CollectionAssignment.gesture_id == gesture_clean
     ).first()
 
     if existing:
-        # Update target if specified
-        existing.target_samples = assign_in.target_samples or 50
+        existing.target_samples = target
         db.commit()
         db.refresh(existing)
         return _hydrate_assignment_out(existing, db)
 
-    # Calculate current valid samples if any already collected
     valid_count = db.query(DatasetSample).filter(
         DatasetSample.gesture_id == gesture_clean,
-        DatasetSample.signer_id == signer_clean,
+        DatasetSample.signer_id == sid,
         DatasetSample.detection_confidence >= 0.70
     ).count()
 
-    target = assign_in.target_samples if assign_in.target_samples > 0 else 50
     init_status = "COMPLETED" if valid_count >= target else ("IN_PROGRESS" if valid_count > 0 else "NOT_STARTED")
 
     assignment = CollectionAssignment(
-        signer_id=signer_clean,
+        signer_id=sid,
         gesture_id=gesture_clean,
         target_samples=target,
         collected_samples=valid_count,
@@ -128,6 +171,49 @@ def create_assignment(assign_in: CollectionAssignmentCreate, db: Session = Depen
     db.refresh(assignment)
 
     return _hydrate_assignment_out(assignment, db)
+
+@router.post("/assign-gesture", response_model=List[CollectionAssignmentOut])
+def assign_gesture_to_signers(assign_req: CollectionAssignmentCreate, db: Session = Depends(get_db)):
+    """Assigns an existing gesture to existing signers."""
+    gesture_clean = assign_req.gesture_id.strip().lower()
+    gesture = db.query(Gesture).filter(Gesture.gesture_id == gesture_clean).first()
+    if not gesture:
+        raise HTTPException(status_code=404, detail=f"Gesture '{gesture_clean}' not found.")
+
+    target = assign_req.target_samples if (assign_req.target_samples and assign_req.target_samples > 0) else 50
+    signers = db.query(Signer).all()
+    if not signers:
+        raise HTTPException(status_code=400, detail="No signers found. Please add signers first.")
+
+    created_assignments = []
+    for s in signers:
+        existing = db.query(CollectionAssignment).filter(
+            CollectionAssignment.signer_id == s.signer_id,
+            CollectionAssignment.gesture_id == gesture_clean
+        ).first()
+        if existing:
+            existing.target_samples = target
+            db.commit()
+            created_assignments.append(_hydrate_assignment_out(existing, db))
+        else:
+            valid_count = db.query(DatasetSample).filter(
+                DatasetSample.gesture_id == gesture_clean,
+                DatasetSample.signer_id == s.signer_id,
+                DatasetSample.detection_confidence >= 0.70
+            ).count()
+            init_status = "COMPLETED" if valid_count >= target else ("IN_PROGRESS" if valid_count > 0 else "NOT_STARTED")
+            new_a = CollectionAssignment(
+                signer_id=s.signer_id,
+                gesture_id=gesture_clean,
+                target_samples=target,
+                collected_samples=valid_count,
+                status=init_status
+            )
+            db.add(new_a)
+            db.commit()
+            created_assignments.append(_hydrate_assignment_out(new_a, db))
+
+    return created_assignments
 
 @router.get("/{assignment_id}", response_model=CollectionAssignmentOut)
 def get_assignment(assignment_id: int, db: Session = Depends(get_db)):

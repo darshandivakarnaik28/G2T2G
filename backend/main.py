@@ -4,13 +4,13 @@ FastAPI Backend Application Entrypoint for Centralized Remote ISL Dataset Collec
 import os
 from pathlib import Path
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from .database import engine, Base, SessionLocal
-from .models import Gesture, ThreeDModel, Signer, CollectionAssignment
+from .models import Gesture, ThreeDModel, Signer, CollectionAssignment, DatasetSample
 from .services.storage_service import init_storage, STORAGE_DIR, BASE_DIR
 from .routers import gestures, samples, models, dashboard, training_readiness, export, signers, assignments
 
@@ -119,39 +119,7 @@ def seed_initial_data():
                 db.add(g)
         db.commit()
 
-        # 2. Seed initial team signers if not present
-        initial_signers = [
-            Signer(signer_id="S001", display_name="Team Lead (S001)"),
-            Signer(signer_id="S002", display_name="Signer 2 (S002)"),
-            Signer(signer_id="S003", display_name="Signer 3 (S003)"),
-            Signer(signer_id="S004", display_name="Signer 4 (S004)"),
-            Signer(signer_id="S005", display_name="Signer 5 (S005)"),
-        ]
-        for s in initial_signers:
-            if not db.query(Signer).filter(Signer.signer_id == s.signer_id).first():
-                db.add(s)
-        db.commit()
-
-        # 3. Seed initial collection assignments with default target = 50
-        initial_assignments = [
-            CollectionAssignment(signer_id="S001", gesture_id="hello", target_samples=50),
-            CollectionAssignment(signer_id="S001", gesture_id="water", target_samples=50),
-            CollectionAssignment(signer_id="S001", gesture_id="thank_you", target_samples=50),
-            CollectionAssignment(signer_id="S002", gesture_id="hello", target_samples=50),
-            CollectionAssignment(signer_id="S002", gesture_id="water", target_samples=50),
-            CollectionAssignment(signer_id="S002", gesture_id="thank_you", target_samples=50),
-            CollectionAssignment(signer_id="S003", gesture_id="hello", target_samples=50),
-            CollectionAssignment(signer_id="S003", gesture_id="water", target_samples=50),
-            CollectionAssignment(signer_id="S003", gesture_id="thank_you", target_samples=50),
-        ]
-        for a in initial_assignments:
-            if not db.query(CollectionAssignment).filter(
-                CollectionAssignment.signer_id == a.signer_id,
-                CollectionAssignment.gesture_id == a.gesture_id
-            ).first():
-                db.add(a)
-        db.commit()
-
+        # Initial gestures only; signers are managed exclusively via Admin UI
     finally:
         db.close()
 
@@ -182,6 +150,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def add_no_cache_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 # Include Routers
 app.include_router(gestures.router)

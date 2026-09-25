@@ -20,13 +20,22 @@ if DATABASE_URL.startswith("sqlite"):
         connect_args={"check_same_thread": False}
     )
 else:
-    # PostgreSQL connection with robust connection pooling for concurrent remote team collectors
-    engine = create_engine(
-        DATABASE_URL,
-        pool_pre_ping=True,
-        pool_size=15,
-        max_overflow=25
-    )
+    try:
+        import psycopg2  # Check if available
+        # PostgreSQL connection with robust connection pooling for concurrent remote team collectors
+        engine = create_engine(
+            DATABASE_URL,
+            pool_pre_ping=True,
+            pool_size=15,
+            max_overflow=25
+        )
+    except (ImportError, ModuleNotFoundError):
+        print("[WARNING] psycopg2 not installed. Falling back to local SQLite database.")
+        DATABASE_URL = "sqlite:///./isl_dataset.db"
+        engine = create_engine(
+            DATABASE_URL,
+            connect_args={"check_same_thread": False}
+        )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

@@ -74,6 +74,11 @@ html, body {
   animation: pulseGlow 2s infinite ease-in-out;
 }
 
+/* Modal-only hidden helper (ensures modals stay hidden without breaking responsive classes like hidden md:flex) */
+[id$="-modal"].hidden {
+  display: none !important;
+}
+
 /* Modal backdrop blur */
 .modal-backdrop {
   background-color: rgba(6, 14, 32, 0.85);

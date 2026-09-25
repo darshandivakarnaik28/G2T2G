@@ -16,13 +16,13 @@ def client():
 
 class TestSigners:
     def test_list_signers(self, client):
+        client.post("/api/signers", json={"signer_id": "signer_001", "display_name": "Darshan"})
         r = client.get("/api/signers")
         assert r.status_code == 200
         data = r.json()
-        assert len(data) >= 5
+        assert len(data) >= 1
         s_ids = [s["signer_id"] for s in data]
-        assert "S001" in s_ids
-        assert "S002" in s_ids
+        assert "signer_001" in s_ids
 
     def test_create_and_get_signer(self, client):
         r = client.post("/api/signers", json={"signer_id": "S999", "display_name": "Tester 999"})
@@ -34,7 +34,8 @@ class TestSigners:
 
 class TestAssignments:
     def test_list_assignments(self, client):
-        r = client.get("/api/assignments?signer_id=S001")
+        client.post("/api/assignments", json={"signer_id": "signer_001", "gesture_id": "hello", "target_samples": 50})
+        r = client.get("/api/assignments?signer_id=signer_001")
         assert r.status_code == 200
         data = r.json()
         assert len(data) >= 1
@@ -98,10 +99,10 @@ class TestBreakdownEndpoints:
         assert isinstance(data["signers"], list)
 
     def test_signer_dataset_breakdown(self, client):
-        r = client.get("/api/signers/S001/dataset")
+        r = client.get("/api/signers/signer_001/dataset")
         assert r.status_code == 200
         data = r.json()
-        assert data["signer_id"] == "S001"
+        assert data["signer_id"] == "signer_001"
         assert "assigned_gestures" in data
 
 class TestDashboardStats:
