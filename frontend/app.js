@@ -4,7 +4,7 @@
 
 import { api } from "./services/api.js";
 import { MediaPipeTracker } from "./components/mediapipe_tracker.js";
-import { ThreeHandViewer } from "./components/three_viewer.js";
+import { ThreeHandViewer } from "./components/three_viewer.js?v=20260925_fix6";
 
 class App {
   constructor() {
@@ -1308,10 +1308,10 @@ class App {
       if (!this.static3DViewer) {
         this.static3DViewer = new ThreeHandViewer("static-3d-viewport");
       }
-      const activeHandLm = this.capturedStaticData.landmarks.right_hand_landmarks.length > 0
-        ? this.capturedStaticData.landmarks.right_hand_landmarks
-        : this.capturedStaticData.landmarks.left_hand_landmarks;
-      this.static3DViewer.applyLandmarks(activeHandLm);
+      this.static3DViewer.applyLandmarks({
+        right_hand_landmarks: this.capturedStaticData.landmarks.right_hand_landmarks,
+        left_hand_landmarks: this.capturedStaticData.landmarks.left_hand_landmarks
+      });
 
     } catch (e) {
       alert("Capture error: " + e.message);
@@ -1723,12 +1723,21 @@ class App {
       if (!this.sampleInspect3DViewer) {
         this.sampleInspect3DViewer = new ThreeHandViewer("inspect-3d-viewport");
       }
-      if (landmarksData.frames && landmarksData.frames.length > 0) {
+      if (landmarksData.frames && landmarksData.frames.length > 1) {
+        this.sampleInspect3DViewer.loadDynamicSequence(landmarksData.frames, sample.duration, sample.fps || 30);
+      } else if (landmarksData.frames && landmarksData.frames.length === 1) {
         const firstFrame = landmarksData.frames[0];
-        const lm = (firstFrame.right_hand_landmarks && firstFrame.right_hand_landmarks.length === 21)
-          ? firstFrame.right_hand_landmarks
-          : firstFrame.left_hand_landmarks;
-        if (lm) this.sampleInspect3DViewer.applyLandmarks(lm);
+        this.sampleInspect3DViewer.applyLandmarks({
+          right_hand_landmarks: firstFrame.right_hand_landmarks,
+          left_hand_landmarks: firstFrame.left_hand_landmarks
+        });
+      } else if (landmarksData.right_hand_landmarks || landmarksData.left_hand_landmarks) {
+        this.sampleInspect3DViewer.applyLandmarks({
+          right_hand_landmarks: landmarksData.right_hand_landmarks,
+          left_hand_landmarks: landmarksData.left_hand_landmarks
+        });
+      } else if (Array.isArray(landmarksData) && landmarksData.length === 21) {
+        this.sampleInspect3DViewer.applyLandmarks(landmarksData);
       }
 
       document.getElementById("sample-inspector-modal").classList.remove("hidden");

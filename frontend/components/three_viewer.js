@@ -146,11 +146,25 @@ export class ThreeHandViewer {
     }, { passive: false });
   }
 
-  /** Build realistic skin-tone articulated hand rig */
+  /** Build realistic skin-tone articulated dual-hand rig */
   buildArticulatedRig() {
-    if (this.handGroup) this.scene.remove(this.handGroup);
-    this.handGroup = new THREE.Group();
-    this.scene.add(this.handGroup);
+    if (this.rightHand) this.scene.remove(this.rightHand.group);
+    if (this.leftHand) this.scene.remove(this.leftHand.group);
+
+    this.rightHand = this._createRig("right");
+    this.leftHand = this._createRig("left");
+
+    // Compatibility aliases for legacy single-hand references
+    this.handGroup = this.rightHand.group;
+    this.jointNodes = this.rightHand.jointNodes;
+    this.boneMeshes = this.rightHand.boneMeshes;
+    this.palmMesh = this.rightHand.palmMesh;
+  }
+
+  _createRig(side = "right") {
+    const isLeft = side.toLowerCase() === "left";
+    const group = new THREE.Group();
+    this.scene.add(group);
 
     // MediaPipe 21-landmark template (resting hand pose)
     const baseCoords = [
@@ -177,14 +191,12 @@ export class ThreeHandViewer {
       [ 4.3,  3.9,-0.2]  // 20 Pinky TIP
     ];
 
-    this.landmarkBase = baseCoords.map(c => new THREE.Vector3(...c));
-    this.jointNodes = [];
+    // For left hand, mirror X axis in default resting pose
+    const landmarkBase = baseCoords.map(c => new THREE.Vector3(isLeft ? -c[0] : c[0], c[1], c[2]));
+    const jointNodes = [];
+    const skinColor = isLeft ? 0xd18d62 : 0xd4956a;
+    const skinDark  = isLeft ? 0xb07048 : 0xb87850;
 
-    // Skin-tone materials
-    const skinColor = 0xd4956a;
-    const skinDark  = 0xb87850;
-
-    // Joint spheres — tapered sizes (wrist larger, tips smaller)
     const jointSizes = [
       0.55, 0.38, 0.34, 0.30, 0.24, // wrist, thumb
       0.38, 0.32, 0.28, 0.22,       // index
@@ -204,13 +216,12 @@ export class ThreeHandViewer {
     for (let i = 0; i < 21; i++) {
       const geo = new THREE.SphereGeometry(jointSizes[i] || 0.30, 14, 14);
       const mesh = new THREE.Mesh(geo, jointMat);
-      mesh.position.copy(this.landmarkBase[i]);
+      mesh.position.copy(landmarkBase[i]);
       mesh.castShadow = true;
-      this.handGroup.add(mesh);
-      this.jointNodes.push(mesh);
+      group.add(mesh);
+      jointNodes.push(mesh);
     }
 
-    // Bone cylinders — realistic tapered finger segments
     const connections = [
       [0, 1], [1, 2], [2, 3], [3, 4],
       [0, 5], [5, 6], [6, 7], [7, 8],
@@ -220,7 +231,6 @@ export class ThreeHandViewer {
       [5, 9], [9, 13], [13, 17]
     ];
 
-    // Radii for each segment (proximal, distal) — tapered
     const boneRadii = {
       "0,1": [0.30, 0.26], "1,2": [0.26, 0.22], "2,3": [0.22, 0.18], "3,4": [0.18, 0.14],
       "0,5": [0.28, 0.26], "5,6": [0.26, 0.22], "6,7": [0.22, 0.18], "7,8": [0.18, 0.14],
@@ -238,97 +248,153 @@ export class ThreeHandViewer {
       emissiveIntensity: 0.06
     });
 
-    this.boneMeshes = [];
+    const boneMeshes = [];
     connections.forEach(([fromIdx, toIdx]) => {
-      const p1 = this.landmarkBase[fromIdx], p2 = this.landmarkBase[toIdx];
+      const p1 = landmarkBase[fromIdx], p2 = landmarkBase[toIdx];
       const dist = p1.distanceTo(p2);
       const key = `${fromIdx},${toIdx}`;
       const [rTop, rBot] = boneRadii[key] || [0.20, 0.16];
       const boneGeo = new THREE.CylinderGeometry(rTop, rBot, dist, 10, 1);
       const boneMesh = new THREE.Mesh(boneGeo, boneMat);
       boneMesh.castShadow = true;
-      this.handGroup.add(boneMesh);
-      this.boneMeshes.push({ mesh: boneMesh, from: fromIdx, to: toIdx });
+      group.add(boneMesh);
+      boneMeshes.push({ mesh: boneMesh, from: fromIdx, to: toIdx });
     });
 
-    // Palm skin patch (convex polygon between base knuckles 0,5,9,13,17)
-    this._buildPalmMesh(skinDark);
-
-    this.updateBones();
-  }
-
-  _buildPalmMesh(color) {
-    if (this.palmMesh) this.handGroup.remove(this.palmMesh);
-    // Simple flat polygon for palm area — wrist + knuckle landmarks
+    // Palm mesh
     const palmIndices = [0, 17, 13, 9, 5, 1];
-    const geo = new THREE.BufferGeometry();
-    const positions = [];
+    const palmGeo = new THREE.BufferGeometry();
+    const palmPositions = [];
     palmIndices.forEach(idx => {
-      const p = this.landmarkBase[idx];
-      positions.push(p.x, p.y, p.z - 0.1);
+      const p = landmarkBase[idx];
+      palmPositions.push(p.x, p.y, p.z - 0.1);
     });
-    // Fan triangulation from wrist (index 0)
-    const indices = [];
+    const palmTriangles = [];
     for (let i = 1; i < palmIndices.length - 1; i++) {
-      indices.push(0, i, i + 1);
+      palmTriangles.push(0, i, i + 1);
     }
-    geo.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
-    geo.setIndex(indices);
-    geo.computeVertexNormals();
-    const mat = new THREE.MeshPhongMaterial({
-      color: 0xc97f50,
+    palmGeo.setAttribute("position", new THREE.Float32BufferAttribute(palmPositions, 3));
+    palmGeo.setIndex(palmTriangles);
+    palmGeo.computeVertexNormals();
+
+    const palmMat = new THREE.MeshPhongMaterial({
+      color: skinDark,
       specular: 0xffcca0,
       shininess: 20,
       side: THREE.DoubleSide,
       emissive: 0x1a0a00,
       emissiveIntensity: 0.05
     });
-    this.palmMesh = new THREE.Mesh(geo, mat);
-    this.palmMesh.castShadow = true;
-    this.handGroup.add(this.palmMesh);
-  }
+    const palmMesh = new THREE.Mesh(palmGeo, palmMat);
+    palmMesh.castShadow = true;
+    group.add(palmMesh);
 
-  updateBones() {
-    this.boneMeshes.forEach(b => {
-      const p1 = this.jointNodes[b.from].position;
-      const p2 = this.jointNodes[b.to].position;
-      const distance = p1.distanceTo(p2);
-      b.mesh.scale.set(1, Math.max(0.01, distance / (b.mesh.geometry.parameters.height || 1)), 1);
-      const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-      b.mesh.position.copy(mid);
-      const dir = new THREE.Vector3().subVectors(p2, p1).normalize();
-      const axis = new THREE.Vector3(0, 1, 0);
-      b.mesh.quaternion.setFromUnitVectors(axis, dir);
-    });
+    // Initial offset in scene so both hands sit side-by-side at rest
+    group.position.set(isLeft ? -5.5 : 5.5, 0, 0);
 
-    // Update palm mesh vertices to follow joints
-    if (this.palmMesh) {
-      const palmIndices = [0, 17, 13, 9, 5, 1];
-      const posAttr = this.palmMesh.geometry.attributes.position;
-      palmIndices.forEach((idx, i) => {
-        const p = this.jointNodes[idx].position;
-        posAttr.setXYZ(i, p.x, p.y, p.z - 0.1);
+    const updateBones = () => {
+      boneMeshes.forEach(b => {
+        const p1 = jointNodes[b.from].position;
+        const p2 = jointNodes[b.to].position;
+        const distance = p1.distanceTo(p2);
+        b.mesh.scale.set(1, Math.max(0.01, distance / (b.mesh.geometry.parameters.height || 1)), 1);
+        const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
+        b.mesh.position.copy(mid);
+        const dir = new THREE.Vector3().subVectors(p2, p1).normalize();
+        const axis = new THREE.Vector3(0, 1, 0);
+        b.mesh.quaternion.setFromUnitVectors(axis, dir);
       });
-      posAttr.needsUpdate = true;
-      this.palmMesh.geometry.computeVertexNormals();
-    }
-  }
 
-  /** Map real MediaPipe 21 landmarks to the 3D hand rig */
-  applyLandmarks(landmarks) {
-    if (!landmarks || landmarks.length < 21) return;
-    const wrist = landmarks[0];
-    const scale = 14;
-    landmarks.slice(0, 21).forEach((lm, i) => {
-      if (this.jointNodes[i]) {
-        this.jointNodes[i].position.set(
-          (lm.x - wrist.x) * scale,
-          -(lm.y - wrist.y) * scale - 2,
-          -(lm.z || 0) * (scale * 1.2)
+      if (palmMesh) {
+        const posAttr = palmMesh.geometry.attributes.position;
+        palmIndices.forEach((idx, i) => {
+          const p = jointNodes[idx].position;
+          posAttr.setXYZ(i, p.x, p.y, p.z - 0.1);
+        });
+        posAttr.needsUpdate = true;
+        palmMesh.geometry.computeVertexNormals();
+      }
+    };
+
+    updateBones();
+
+    const update = (landmarks) => {
+      if (!landmarks || landmarks.length < 21) {
+        group.visible = false;
+        return;
+      }
+      group.visible = true;
+      const wrist = landmarks[0];
+      const scale = 14;
+
+      // 1. Global hand translation in 3D camera space
+      if (typeof wrist.x === "number" && typeof wrist.y === "number") {
+        const transScale = 16.0;
+        group.position.set(
+          (wrist.x - 0.5) * transScale,
+          -(wrist.y - 0.5) * transScale,
+          -(wrist.z || 0) * (transScale * 0.8)
         );
       }
-    });
-    this.updateBones();
+
+      // 2. Articulate finger joints relative to the wrist
+      landmarks.slice(0, 21).forEach((lm, i) => {
+        if (jointNodes[i]) {
+          jointNodes[i].position.set(
+            (lm.x - wrist.x) * scale,
+            -(lm.y - wrist.y) * scale - 2,
+            -(lm.z || 0) * (scale * 1.2)
+          );
+        }
+      });
+      updateBones();
+    };
+
+    const hide = () => {
+      group.visible = false;
+    };
+
+    return {
+      group,
+      jointNodes,
+      boneMeshes,
+      palmMesh,
+      update,
+      hide
+    };
+  }
+
+  /** Map real MediaPipe 21 landmarks to 3D hand rigs (supports single hand array or dual-hand object) */
+  applyLandmarks(data) {
+    if (!data) return;
+
+    // Single hand array of 21 points
+    if (Array.isArray(data)) {
+      if (data.length >= 21) {
+        if (this.rightHand) this.rightHand.update(data);
+        if (this.leftHand) this.leftHand.hide();
+      }
+      return;
+    }
+
+    // Dual-hand object: { right_hand_landmarks, left_hand_landmarks } or { right, left }
+    const rightLm = data.right_hand_landmarks || data.right || null;
+    const leftLm  = data.left_hand_landmarks  || data.left  || null;
+
+    const hasRight = rightLm && Array.isArray(rightLm) && rightLm.length >= 21;
+    const hasLeft  = leftLm  && Array.isArray(leftLm)  && leftLm.length >= 21;
+
+    if (hasRight) {
+      if (this.rightHand) this.rightHand.update(rightLm);
+    } else {
+      if (this.rightHand) this.rightHand.hide();
+    }
+
+    if (hasLeft) {
+      if (this.leftHand) this.leftHand.update(leftLm);
+    } else {
+      if (this.leftHand) this.leftHand.hide();
+    }
   }
 
   /** Load a .glb / .gltf file from backend storage */
@@ -421,12 +487,15 @@ export class ThreeHandViewer {
     }
 
     if (frame) {
-      const lm = (frame.right_hand_landmarks && frame.right_hand_landmarks.length === 21)
-        ? frame.right_hand_landmarks
-        : (frame.left_hand_landmarks && frame.left_hand_landmarks.length === 21)
-          ? frame.left_hand_landmarks
-          : null;
-      if (lm) this.applyLandmarks(lm);
+      const rightLm = (frame.right_hand_landmarks && frame.right_hand_landmarks.length === 21)
+        ? frame.right_hand_landmarks : null;
+      const leftLm = (frame.left_hand_landmarks && frame.left_hand_landmarks.length === 21)
+        ? frame.left_hand_landmarks : null;
+
+      this.applyLandmarks({
+        right_hand_landmarks: rightLm,
+        left_hand_landmarks: leftLm
+      });
     }
 
     if (this.onTimelineUpdate) this.onTimelineUpdate(timeSec, this.duration);
@@ -467,7 +536,9 @@ export class ThreeHandViewer {
   destroy() {
     if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
     if (this.controls) this.controls.dispose();
-    if (this.renderer && this.renderer.domElement && this.container.contains(this.renderer.domElement)) {
+    if (this.rightHand && this.scene) this.scene.remove(this.rightHand.group);
+    if (this.leftHand && this.scene) this.scene.remove(this.leftHand.group);
+    if (this.renderer && this.renderer.domElement && this.container && this.container.contains(this.renderer.domElement)) {
       this.container.removeChild(this.renderer.domElement);
       this.renderer.dispose();
     }
