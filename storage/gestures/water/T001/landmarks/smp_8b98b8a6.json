@@ -1,0 +1,18 @@
+{
+  "gesture_id": "water",
+  "sample_id": "smp_8b98b8a6",
+  "signer_id": "T001",
+  "type": "STATIC",
+  "fps": null,
+  "frames": [
+    {
+      "right_hand_landmarks": [
+        {
+          "x": 0.5,
+          "y": 0.5,
+          "z": 0.0
+        }
+      ]
+    }
+  ]
+}
