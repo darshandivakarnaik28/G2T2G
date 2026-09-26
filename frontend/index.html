@@ -95,7 +95,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="styles.css?v=20260925_fix2">
+  <link rel="stylesheet" href="styles.css?v=20260926_fix11">
 
   <script id="tailwind-config">
     tailwind.config = {
@@ -234,7 +234,7 @@
   </aside>
 
   <!-- Main Content Area -->
-  <div class="flex-1 flex flex-col md:ml-sidebar w-full md:w-[calc(100%-spacing.sidebar-width)]">
+  <div class="flex-1 min-w-0 max-w-full flex flex-col md:ml-sidebar w-full">
     
     <!-- Offline Alert Banner -->
     <div id="offline-alert-banner" class="hidden fixed top-0 left-0 right-0 z-50 bg-rose-900 border-b border-rose-700 text-white text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2 shadow-lg">
@@ -243,20 +243,20 @@
     </div>
 
     <!-- TopAppBar -->
-    <header class="flex justify-between items-center px-container-padding-mobile md:px-gutter py-4 sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-outline-variant shadow-sm md:shadow-none">
-      <div class="flex items-center gap-4">
+    <header class="flex justify-between items-center px-container-padding-mobile md:px-gutter py-4 sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-outline-variant shadow-sm md:shadow-none min-w-0">
+      <div class="flex items-center gap-4 min-w-0">
         <button class="md:hidden text-on-background p-2 -ml-2 rounded-full hover:bg-surface-variant transition-colors">
           <span class="material-symbols-outlined">menu</span>
         </button>
-        <div>
-          <h2 class="font-headline-md text-headline-md font-extrabold text-primary tracking-tight">ISL Dataset Collector</h2>
+        <div class="min-w-0">
+          <h2 class="font-headline-md text-headline-md font-extrabold text-primary tracking-tight truncate">ISL Dataset Collector</h2>
         </div>
       </div>
       
-      <div class="flex items-center gap-3">
+      <div class="flex items-center gap-3 flex-shrink-0">
         <!-- Remote Signer Selector -->
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant/40 text-xs font-label-sm">
-          <span class="text-outline">Active Signer:</span>
+          <span class="text-outline hidden sm:inline">Active Signer:</span>
           <select id="global-active-signer-select" class="bg-surface-container-lowest border border-outline-variant/40 rounded px-2 py-1 text-xs font-mono font-bold text-primary cursor-pointer">
             <!-- Dynamically populated from registered signers -->
           </select>
@@ -269,14 +269,14 @@
         </div>
 
         <!-- Avatar Placeholder -->
-        <div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-label-md font-bold overflow-hidden border border-outline-variant cursor-pointer hover:border-primary transition-colors">
+        <div class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center text-on-surface-variant font-label-md font-bold overflow-hidden border border-outline-variant cursor-pointer hover:border-primary transition-colors flex-shrink-0">
           <img class="object-cover w-full h-full" alt="Avatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80">
         </div>
       </div>
     </header>
 
     <!-- Main Views Canvas -->
-    <main class="flex-1 px-container-padding-mobile md:px-gutter py-8 max-w-[1600px] mx-auto w-full flex flex-col gap-8">
+    <main class="flex-1 min-w-0 max-w-full px-container-padding-mobile md:px-gutter py-8 max-w-[1600px] mx-auto w-full flex flex-col gap-8">
       
       <!-- ============================================== -->
       <!-- VIEW: DASHBOARD                                -->
@@ -304,76 +304,94 @@
           </div>
         </section>
 
-        <!-- Stats Bento Grid (Calculated from DB) -->
-        <section class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
-          <div class="stat-card col-span-2 lg:col-span-2 flex flex-col justify-between">
-            <div class="flex justify-between items-start mb-4">
-              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Total Gestures</span>
-              <span class="material-symbols-outlined text-outline-variant text-[20px]">sign_language</span>
+        <!-- Stats Bento Grid (Responsive 2/3/6 Column Layout) -->
+        <section class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3 sm:gap-4">
+          <!-- 1. Total Gestures -->
+          <div class="stat-card col-span-2 sm:col-span-1 xl:col-span-1 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs uppercase text-outline tracking-wider font-semibold truncate">Total Gestures</span>
+              <span class="material-symbols-outlined text-outline-variant text-[20px] flex-shrink-0">sign_language</span>
             </div>
             <div>
-              <div id="stat-total-gestures" class="font-display-lg text-display-lg text-on-background">0</div>
-              <div class="flex items-center gap-1 mt-2 text-primary font-label-md text-label-md">
-                <span class="material-symbols-outlined text-[16px]">database</span>
-                <span>SQLite indexed</span>
+              <div id="stat-total-gestures" class="text-2xl sm:text-3xl font-extrabold text-on-background">0</div>
+              <div class="flex items-center gap-1 mt-1 text-primary text-xs font-mono">
+                <span class="material-symbols-outlined text-[14px]">database</span>
+                <span class="truncate">SQLite indexed</span>
               </div>
             </div>
           </div>
 
-          <div class="stat-card col-span-1 lg:col-span-1 flex flex-col justify-between">
-            <div class="flex justify-between items-start mb-4">
-              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Verified</span>
+          <!-- 2. Verified -->
+          <div class="stat-card col-span-1 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs uppercase text-outline tracking-wider font-semibold truncate">Verified</span>
+              <span class="material-symbols-outlined text-emerald-400 text-[20px] flex-shrink-0">verified</span>
             </div>
-            <div id="stat-verified" class="font-display-lg text-display-lg text-emerald-400">0</div>
-          </div>
-
-          <div class="stat-card col-span-1 lg:col-span-1 flex flex-col justify-between">
-            <div class="flex justify-between items-start mb-4">
-              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Samples</span>
-            </div>
-            <div id="stat-samples" class="font-display-lg text-display-lg text-on-background">0</div>
-          </div>
-
-          <div class="stat-card col-span-2 md:col-span-1 lg:col-span-1 flex flex-col justify-between">
-            <div class="flex justify-between items-start mb-4">
-              <span class="font-label-sm text-label-sm uppercase text-outline tracking-wider">Signers</span>
-            </div>
-            <div id="stat-signers" class="font-display-lg text-display-lg text-on-background">0</div>
-          </div>
-
-          <div class="col-span-2 md:col-span-3 lg:col-span-1 flex flex-col gap-4">
-            <div class="stat-card flex-1 flex flex-col justify-center px-4 py-3 bg-emerald-950/20 border-emerald-900/40">
-              <div class="font-label-sm text-label-sm uppercase text-emerald-300 tracking-wider mb-1 flex items-center justify-between">
-                <span>Completed</span>
-                <span class="material-symbols-outlined text-[14px]">task_alt</span>
-              </div>
-              <div id="stat-completed-assignments" class="font-headline-md text-headline-md text-on-background">0</div>
-              <span class="text-[10px] text-outline font-mono">Assignments</span>
-            </div>
-            <div class="stat-card flex-1 flex flex-col justify-center px-4 py-3 bg-amber-950/20 border-amber-900/40">
-              <div class="font-label-sm text-label-sm uppercase text-amber-300 tracking-wider mb-1 flex items-center justify-between">
-                <span>Pending</span>
-                <span class="material-symbols-outlined text-[14px]">pending</span>
-              </div>
-              <div id="stat-pending-assignments" class="font-headline-md text-headline-md text-on-background">0</div>
-              <span class="text-[10px] text-outline font-mono">Assignments</span>
+            <div>
+              <div id="stat-verified" class="text-2xl sm:text-3xl font-extrabold text-emerald-400">0</div>
+              <span class="text-[10px] text-outline font-mono mt-1 block truncate">Review Passed</span>
             </div>
           </div>
 
-          <div class="col-span-2 md:col-span-3 lg:col-span-1 flex flex-col gap-4">
-            <div class="stat-card flex-1 flex flex-col justify-center px-4 py-3 bg-blue-950/20 border-blue-900/40">
-              <div class="font-label-sm text-label-sm uppercase text-blue-300 tracking-wider mb-1 flex items-center justify-between">
-                <span>Static</span>
-                <span class="material-symbols-outlined text-[14px]">photo_camera</span>
-              </div>
-              <div id="stat-static" class="font-headline-md text-headline-md text-on-background">0</div>
+          <!-- 3. Samples -->
+          <div class="stat-card col-span-1 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs uppercase text-outline tracking-wider font-semibold truncate">Samples</span>
+              <span class="material-symbols-outlined text-primary text-[20px] flex-shrink-0">dataset</span>
             </div>
-            <div class="stat-card flex-1 flex flex-col justify-center px-4 py-3 bg-purple-950/20 border-purple-900/40">
-              <div class="font-label-sm text-label-sm uppercase text-purple-300 tracking-wider mb-1 flex items-center justify-between">
-                <span>Dynamic</span>
-                <span class="material-symbols-outlined text-[14px]">videocam</span>
+            <div>
+              <div id="stat-samples" class="text-2xl sm:text-3xl font-extrabold text-on-background">0</div>
+              <span class="text-[10px] text-outline font-mono mt-1 block truncate">Total in DB</span>
+            </div>
+          </div>
+
+          <!-- 4. Signers -->
+          <div class="stat-card col-span-2 sm:col-span-1 xl:col-span-1 flex flex-col justify-between">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs uppercase text-outline tracking-wider font-semibold truncate">Signers</span>
+              <span class="material-symbols-outlined text-purple-400 text-[20px] flex-shrink-0">group</span>
+            </div>
+            <div>
+              <div id="stat-signers" class="text-2xl sm:text-3xl font-extrabold text-on-background">0</div>
+              <span class="text-[10px] text-outline font-mono mt-1 block truncate">Active Team</span>
+            </div>
+          </div>
+
+          <!-- 5. Assignments (Completed / Pending) -->
+          <div class="stat-card col-span-1 flex flex-col justify-between bg-surface-container-high/40">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs uppercase text-outline tracking-wider font-semibold truncate">Assignments</span>
+              <span class="material-symbols-outlined text-amber-400 text-[20px] flex-shrink-0">assignment</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <div id="stat-completed-assignments" class="text-xl sm:text-2xl font-bold text-emerald-400">0</div>
+                <span class="text-[10px] text-outline uppercase font-mono block truncate">Done</span>
               </div>
-              <div id="stat-dynamic" class="font-headline-md text-headline-md text-on-background">0</div>
+              <div class="h-7 w-px bg-outline-variant/30 flex-shrink-0"></div>
+              <div class="min-w-0">
+                <div id="stat-pending-assignments" class="text-xl sm:text-2xl font-bold text-amber-400">0</div>
+                <span class="text-[10px] text-outline uppercase font-mono block truncate">Pending</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- 6. Sign Types (Static / Dynamic) -->
+          <div class="stat-card col-span-1 flex flex-col justify-between bg-surface-container-high/40">
+            <div class="flex justify-between items-start mb-2">
+              <span class="text-xs uppercase text-outline tracking-wider font-semibold truncate">Sign Types</span>
+              <span class="material-symbols-outlined text-blue-400 text-[20px] flex-shrink-0">category</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <div id="stat-static" class="text-xl sm:text-2xl font-bold text-blue-400">0</div>
+                <span class="text-[10px] text-outline uppercase font-mono block truncate">Static</span>
+              </div>
+              <div class="h-7 w-px bg-outline-variant/30 flex-shrink-0"></div>
+              <div class="min-w-0">
+                <div id="stat-dynamic" class="text-xl sm:text-2xl font-bold text-purple-400">0</div>
+                <span class="text-[10px] text-outline uppercase font-mono block truncate">Dynamic</span>
+              </div>
             </div>
           </div>
         </section>
@@ -490,21 +508,21 @@
         </div>
 
         <!-- Signer Progress Summary Bar -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div class="stat-card p-4 flex flex-col justify-between">
-            <span class="text-xs uppercase font-label-sm text-outline">Assigned Signs</span>
-            <div id="my-stat-assigned" class="text-2xl font-bold text-on-background mt-1">0</div>
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+          <div class="stat-card p-3.5 sm:p-4 flex flex-col justify-between">
+            <span class="text-xs uppercase font-label-sm text-outline truncate">Assigned Signs</span>
+            <div id="my-stat-assigned" class="text-xl sm:text-2xl font-bold text-on-background mt-1">0</div>
           </div>
-          <div class="stat-card p-4 flex flex-col justify-between">
-            <span class="text-xs uppercase font-label-sm text-outline">Completed Signs</span>
-            <div id="my-stat-completed" class="text-2xl font-bold text-emerald-400 mt-1">0</div>
+          <div class="stat-card p-3.5 sm:p-4 flex flex-col justify-between">
+            <span class="text-xs uppercase font-label-sm text-outline truncate">Completed Signs</span>
+            <div id="my-stat-completed" class="text-xl sm:text-2xl font-bold text-emerald-400 mt-1">0</div>
           </div>
-          <div class="stat-card p-4 flex flex-col justify-between">
-            <span class="text-xs uppercase font-label-sm text-outline">Samples Collected</span>
-            <div id="my-stat-samples" class="text-2xl font-bold text-primary mt-1">0 / 0</div>
+          <div class="stat-card p-3.5 sm:p-4 flex flex-col justify-between">
+            <span class="text-xs uppercase font-label-sm text-outline truncate">Samples Collected</span>
+            <div id="my-stat-samples" class="text-xl sm:text-2xl font-bold text-primary mt-1">0 / 0</div>
           </div>
-          <div class="stat-card p-4 flex flex-col justify-between">
-            <span class="text-xs uppercase font-label-sm text-outline">Target Rule</span>
+          <div class="stat-card p-3.5 sm:p-4 flex flex-col justify-between">
+            <span class="text-xs uppercase font-label-sm text-outline truncate">Target Rule</span>
             <div class="text-xs font-mono text-outline-variant mt-1">
               <span class="text-emerald-300 font-bold">50 valid samples</span> per assigned sign
             </div>
@@ -1168,7 +1186,7 @@
   <!-- MODAL: ADD NEW GESTURE (REAL SQLITE CREATION)          -->
   <!-- ======================================================= -->
   <div id="add-gesture-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
-    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-2xl w-full p-6 md:p-8 shadow-2xl relative">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-2xl w-full p-5 sm:p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto min-w-0">
       <button id="btn-close-add-gesture" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant">
         <span class="material-symbols-outlined text-[22px]">close</span>
       </button>
@@ -1230,7 +1248,7 @@
   <!-- MODAL: GESTURE DETAILS & SAMPLES TREE                  -->
   <!-- ======================================================= -->
   <div id="gesture-details-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
-    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-4xl w-full p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-4xl w-full p-5 sm:p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto min-w-0">
       <button onclick="app.closeGestureDetails()" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant">
         <span class="material-symbols-outlined text-[22px]">close</span>
       </button>
@@ -1318,20 +1336,22 @@
               <span class="material-symbols-outlined text-[14px]">add</span> Assign to Signer
             </button>
           </div>
-          <table class="w-full text-left text-xs font-mono">
-            <thead class="bg-surface-container text-outline uppercase border-b border-outline-variant/20">
-              <tr>
-                <th class="p-2">Signer</th>
-                <th class="p-2">Samples</th>
-                <th class="p-2">Target</th>
-                <th class="p-2">Progress</th>
-                <th class="p-2">Status</th>
-              </tr>
-            </thead>
-            <tbody id="details-gesture-signers-tbody" class="divide-y divide-outline-variant/10 text-on-background">
-              <!-- Populated dynamically -->
-            </tbody>
-          </table>
+          <div class="overflow-x-auto w-full">
+            <table class="w-full text-left text-xs font-mono min-w-[360px]">
+              <thead class="bg-surface-container text-outline uppercase border-b border-outline-variant/20">
+                <tr>
+                  <th class="p-2">Signer</th>
+                  <th class="p-2">Samples</th>
+                  <th class="p-2">Target</th>
+                  <th class="p-2">Progress</th>
+                  <th class="p-2">Status</th>
+                </tr>
+              </thead>
+              <tbody id="details-gesture-signers-tbody" class="divide-y divide-outline-variant/10 text-on-background">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Gesture Danger Zone / Delete -->
@@ -1360,21 +1380,21 @@
   <!-- MODAL: SAMPLE INSPECTOR (REAL MEDIA & LANDMARKS)       -->
   <!-- ======================================================= -->
   <div id="sample-inspector-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
-    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-4xl w-full p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-4xl w-full p-5 sm:p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto min-w-0">
       <button onclick="app.closeSampleInspector()" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant">
         <span class="material-symbols-outlined text-[22px]">close</span>
       </button>
 
       <div class="flex items-center gap-3 mb-4">
         <span class="text-xs font-mono px-2 py-0.5 rounded bg-primary/20 text-primary">SAMPLE INSPECT</span>
-        <h3 id="inspect-sample-id" class="font-bold text-xl text-on-background font-mono">smp_001</h3>
+        <h3 id="inspect-sample-id" class="font-bold text-xl text-on-background font-mono truncate">smp_001</h3>
       </div>
 
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs text-outline mb-4">
-        <div>Gesture: <strong id="inspect-gesture" class="text-on-background"></strong></div>
-        <div>Signer: <strong id="inspect-signer" class="text-primary font-mono"></strong></div>
-        <div>Confidence: <strong id="inspect-conf" class="text-emerald-400 font-mono"></strong></div>
-        <div>Frames: <strong id="inspect-frames" class="text-on-background font-mono"></strong></div>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-outline mb-4">
+        <div class="truncate">Gesture: <strong id="inspect-gesture" class="text-on-background"></strong></div>
+        <div class="truncate">Signer: <strong id="inspect-signer" class="text-primary font-mono"></strong></div>
+        <div class="truncate">Confidence: <strong id="inspect-conf" class="text-emerald-400 font-mono"></strong></div>
+        <div class="truncate">Frames: <strong id="inspect-frames" class="text-on-background font-mono"></strong></div>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1402,7 +1422,7 @@
 
       <div>
         <p class="text-xs text-outline mb-1">Stored 21-Point Landmark JSON</p>
-        <pre id="inspect-raw-json" class="h-40 overflow-y-auto p-3 rounded bg-surface-container-lowest font-mono text-[11px] text-primary border border-outline-variant/30"></pre>
+        <pre id="inspect-raw-json" class="h-40 overflow-y-auto overflow-x-auto p-3 rounded bg-surface-container-lowest font-mono text-[11px] text-primary border border-outline-variant/30 break-all whitespace-pre-wrap"></pre>
       </div>
     </div>
   </div>
@@ -1411,7 +1431,7 @@
   <!-- MODAL: ADD SIGNER                                      -->
   <!-- ======================================================= -->
   <div id="add-signer-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
-    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-md w-full p-6 md:p-8 shadow-2xl relative">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-md w-full p-5 sm:p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto min-w-0">
       <button id="btn-close-add-signer" onclick="closeAddSignerModal()" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant cursor-pointer">
         <span class="material-symbols-outlined text-[22px]">close</span>
       </button>
@@ -1441,7 +1461,7 @@
   <!-- MODAL: ASSIGN GESTURE TO SIGNER                         -->
   <!-- ======================================================= -->
   <div id="assign-gesture-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop overflow-y-auto">
-    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-md w-full p-6 md:p-8 shadow-2xl relative">
+    <div class="bg-surface-container border border-[#334155] rounded-xl max-w-md w-full p-5 sm:p-6 md:p-8 shadow-2xl relative max-h-[92vh] overflow-y-auto min-w-0">
       <button id="btn-close-assign-gesture" onclick="closeAssignGestureModal()" class="absolute top-6 right-6 text-outline hover:text-on-background p-1.5 rounded-full hover:bg-surface-variant cursor-pointer">
         <span class="material-symbols-outlined text-[22px]">close</span>
       </button>

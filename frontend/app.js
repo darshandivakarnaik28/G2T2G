@@ -306,23 +306,23 @@ class App {
 
     this.gestures.forEach((g) => {
       const card = document.createElement("div");
-      card.className = "stat-card flex flex-col justify-between hover:border-primary/60 transition-all cursor-pointer group";
+      card.className = "stat-card flex flex-col justify-between hover:border-primary/60 transition-all cursor-pointer group min-w-0 overflow-hidden";
       card.onclick = () => this.openGestureDetails(g.gesture_id);
 
       const isStatic = g.gesture_type === "STATIC";
       const typeBadge = isStatic
-        ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-900/30 text-blue-300 border border-blue-700/50">
+        ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-900/30 text-blue-300 border border-blue-700/50 flex-shrink-0">
             <span class="material-symbols-outlined text-[14px]">photo_camera</span> Static Pose
            </span>`
-        : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-900/30 text-purple-300 border border-purple-700/50">
+        : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-900/30 text-purple-300 border border-purple-700/50 flex-shrink-0">
             <span class="material-symbols-outlined text-[14px]">videocam</span> Dynamic Motion
            </span>`;
 
       card.innerHTML = `
-        <div>
-          <div class="flex justify-between items-start mb-3">
+        <div class="min-w-0">
+          <div class="flex justify-between items-start mb-3 gap-2 flex-wrap">
             ${typeBadge}
-            <span class="px-2 py-0.5 rounded text-[11px] font-label-sm ${
+            <span class="px-2 py-0.5 rounded text-[11px] font-label-sm flex-shrink-0 ${
               g.verification_status === "VERIFIED"
                 ? "bg-emerald-950 text-emerald-400 border border-emerald-800/60"
                 : "bg-amber-950 text-amber-400 border border-amber-800/60"
@@ -330,19 +330,19 @@ class App {
               ${g.verification_status}
             </span>
           </div>
-          <div class="flex items-baseline gap-2 mb-1">
-            <h3 class="font-headline-md text-headline-sm font-bold text-on-background group-hover:text-primary transition-colors">${g.name}</h3>
-            <span class="text-lg text-tertiary font-medium">${g.kannada_meaning || ""}</span>
+          <div class="flex items-baseline gap-2 mb-1 flex-wrap min-w-0">
+            <h3 class="text-base sm:text-lg font-bold text-on-background group-hover:text-primary transition-colors truncate max-w-full">${g.name}</h3>
+            <span class="text-sm text-tertiary font-medium truncate">${g.kannada_meaning || ""}</span>
           </div>
-          <p class="text-sm text-on-surface-variant line-clamp-2 mb-4">${g.description || "No description provided."}</p>
+          <p class="text-xs sm:text-sm text-on-surface-variant line-clamp-2 mb-4 break-words">${g.description || "No description provided."}</p>
         </div>
 
-        <div class="pt-4 border-t border-[#334155] mt-2">
-          <div class="grid grid-cols-2 gap-2 text-xs text-outline mb-4">
-            <div>Hands: <span class="text-on-background font-medium">${g.hand_count}</span></div>
-            <div>Signers: <span class="text-on-background font-medium">${g.signer_count}</span></div>
-            <div>Samples: <span class="text-on-background font-medium">${g.sample_count}</span></div>
-            <div>3D Model: <span class="text-primary font-medium">${g.has_3d_model ? "Available" : "None"}</span></div>
+        <div class="pt-3 border-t border-[#334155] mt-2 min-w-0">
+          <div class="grid grid-cols-2 gap-2 text-xs text-outline mb-3 min-w-0">
+            <div class="truncate">Hands: <span class="text-on-background font-medium">${g.hand_count}</span></div>
+            <div class="truncate">Signers: <span class="text-on-background font-medium">${g.signer_count}</span></div>
+            <div class="truncate">Samples: <span class="text-on-background font-medium">${g.sample_count}</span></div>
+            <div class="truncate">Status: <span class="text-primary font-medium">${g.sample_count > 0 ? "Active" : "Empty"}</span></div>
           </div>
           <button class="w-full py-2 px-3 rounded bg-surface-container-high hover:bg-secondary-container/30 text-primary border border-outline-variant/40 text-xs font-medium flex items-center justify-center gap-1.5 transition-colors">
             <span class="material-symbols-outlined text-[16px]">visibility</span> View Details & Samples
@@ -787,18 +787,18 @@ class App {
             };
 
             const card = document.createElement("div");
-            card.className = "p-4 rounded-lg bg-surface-container-lowest border border-outline-variant/30 space-y-3";
+            card.className = "p-4 rounded-lg bg-surface-container-lowest border border-outline-variant/30 space-y-3 min-w-0 max-w-full overflow-hidden";
 
             // Status badge helper
             const getStatusBadge = (statusStr, collected, target) => {
               const upper = (statusStr || "").toUpperCase();
               if (upper === "COMPLETED" || collected >= target) {
-                return `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold">Completed</span>`;
+                return `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800 font-bold shrink-0">Completed</span>`;
               }
               if (upper === "IN_PROGRESS" || upper === "STARTED" || collected > 0) {
-                return `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-amber-950 text-amber-300 border border-amber-800 font-bold">In Progress</span>`;
+                return `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-amber-950 text-amber-300 border border-amber-800 font-bold shrink-0">In Progress</span>`;
               }
-              return `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container-high text-outline">Not Started</span>`;
+              return `<span class="px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container-high text-outline shrink-0">Not Started</span>`;
             };
 
             let membersHtml = memberAssignments.map((a) => {
@@ -810,23 +810,23 @@ class App {
               const statusBadge = getStatusBadge(a.status, collected, target);
 
               return `
-                <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded bg-surface-container/60 border border-outline-variant/20 hover:border-outline-variant/50 transition-colors">
-                  <div class="flex items-center gap-3">
-                    <span class="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded bg-primary/10 border border-primary/20">${a.signer_id}</span>
-                    <span class="text-sm font-semibold text-on-background">${signerName}</span>
-                    <span class="text-xs text-outline font-mono">(${collected}/${target} samples)</span>
+                <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 rounded bg-surface-container/60 border border-outline-variant/20 hover:border-outline-variant/50 transition-colors min-w-0">
+                  <div class="flex flex-wrap items-center gap-2 min-w-0">
+                    <span class="font-mono text-xs font-bold text-primary px-2 py-0.5 rounded bg-primary/10 border border-primary/20 shrink-0">${a.signer_id}</span>
+                    <span class="text-sm font-semibold text-on-background truncate">${signerName}</span>
+                    <span class="text-xs text-outline font-mono shrink-0">(${collected}/${target} samples)</span>
                   </div>
-                  <div class="flex items-center gap-2 self-start sm:self-auto">
+                  <div class="flex flex-wrap items-center gap-2 self-start sm:self-auto shrink-0">
                     ${statusBadge}
-                    <span class="px-2 py-0.5 rounded text-[10px] font-mono ${
+                    <span class="px-2 py-0.5 rounded text-[10px] font-mono shrink-0 ${
                       isActive ? 'bg-emerald-950/80 text-emerald-300 border border-emerald-800/80' : 'bg-surface-container-high text-outline'
                     }">
                       ${isActive ? 'Active' : 'Inactive'}
                     </span>
-                    <button onclick="app.startAssignmentCollection('${a.gesture_id}', '${a.signer_id}', ${target})" class="px-2.5 py-1 rounded bg-primary/10 hover:bg-primary/20 text-xs font-medium text-primary cursor-pointer transition-colors" title="Collect for this assignment">
+                    <button onclick="app.startAssignmentCollection('${a.gesture_id}', '${a.signer_id}', ${target})" class="px-2.5 py-1 rounded bg-primary/10 hover:bg-primary/20 text-xs font-medium text-primary cursor-pointer transition-colors shrink-0" title="Collect for this assignment">
                       Collect
                     </button>
-                    <button onclick="app.deleteAssignment(${a.id})" class="text-outline hover:text-rose-400 p-1 transition-colors cursor-pointer" title="Delete assignment">
+                    <button onclick="app.deleteAssignment(${a.id})" class="text-outline hover:text-rose-400 p-1 transition-colors cursor-pointer shrink-0" title="Delete assignment">
                       <span class="material-symbols-outlined text-[16px]">close</span>
                     </button>
                   </div>
@@ -835,24 +835,24 @@ class App {
             }).join("");
 
             card.innerHTML = `
-              <div class="flex items-start justify-between">
-                <div>
-                  <div class="flex items-center gap-2">
-                    <h4 class="text-base font-bold text-on-background">${gestureObj.name}</h4>
-                    <span class="text-tertiary text-xs font-medium">${gestureObj.kannada_meaning || ""}</span>
-                    <span class="text-[10px] px-2 py-0.5 rounded font-mono ${
+              <div class="flex flex-wrap items-start justify-between gap-2 min-w-0">
+                <div class="min-w-0">
+                  <div class="flex flex-wrap items-center gap-2 min-w-0">
+                    <h4 class="text-base font-bold text-on-background truncate">${gestureObj.name}</h4>
+                    <span class="text-tertiary text-xs font-medium truncate">${gestureObj.kannada_meaning || ""}</span>
+                    <span class="text-[10px] px-2 py-0.5 rounded font-mono shrink-0 ${
                       gestureObj.gesture_type === 'STATIC' ? 'bg-blue-950 text-blue-300' : 'bg-purple-950 text-purple-300'
                     }">${gestureObj.gesture_type}</span>
                   </div>
-                  <p class="text-xs font-mono text-outline mt-0.5">Gesture ID: <span class="text-on-surface-variant font-bold">${gid}</span></p>
+                  <p class="text-xs font-mono text-outline mt-0.5 truncate">Gesture ID: <span class="text-on-surface-variant font-bold">${gid}</span></p>
                 </div>
-                <span class="text-xs font-mono text-outline bg-surface-container px-2 py-1 rounded border border-outline-variant/30">
+                <span class="text-xs font-mono text-outline bg-surface-container px-2 py-1 rounded border border-outline-variant/30 shrink-0">
                   ${memberAssignments.length} Assigned Member${memberAssignments.length === 1 ? '' : 's'}
                 </span>
               </div>
-              <div>
+              <div class="min-w-0">
                 <p class="text-[11px] font-mono uppercase text-outline mb-2">Assigned Members:</p>
-                <ul class="space-y-2">
+                <ul class="space-y-2 min-w-0">
                   ${membersHtml}
                 </ul>
               </div>
@@ -1858,27 +1858,27 @@ class App {
 
       models.forEach((m) => {
         const card = document.createElement("div");
-        card.className = "stat-card flex flex-col justify-between";
+        card.className = "stat-card flex flex-col justify-between min-w-0 max-w-full overflow-hidden";
         card.innerHTML = `
-          <div>
-            <div class="flex justify-between items-center mb-2">
-              <span class="font-mono text-xs text-outline">${m.filename}</span>
-              <span class="text-xs px-2 py-0.5 rounded bg-surface-container text-primary uppercase font-mono">${m.format}</span>
+          <div class="min-w-0">
+            <div class="flex justify-between items-center gap-2 mb-2 min-w-0">
+              <span class="font-mono text-xs text-outline truncate" title="${m.filename}">${m.filename}</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-surface-container text-primary uppercase font-mono shrink-0">${m.format}</span>
             </div>
             <div class="h-32 rounded bg-surface-container-lowest border border-outline-variant/30 flex items-center justify-center relative overflow-hidden mb-3">
               <span class="material-symbols-outlined text-outline text-[48px] opacity-40">view_in_ar</span>
-              <span class="absolute bottom-2 left-2 text-[10px] font-mono text-primary bg-background/80 px-2 py-0.5 rounded">
+              <span class="absolute bottom-2 left-2 text-[10px] font-mono text-primary bg-background/80 px-2 py-0.5 rounded truncate max-w-[85%]">
                 ${m.rigged ? "Rigged Skeletal Mesh" : "Static 3D Mesh"}
               </span>
             </div>
-            <div class="text-xs text-outline">Gesture: <strong class="text-on-background">${m.gesture_id || "Unassigned"}</strong></div>
-            <div class="text-xs text-outline mt-1">Est. Vertices: <span class="font-mono text-on-surface-variant">${m.vertex_count}</span></div>
+            <div class="text-xs text-outline truncate">Gesture: <strong class="text-on-background">${m.gesture_id || "Unassigned"}</strong></div>
+            <div class="text-xs text-outline mt-1 truncate">Est. Vertices: <span class="font-mono text-on-surface-variant">${m.vertex_count}</span></div>
           </div>
-          <div class="mt-4 pt-3 border-t border-[#334155] flex justify-between items-center">
-            <button class="px-3 py-1.5 rounded bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium" onclick="app.previewModelIn3D('${m.file_path}')">
+          <div class="mt-4 pt-3 border-t border-[#334155] flex flex-wrap justify-between items-center gap-2">
+            <button class="px-3 py-1.5 rounded bg-primary/10 hover:bg-primary/20 text-primary text-xs font-medium cursor-pointer transition-colors" onclick="app.previewModelIn3D('${m.file_path}')">
               Load in 3D Viewport
             </button>
-            <button class="text-red-400 hover:text-red-300 text-xs" onclick="app.delete3DModel(${m.id})">Delete</button>
+            <button class="text-red-400 hover:text-red-300 text-xs cursor-pointer p-1" onclick="app.delete3DModel(${m.id})">Delete</button>
           </div>
         `;
         grid.appendChild(card);
