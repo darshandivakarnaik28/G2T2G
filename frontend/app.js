@@ -2023,6 +2023,71 @@ class App {
     const text = nameInput.value.trim();
     if (!text) return;
 
+    // Curated high-accuracy dictionary for common sign language terminology
+    const KANNADA_DICT = {
+      "hello": "ನಮಸ್ಕಾರ",
+      "hi": "ಹಲೋ",
+      "water": "ನೀರು",
+      "food": "ಆಹಾರ",
+      "eat": "ತಿನ್ನು",
+      "drink": "ಕುಡಿ",
+      "thank you": "ಧನ್ಯವಾದಗಳು",
+      "thanks": "ಧನ್ಯವಾದಗಳು",
+      "welcome": "ಸ್ವಾಗತ",
+      "please": "ದಯವಿಟ್ಟು",
+      "yes": "ಹೌದು",
+      "no": "ಇಲ್ಲ",
+      "help": "ಸಹಾಯ",
+      "mother": "ತಾಯಿ",
+      "father": "ತಂದೆ",
+      "brother": "ಸಹೋದರ",
+      "sister": "ಸಹೋದರಿ",
+      "friend": "ಸ್ನೇಹಿತ",
+      "good": "ಒಳ್ಳೆಯದು",
+      "bad": "ಕೆಟ್ಟದ್ದು",
+      "stop": "ನಿಲ್ಲಿಸಿ",
+      "go": "ಹೋಗು",
+      "come": "ಬನ್ನಿ",
+      "home": "ಮನೆ",
+      "school": "ಶಾಲೆ",
+      "book": "ಪುಸ್ತಕ",
+      "pen": "ಲೇಖನಿ",
+      "love": "ಪ್ರೀತಿ",
+      "happy": "ಸಂತೋಷ",
+      "sad": "ದುಃಖ",
+      "bye": "ವಿದಾಯ",
+      "goodbye": "ವಿದಾಯ",
+      "good morning": "ಶುಭೋದಯ",
+      "good night": "ಶುಭರಾತ್ರಿ",
+      "name": "ಹೆಸರು",
+      "what": "ಏನು",
+      "where": "ಎಲ್ಲಿ",
+      "how": "ಹೇಗೆ",
+      "why": "ಯಾಕೆ",
+      "who": "ಯಾರು",
+      "me": "ನಾನು",
+      "you": "ನೀವು",
+      "we": "ನಾವು",
+      "time": "ಸಮಯ",
+      "money": "ಹಣ",
+      "doctor": "ವೈದ್ಯರು",
+      "hospital": "ಆಸ್ಪತ್ರೆ",
+      "police": "ಪೊಲೀಸ್",
+      "emergency": "ತುರ್ತು"
+    };
+
+    const lower = text.toLowerCase().trim();
+    if (KANNADA_DICT[lower]) {
+      kannadaInput.value = KANNADA_DICT[lower];
+      if (statusEl) {
+        statusEl.textContent = "✓ Translated";
+        statusEl.classList.remove("hidden", "text-primary", "text-amber-400");
+        statusEl.classList.add("text-emerald-400");
+        setTimeout(() => statusEl.classList.add("hidden"), 3000);
+      }
+      return;
+    }
+
     if (statusEl) {
       statusEl.textContent = "Translating...";
       statusEl.classList.remove("hidden", "text-emerald-400", "text-amber-400");
@@ -2030,12 +2095,18 @@ class App {
     }
 
     try {
-      const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=en|kn`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Translation request failed");
+      // Primary: Google Translate API (fast, clean, and accurate)
+      const gUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=kn&dt=t&q=${encodeURIComponent(text)}`;
+      const res = await fetch(gUrl);
+      if (!res.ok) throw new Error("Google translation request failed");
       const data = await res.json();
-      const translated = data?.responseData?.translatedText;
-      if (translated && !translated.toLowerCase().includes("no query")) {
+      
+      let translated = "";
+      if (Array.isArray(data) && Array.isArray(data[0])) {
+        translated = data[0].map(part => part[0]).filter(Boolean).join(" ").trim();
+      }
+
+      if (translated) {
         kannadaInput.value = translated;
         if (statusEl) {
           statusEl.textContent = "✓ Translated";
@@ -2044,9 +2115,10 @@ class App {
           setTimeout(() => statusEl.classList.add("hidden"), 3000);
         }
       } else {
-        throw new Error("No translation returned");
+        throw new Error("Empty translation returned");
       }
     } catch (err) {
+      console.warn("Translation API notice:", err);
       if (statusEl) {
         statusEl.textContent = "Kannada translation unavailable. Please enter manually.";
         statusEl.classList.remove("text-primary");
