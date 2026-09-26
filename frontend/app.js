@@ -4,7 +4,7 @@
 
 import { api } from "./services/api.js";
 import { MediaPipeTracker } from "./components/mediapipe_tracker.js";
-import { ThreeHandViewer } from "./components/three_viewer.js?v=20260926_fix8";
+import { ThreeHandViewer } from "./components/three_viewer.js?v=20260926_fix11";
 
 class App {
   constructor() {
@@ -22,6 +22,7 @@ class App {
     this.sampleInspectSkeletonViewer = null;
     this.sampleInspect3DViewer = null;
     this.modelsPage3DViewer = null;
+    this.avatarMode = "nathan";
 
     // Collection state
     this.selectedGestureId = "";
@@ -1303,23 +1304,23 @@ class App {
       this.capturedStaticData = this.tracker.captureFrame();
       const signerId = document.getElementById("collect-signer-input").value.trim() || "S001";
 
-      // Show captured snapshot preview & 3D pose
+      // Show captured snapshot preview & 21-landmark skeleton pose
       document.getElementById("static-preview-snapshot").src = this.capturedStaticData.imageBase64;
       document.getElementById("static-captured-panel").classList.remove("hidden");
 
-      // Initialize separate 21-landmark skeleton (top) and 3D volumetric hand (bottom)
+      // Initialize 21-landmark skeleton viewer
       if (!this.staticSkeletonViewer) {
         this.staticSkeletonViewer = new ThreeHandViewer("static-skeleton-viewport", { mode: "skeleton" });
       }
-      if (!this.static3DViewer) {
-        this.static3DViewer = new ThreeHandViewer("static-3d-viewport", { mode: "hand" });
+      if (this.static3DViewer) {
+        this.static3DViewer.destroy();
+        this.static3DViewer = null;
       }
       const staticLm = {
         right_hand_landmarks: this.capturedStaticData.landmarks.right_hand_landmarks,
         left_hand_landmarks: this.capturedStaticData.landmarks.left_hand_landmarks
       };
       if (this.staticSkeletonViewer) this.staticSkeletonViewer.applyLandmarks(staticLm);
-      if (this.static3DViewer) this.static3DViewer.applyLandmarks(staticLm);
 
     } catch (e) {
       alert("Capture error: " + e.message);
@@ -1597,35 +1598,80 @@ class App {
     document.getElementById("dyn-summary-duration").textContent = `${result.duration}s`;
     document.getElementById("dyn-summary-fps").textContent = result.fps;
 
-    // Initialize separate 21-landmark skeleton (top) and 3D volumetric hand (bottom)
+    // 1. Attach Real Signer Video Player
+    const videoEl = document.getElementById("dynamic-preview-video");
+    if (videoEl && result.videoBlob) {
+      if (this.currentDynamicVideoUrl) {
+        URL.revokeObjectURL(this.currentDynamicVideoUrl);
+      }
+      this.currentDynamicVideoUrl = URL.createObjectURL(result.videoBlob);
+      videoEl.src = this.currentDynamicVideoUrl;
+      videoEl.load();
+    }
+
+    // 2. Initialize 21-Landmark Skeleton Viewer
     if (!this.dynamicSkeletonViewer) {
       this.dynamicSkeletonViewer = new ThreeHandViewer("dynamic-skeleton-viewport", { mode: "skeleton" });
     }
-    if (!this.dynamic3DViewer) {
-      this.dynamic3DViewer = new ThreeHandViewer("dynamic-3d-viewport", { mode: "hand" });
+    if (this.dynamic3DViewer) {
+      this.dynamic3DViewer.destroy();
+      this.dynamic3DViewer = null;
     }
     if (this.dynamicSkeletonViewer) {
       this.dynamicSkeletonViewer.loadDynamicSequence(result.frames, result.duration, result.fps);
     }
-    if (this.dynamic3DViewer) {
-      this.dynamic3DViewer.loadDynamicSequence(result.frames, result.duration, result.fps);
-    }
 
-    // Bind scrubber
+    // 3. Synchronized Timeline Scrubber & Video Controls
     const scrubber = document.getElementById("dyn-timeline-scrubber");
     const timeDisplay = document.getElementById("dyn-timeline-time");
-    this.dynamic3DViewer.onTimelineUpdate = (t, dur) => {
-      scrubber.value = (t / (dur || 1)) * 100;
-      timeDisplay.textContent = `${t.toFixed(1)}s / ${dur.toFixed(1)}s`;
-      if (this.dynamicSkeletonViewer && !this.dynamicSkeletonViewer.isPlaying) {
-        this.dynamicSkeletonViewer.seek(t);
-      }
-    };
-    scrubber.oninput = (e) => {
-      const t = (e.target.value / 100) * this.dynamic3DViewer.duration;
-      this.dynamic3DViewer.seek(t);
-      if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.seek(t);
-    };
+    const playPauseIcon = document.getElementById("icon-dyn-play-pause");
+
+    if (this.dynamicSkeletonViewer) {
+      this.dynamicSkeletonViewer.onTimelineUpdate = (t, dur) => {
+        if (!videoEl || videoEl.paused) {
+          if (scrubber) scrubber.value = (t / (dur || 1)) * 100;
+          if (timeDisplay) timeDisplay.textContent = `${t.toFixed(1)}s / ${dur.toFixed(1)}s`;
+        }
+      };
+    }
+
+    if (videoEl) {
+      videoEl.onplay = () => {
+        if (this.dynamicSkeletonViewer && !this.dynamicSkeletonViewer.isPlaying) {
+          this.dynamicSkeletonViewer.play();
+        }
+        if (playPauseIcon) playPauseIcon.textContent = "pause";
+      };
+      videoEl.onpause = () => {
+        if (this.dynamicSkeletonViewer && this.dynamicSkeletonViewer.isPlaying) {
+          this.dynamicSkeletonViewer.pause();
+        }
+        if (playPauseIcon) playPauseIcon.textContent = "play_arrow";
+      };
+      videoEl.ontimeupdate = () => {
+        const cur = videoEl.currentTime;
+        const dur = videoEl.duration || result.duration || 1;
+        if (scrubber) scrubber.value = (cur / dur) * 100;
+        if (timeDisplay) timeDisplay.textContent = `${cur.toFixed(1)}s / ${dur.toFixed(1)}s`;
+        if (this.dynamicSkeletonViewer) {
+          this.dynamicSkeletonViewer.seek(cur);
+        }
+      };
+      videoEl.onended = () => {
+        if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.pause();
+        if (playPauseIcon) playPauseIcon.textContent = "play_arrow";
+      };
+    }
+
+    if (scrubber) {
+      scrubber.oninput = (e) => {
+        const dur = (videoEl && videoEl.duration) || result.duration || 1;
+        const t = (e.target.value / 100) * dur;
+        if (videoEl) videoEl.currentTime = t;
+        if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.seek(t);
+        if (timeDisplay) timeDisplay.textContent = `${t.toFixed(1)}s / ${dur.toFixed(1)}s`;
+      };
+    }
   }
 
   async saveDynamicSampleToBackend() {
@@ -1727,7 +1773,23 @@ class App {
         vid.src = fileUrl;
         vid.controls = true;
         vid.autoplay = true;
+        vid.loop = true;
         vid.className = "w-full h-full object-contain";
+        vid.onplay = () => {
+          if (this.sampleInspectSkeletonViewer && !this.sampleInspectSkeletonViewer.isPlaying) {
+            this.sampleInspectSkeletonViewer.play();
+          }
+        };
+        vid.onpause = () => {
+          if (this.sampleInspectSkeletonViewer && this.sampleInspectSkeletonViewer.isPlaying) {
+            this.sampleInspectSkeletonViewer.pause();
+          }
+        };
+        vid.ontimeupdate = () => {
+          if (this.sampleInspectSkeletonViewer) {
+            this.sampleInspectSkeletonViewer.seek(vid.currentTime);
+          }
+        };
         mediaContainer.appendChild(vid);
       } else {
         const img = document.createElement("img");
@@ -1739,36 +1801,32 @@ class App {
       // JSON raw data
       document.getElementById("inspect-raw-json").textContent = JSON.stringify(landmarksData, null, 2);
 
-      // 3D Viewers for sample (Top Skeleton & Bottom 3D Hand Mesh)
+      // 21-Landmark Skeleton Viewer for sample
       if (!this.sampleInspectSkeletonViewer) {
         this.sampleInspectSkeletonViewer = new ThreeHandViewer("inspect-skeleton-viewport", { mode: "skeleton" });
       }
-      if (!this.sampleInspect3DViewer) {
-        this.sampleInspect3DViewer = new ThreeHandViewer("inspect-3d-viewport", { mode: "hand" });
+      if (this.sampleInspect3DViewer) {
+        this.sampleInspect3DViewer.destroy();
+        this.sampleInspect3DViewer = null;
       }
 
-      const applyToInspectViewers = (fn) => {
-        if (this.sampleInspectSkeletonViewer) fn(this.sampleInspectSkeletonViewer);
-        if (this.sampleInspect3DViewer) fn(this.sampleInspect3DViewer);
-      };
-
       if (landmarksData.frames && landmarksData.frames.length > 1) {
-        applyToInspectViewers(v => v.loadDynamicSequence(landmarksData.frames, sample.duration, sample.fps || 30));
+        this.sampleInspectSkeletonViewer.loadDynamicSequence(landmarksData.frames, sample.duration, sample.fps || 30);
       } else if (landmarksData.frames && landmarksData.frames.length === 1) {
         const firstFrame = landmarksData.frames[0];
         const data = {
           right_hand_landmarks: firstFrame.right_hand_landmarks,
           left_hand_landmarks: firstFrame.left_hand_landmarks
         };
-        applyToInspectViewers(v => v.applyLandmarks(data));
+        this.sampleInspectSkeletonViewer.applyLandmarks(data);
       } else if (landmarksData.right_hand_landmarks || landmarksData.left_hand_landmarks) {
         const data = {
           right_hand_landmarks: landmarksData.right_hand_landmarks,
           left_hand_landmarks: landmarksData.left_hand_landmarks
         };
-        applyToInspectViewers(v => v.applyLandmarks(data));
+        this.sampleInspectSkeletonViewer.applyLandmarks(data);
       } else if (Array.isArray(landmarksData) && landmarksData.length === 21) {
-        applyToInspectViewers(v => v.applyLandmarks(landmarksData));
+        this.sampleInspectSkeletonViewer.applyLandmarks(landmarksData);
       }
 
       document.getElementById("sample-inspector-modal").classList.remove("hidden");
@@ -1844,6 +1902,30 @@ class App {
     } catch (err) {
       alert("Failed to load GLB model: " + err.message);
     }
+  }
+
+  setAvatarMode(mode) {
+    this.avatarMode = mode;
+    const viewers = [
+      this.static3DViewer,
+      this.dynamic3DViewer,
+      this.details3DViewer,
+      this.sampleInspect3DViewer
+    ];
+    viewers.forEach(v => {
+      if (v && typeof v.toggleAvatar === "function") {
+        v.toggleAvatar(mode);
+      }
+    });
+    document.querySelectorAll("[data-avatar-mode]").forEach(btn => {
+      if (btn.getAttribute("data-avatar-mode") === mode) {
+        btn.classList.add("text-primary", "bg-primary/20", "font-semibold");
+        btn.classList.remove("text-outline");
+      } else {
+        btn.classList.remove("text-primary", "bg-primary/20", "font-semibold");
+        btn.classList.add("text-outline");
+      }
+    });
   }
 
   async delete3DModel(modelId) {
@@ -1975,7 +2057,7 @@ class App {
   }
 
   // ==========================================
-  // DYNAMIC 3D PLAYBACK CONTROLS (#12)
+  // DYNAMIC SYNCHRONIZED PLAYBACK CONTROLS
   // ==========================================
   setupDynamicPlaybackControls() {
     const playPauseBtn = document.getElementById("btn-dyn-play-pause");
@@ -1983,30 +2065,43 @@ class App {
     const resetBtn = document.getElementById("btn-dyn-reset");
 
     playPauseBtn?.addEventListener("click", () => {
-      if (!this.dynamic3DViewer && !this.dynamicSkeletonViewer) return;
-      const isPlaying = this.dynamic3DViewer ? this.dynamic3DViewer.isPlaying : false;
-      if (isPlaying) {
-        if (this.dynamic3DViewer) this.dynamic3DViewer.pause();
-        if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.pause();
-        if (playPauseIcon) playPauseIcon.textContent = "play_arrow";
-      } else {
-        if (this.dynamic3DViewer) this.dynamic3DViewer.play();
-        if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.play();
-        if (playPauseIcon) playPauseIcon.textContent = "pause";
+      const videoEl = document.getElementById("dynamic-preview-video");
+      if (videoEl && videoEl.src) {
+        if (videoEl.paused) {
+          videoEl.play();
+        } else {
+          videoEl.pause();
+        }
+      } else if (this.dynamicSkeletonViewer) {
+        if (this.dynamicSkeletonViewer.isPlaying) {
+          this.dynamicSkeletonViewer.pause();
+          if (playPauseIcon) playPauseIcon.textContent = "play_arrow";
+        } else {
+          this.dynamicSkeletonViewer.play();
+          if (playPauseIcon) playPauseIcon.textContent = "pause";
+        }
       }
     });
 
     resetBtn?.addEventListener("click", () => {
-      if (this.dynamic3DViewer) this.dynamic3DViewer.reset();
-      if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.reset();
+      const videoEl = document.getElementById("dynamic-preview-video");
+      if (videoEl && videoEl.src) {
+        videoEl.currentTime = 0;
+        videoEl.pause();
+      }
+      if (this.dynamicSkeletonViewer) {
+        this.dynamicSkeletonViewer.reset();
+      }
       const scrubber = document.getElementById("dyn-timeline-scrubber");
       if (scrubber) scrubber.value = 0;
+      if (playPauseIcon) playPauseIcon.textContent = "play_arrow";
     });
 
     document.querySelectorAll(".dyn-speed-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
         const speed = parseFloat(btn.getAttribute("data-speed")) || 1.0;
-        if (this.dynamic3DViewer) this.dynamic3DViewer.setSpeed(speed);
+        const videoEl = document.getElementById("dynamic-preview-video");
+        if (videoEl) videoEl.playbackRate = speed;
         if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.setSpeed(speed);
         document.querySelectorAll(".dyn-speed-btn").forEach(b => {
           b.classList.remove("bg-primary/20", "text-primary", "font-bold");

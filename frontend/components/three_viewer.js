@@ -27,6 +27,11 @@ export class ThreeHandViewer {
     this.loadedModel = null;
     this.isRiggedModel = false;
 
+    // Human Avatar Body (Nathan FBX / Mannequin)
+    this.avatarBody = null;
+    this.mannequinBody = null;
+    this.showAvatar = this.mode === "hand";
+
     // Dynamic animation state
     this.animationFrames = [];
     this.isPlaying = false;
@@ -105,6 +110,12 @@ export class ThreeHandViewer {
 
     // Build the default realistic articulated rig
     this.buildArticulatedRig();
+
+    // In hand mode, load human avatar body behind hands
+    if (this.mode === "hand" && this.showAvatar) {
+      this.loadAvatarBody();
+    }
+
     this.renderLoop();
     window.addEventListener("resize", () => this.onResize());
   }
@@ -641,6 +652,182 @@ export class ThreeHandViewer {
     });
   }
 
+  /**
+   * Load Nathan (RenderPeople 3D Human Avatar) behind the hands
+   */
+  async loadAvatarBody(
+    fbxUrl = "/storage/models/nathan/rp_nathan_animated_003_walking.fbx",
+    textureUrl = "/storage/models/nathan/tex/rp_nathan_animated_003_dif.jpg"
+  ) {
+    // 1. Immediately create and display the anatomical mannequin so the scene is NEVER empty
+    this.createMannequinUpperBody();
+
+    if (typeof THREE.FBXLoader === "undefined") {
+      console.warn("FBXLoader not ready. Anatomical mannequin upper-body active.");
+      return;
+    }
+
+    const loader = new THREE.FBXLoader();
+    const texLoader = new THREE.TextureLoader();
+
+    return new Promise((resolve) => {
+      loader.load(
+        fbxUrl,
+        (fbx) => {
+          if (this.avatarBody) this.scene.remove(this.avatarBody);
+          this.avatarBody = fbx;
+
+          // Apply diffuse texture if available
+          if (textureUrl) {
+            texLoader.load(
+              textureUrl,
+              (texture) => {
+                texture.encoding = THREE.sRGBEncoding;
+                texture.flipY = true;
+                fbx.traverse((child) => {
+                  if (child.isMesh) {
+                    if (child.material) {
+                      child.material.map = texture;
+                      child.material.skinning = true;
+                      child.material.specular = new THREE.Color(0x222222);
+                      child.material.shininess = 15;
+                      child.material.needsUpdate = true;
+                    }
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                  }
+                });
+              },
+              undefined,
+              (err) => {
+                console.warn("Avatar texture load notice:", err);
+              }
+            );
+          }
+
+          // Scale and align Nathan behind the hands
+          const box = new THREE.Box3().setFromObject(fbx);
+          const size = box.getSize(new THREE.Vector3());
+          const center = box.getCenter(new THREE.Vector3());
+
+          // Human height scale: scale Nathan to ~34.5 units tall (matches signing upper torso scale)
+          const targetHeight = 34.5;
+          const sf = targetHeight / (size.y || 187);
+          fbx.scale.set(sf, sf, sf);
+
+          // Position Nathan so upper chest/shoulders align naturally behind the hands
+          // Align X to center, Y to -27.5 so spine_03 is at Y ≈ -1.5, neck at +1.5, head at +4 to +6
+          // Z at -5.0 sits directly behind the hands
+          fbx.position.set(-center.x * sf, -27.5, -5.0);
+          this.scene.add(fbx);
+
+          // Progressive switch: now that photorealistic Nathan is loaded, hide mannequin unless user forced it
+          if (this.mannequinBody && this.currentAvatarType !== "mannequin") {
+            this.mannequinBody.visible = false;
+          }
+          if (this.currentAvatarType === "off") {
+            fbx.visible = false;
+          }
+          resolve(fbx);
+        },
+        undefined,
+        (err) => {
+          console.warn("FBX load notice (mannequin upper-body active as fallback):", err);
+          resolve(null);
+        }
+      );
+    });
+  }
+
+  /**
+   * Anatomical Upper Body Mannequin (Head, Neck, Torso, Shoulders, Forearms)
+   * Connects seamlessly behind the hands for instant spatial reference!
+   */
+  createMannequinUpperBody() {
+    if (this.mannequinBody) this.scene.remove(this.mannequinBody);
+
+    const group = new THREE.Group();
+    this.mannequinBody = group;
+
+    const bodyMat = new THREE.MeshPhongMaterial({
+      color: 0x243247,        // Deep dark sleek athletic mannequin
+      specular: 0x4a658a,
+      shininess: 30,
+      emissive: 0x091018,
+      emissiveIntensity: 0.1
+    });
+
+    const skinToneMat = new THREE.MeshPhongMaterial({
+      color: 0xd4a580,        // Natural warm skin tone for head and neck
+      specular: 0xffcca0,
+      shininess: 30,
+      emissive: 0x25120a,
+      emissiveIntensity: 0.08
+    });
+
+    // 1. Head (sculpted head shape)
+    const headGeo = new THREE.SphereGeometry(1.5, 18, 18);
+    headGeo.scale(1.0, 1.25, 1.1);
+    const head = new THREE.Mesh(headGeo, skinToneMat);
+    head.position.set(0, 4.2, -4.0);
+    head.castShadow = true;
+    group.add(head);
+
+    // 2. Neck
+    const neckGeo = new THREE.CylinderGeometry(0.65, 0.75, 1.4, 14);
+    const neck = new THREE.Mesh(neckGeo, skinToneMat);
+    neck.position.set(0, 2.2, -4.0);
+    neck.castShadow = true;
+    group.add(neck);
+
+    // 3. Chest & Torso (trapezoid athletic torso)
+    const chestGeo = new THREE.CylinderGeometry(2.8, 2.2, 5.0, 16);
+    chestGeo.scale(1.2, 1.0, 0.7);
+    const chest = new THREE.Mesh(chestGeo, bodyMat);
+    chest.position.set(0, -1.0, -4.0);
+    chest.castShadow = true;
+    group.add(chest);
+
+    // 4. Left Shoulder & Right Shoulder
+    [-3.2, 3.2].forEach((sx) => {
+      const shGeo = new THREE.SphereGeometry(0.9, 14, 14);
+      const sh = new THREE.Mesh(shGeo, bodyMat);
+      sh.position.set(sx, 1.2, -4.0);
+      group.add(sh);
+
+      // Upper arm
+      const armGeo = new THREE.CylinderGeometry(0.65, 0.55, 3.5, 12);
+      const arm = new THREE.Mesh(armGeo, bodyMat);
+      arm.position.set(sx * 1.08, -0.6, -3.2);
+      arm.rotation.z = (sx > 0 ? -1 : 1) * 0.25;
+      arm.rotation.x = 0.35;
+      group.add(arm);
+    });
+
+    this.scene.add(group);
+  }
+
+  /**
+   * Toggle between Nathan, Mannequin, or Hands Only
+   */
+  toggleAvatar(type) {
+    this.currentAvatarType = type;
+    if (type === "nathan" || type === true) {
+      if (this.avatarBody) {
+        this.avatarBody.visible = true;
+        if (this.mannequinBody) this.mannequinBody.visible = false;
+      } else if (this.mannequinBody) {
+        this.mannequinBody.visible = true;
+      }
+    } else if (type === "mannequin") {
+      if (this.mannequinBody) this.mannequinBody.visible = true;
+      if (this.avatarBody) this.avatarBody.visible = false;
+    } else if (!type || type === "off" || type === false) {
+      if (this.avatarBody) this.avatarBody.visible = false;
+      if (this.mannequinBody) this.mannequinBody.visible = false;
+    }
+  }
+
   // ============================================================
   //  DYNAMIC SEQUENCE PLAYBACK
   // ============================================================
@@ -752,6 +939,8 @@ export class ThreeHandViewer {
     if (this.controls) this.controls.dispose();
     if (this.rightHand && this.scene) this.scene.remove(this.rightHand.group);
     if (this.leftHand && this.scene) this.scene.remove(this.leftHand.group);
+    if (this.avatarBody && this.scene) this.scene.remove(this.avatarBody);
+    if (this.mannequinBody && this.scene) this.scene.remove(this.mannequinBody);
     if (this.renderer && this.renderer.domElement && this.container && this.container.contains(this.renderer.domElement)) {
       this.container.removeChild(this.renderer.domElement);
       this.renderer.dispose();

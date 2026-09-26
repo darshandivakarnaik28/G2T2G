@@ -83,10 +83,12 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
   
-  <!-- Three.js + Controls + Loaders -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <!-- Three.js + Controls + Loaders (Locally hosted for instant zero-latency loading) -->
+  <script src="three.min.js"></script>
+  <script src="OrbitControls.js"></script>
+  <script src="GLTFLoader.js"></script>
+  <script src="fflate.min.js"></script>
+  <script src="FBXLoader.js"></script>
 
   <!-- Official MediaPipe Hands & Camera Utils -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
@@ -813,36 +815,27 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
               <div>
-                <p class="text-xs text-outline mb-2">Captured 2D Frame</p>
-                <div class="h-64 rounded bg-surface-container-lowest overflow-hidden border border-outline-variant/30 flex items-center justify-center">
+                <div class="flex items-center justify-between mb-1.5">
+                  <p class="text-xs font-semibold text-primary flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">photo_camera</span>
+                    <span>1. Real Signer Snapshot (Ground Truth)</span>
+                  </p>
+                  <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400">Captured Photo</span>
+                </div>
+                <div class="h-80 rounded bg-surface-container-lowest overflow-hidden border border-outline-variant/30 flex items-center justify-center">
                   <img id="static-preview-snapshot" class="w-full h-full object-contain">
                 </div>
               </div>
 
-              <div class="space-y-4">
-                <!-- Section 1 (Top Section): 21-Landmark Skeleton -->
-                <div>
-                  <div class="flex items-center justify-between mb-1.5">
-                    <p class="text-xs font-semibold text-primary flex items-center gap-1.5">
-                      <span class="material-symbols-outlined text-[16px]">hub</span>
-                      <span>1. 21-Landmark Skeleton Tracking (Top Tier)</span>
-                    </p>
-                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary">MediaPipe 3D Joints</span>
-                  </div>
-                  <div id="static-skeleton-viewport" class="h-60 rounded three-canvas-container"></div>
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <p class="text-xs font-semibold text-secondary flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">hub</span>
+                    <span>2. AI 21-Landmark Skeleton (Features)</span>
+                  </p>
+                  <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-secondary/10 text-secondary">MediaPipe 3D Vector Joints</span>
                 </div>
-
-                <!-- Section 2 (Bottom Section, below top): 3D Volumetric Hand Mesh -->
-                <div>
-                  <div class="flex items-center justify-between mb-1.5">
-                    <p class="text-xs font-semibold text-secondary flex items-center gap-1.5">
-                      <span class="material-symbols-outlined text-[16px]">front_hand</span>
-                      <span>2. 3D Volumetric Hand Mesh (Bottom Tier)</span>
-                    </p>
-                    <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-secondary/10 text-secondary">Articulated Anatomical Rig</span>
-                  </div>
-                  <div id="static-3d-viewport" class="h-60 rounded three-canvas-container"></div>
-                </div>
+                <div id="static-skeleton-viewport" class="h-80 rounded three-canvas-container"></div>
               </div>
             </div>
 
@@ -926,28 +919,33 @@
               </div>
             </div>
 
-            <!-- Top Section: 21-Landmark Tracking Skeleton -->
-            <div class="mb-4">
-              <div class="flex items-center justify-between mb-1.5">
-                <p class="text-xs font-semibold text-primary flex items-center gap-1.5">
-                  <span class="material-symbols-outlined text-[16px]">hub</span>
-                  <span>1. 21-Landmark Tracking Skeleton (Top Tier)</span>
-                </p>
-                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary">MediaPipe 3D Joints</span>
+            <!-- Side-by-Side: Real Signer Video & AI 21-Landmark Skeleton -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 items-start mb-4">
+              <!-- Left: Real Signer Video Player -->
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <p class="text-xs font-semibold text-primary flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">videocam</span>
+                    <span>1. Real Signer Video (Human Ground Truth)</span>
+                  </p>
+                  <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">Webcam HD Recording</span>
+                </div>
+                <div class="h-80 rounded bg-black overflow-hidden border border-outline-variant/30 flex items-center justify-center">
+                  <video id="dynamic-preview-video" class="w-full h-full object-contain" playsinline muted controls></video>
+                </div>
               </div>
-              <div id="dynamic-skeleton-viewport" class="h-64 rounded three-canvas-container"></div>
-            </div>
 
-            <!-- Bottom Section (Below Top): 3D Volumetric Hand Mesh -->
-            <div class="mb-4">
-              <div class="flex items-center justify-between mb-1.5">
-                <p class="text-xs font-semibold text-secondary flex items-center gap-1.5">
-                  <span class="material-symbols-outlined text-[16px]">front_hand</span>
-                  <span>2. 3D Volumetric Hand Mesh (Bottom Tier)</span>
-                </p>
-                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-secondary/10 text-secondary">Articulated Anatomical Rig</span>
+              <!-- Right: Extracted 21-Landmark Skeleton -->
+              <div>
+                <div class="flex items-center justify-between mb-1.5">
+                  <p class="text-xs font-semibold text-secondary flex items-center gap-1.5">
+                    <span class="material-symbols-outlined text-[16px]">hub</span>
+                    <span>2. AI 21-Landmark Skeleton (Features)</span>
+                  </p>
+                  <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-secondary/10 text-secondary">MediaPipe 3D Vector Joints</span>
+                </div>
+                <div id="dynamic-skeleton-viewport" class="h-80 rounded three-canvas-container"></div>
               </div>
-              <div id="dynamic-3d-viewport" class="h-64 rounded three-canvas-container"></div>
             </div>
 
             <!-- Playback Controls Bar -->
@@ -1381,24 +1379,24 @@
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
-          <p class="text-xs text-outline mb-1">Stored Media</p>
-          <div id="inspect-media-container" class="h-full min-h-[300px] rounded bg-surface-container-lowest overflow-hidden border border-outline-variant/30 flex items-center justify-center"></div>
+          <div class="flex items-center justify-between mb-1.5">
+            <p class="text-xs font-semibold text-primary flex items-center gap-1">
+              <span class="material-symbols-outlined text-[15px]">movie</span>
+              <span>1. Stored Signer Media (Ground Truth)</span>
+            </p>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary">Raw Video / Image</span>
+          </div>
+          <div id="inspect-media-container" class="h-80 rounded bg-surface-container-lowest overflow-hidden border border-outline-variant/30 flex items-center justify-center"></div>
         </div>
-        <div class="space-y-3">
-          <div>
-            <p class="text-xs font-semibold text-primary mb-1 flex items-center gap-1">
+        <div>
+          <div class="flex items-center justify-between mb-1.5">
+            <p class="text-xs font-semibold text-secondary flex items-center gap-1">
               <span class="material-symbols-outlined text-[15px]">hub</span>
-              <span>1. 21-Landmark Tracking Skeleton</span>
+              <span>2. AI 21-Landmark Skeleton</span>
             </p>
-            <div id="inspect-skeleton-viewport" class="h-44 rounded three-canvas-container"></div>
+            <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-secondary/10 text-secondary">Synchronized 3D Joints</span>
           </div>
-          <div>
-            <p class="text-xs font-semibold text-secondary mb-1 flex items-center gap-1">
-              <span class="material-symbols-outlined text-[15px]">front_hand</span>
-              <span>2. 3D Volumetric Hand Mesh</span>
-            </p>
-            <div id="inspect-3d-viewport" class="h-44 rounded three-canvas-container"></div>
-          </div>
+          <div id="inspect-skeleton-viewport" class="h-80 rounded three-canvas-container"></div>
         </div>
       </div>
 
@@ -1479,6 +1477,6 @@
   </div>
 
   <!-- Root Application JS Module (cache-busting query param ensures fresh load) -->
-  <script type="module" src="app.js?v=20260926_fix8"></script>
+  <script type="module" src="app.js?v=20260926_fix11"></script>
 </body>
 </html>
