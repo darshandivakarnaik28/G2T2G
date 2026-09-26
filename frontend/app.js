@@ -4,7 +4,7 @@
 
 import { api } from "./services/api.js";
 import { MediaPipeTracker } from "./components/mediapipe_tracker.js";
-import { ThreeHandViewer } from "./components/three_viewer.js?v=20260925_fix6";
+import { ThreeHandViewer } from "./components/three_viewer.js?v=20260926_fix8";
 
 class App {
   constructor() {
@@ -13,10 +13,13 @@ class App {
     this.gestures = [];
     this.samples = [];
 
-    // Viewers
+    // Viewers (Top Skeleton & Bottom 3D Hand Mesh)
+    this.staticSkeletonViewer = null;
     this.static3DViewer = null;
+    this.dynamicSkeletonViewer = null;
     this.dynamic3DViewer = null;
     this.details3DViewer = null;
+    this.sampleInspectSkeletonViewer = null;
     this.sampleInspect3DViewer = null;
     this.modelsPage3DViewer = null;
 
@@ -1304,14 +1307,19 @@ class App {
       document.getElementById("static-preview-snapshot").src = this.capturedStaticData.imageBase64;
       document.getElementById("static-captured-panel").classList.remove("hidden");
 
-      // Initialize 3D Pose viewer with real captured coordinates
-      if (!this.static3DViewer) {
-        this.static3DViewer = new ThreeHandViewer("static-3d-viewport");
+      // Initialize separate 21-landmark skeleton (top) and 3D volumetric hand (bottom)
+      if (!this.staticSkeletonViewer) {
+        this.staticSkeletonViewer = new ThreeHandViewer("static-skeleton-viewport", { mode: "skeleton" });
       }
-      this.static3DViewer.applyLandmarks({
+      if (!this.static3DViewer) {
+        this.static3DViewer = new ThreeHandViewer("static-3d-viewport", { mode: "hand" });
+      }
+      const staticLm = {
         right_hand_landmarks: this.capturedStaticData.landmarks.right_hand_landmarks,
         left_hand_landmarks: this.capturedStaticData.landmarks.left_hand_landmarks
-      });
+      };
+      if (this.staticSkeletonViewer) this.staticSkeletonViewer.applyLandmarks(staticLm);
+      if (this.static3DViewer) this.static3DViewer.applyLandmarks(staticLm);
 
     } catch (e) {
       alert("Capture error: " + e.message);
@@ -1589,11 +1597,19 @@ class App {
     document.getElementById("dyn-summary-duration").textContent = `${result.duration}s`;
     document.getElementById("dyn-summary-fps").textContent = result.fps;
 
-    // Initialize 3D dynamic animation preview
-    if (!this.dynamic3DViewer) {
-      this.dynamic3DViewer = new ThreeHandViewer("dynamic-3d-viewport");
+    // Initialize separate 21-landmark skeleton (top) and 3D volumetric hand (bottom)
+    if (!this.dynamicSkeletonViewer) {
+      this.dynamicSkeletonViewer = new ThreeHandViewer("dynamic-skeleton-viewport", { mode: "skeleton" });
     }
-    this.dynamic3DViewer.loadDynamicSequence(result.frames, result.duration, result.fps);
+    if (!this.dynamic3DViewer) {
+      this.dynamic3DViewer = new ThreeHandViewer("dynamic-3d-viewport", { mode: "hand" });
+    }
+    if (this.dynamicSkeletonViewer) {
+      this.dynamicSkeletonViewer.loadDynamicSequence(result.frames, result.duration, result.fps);
+    }
+    if (this.dynamic3DViewer) {
+      this.dynamic3DViewer.loadDynamicSequence(result.frames, result.duration, result.fps);
+    }
 
     // Bind scrubber
     const scrubber = document.getElementById("dyn-timeline-scrubber");
@@ -1601,10 +1617,14 @@ class App {
     this.dynamic3DViewer.onTimelineUpdate = (t, dur) => {
       scrubber.value = (t / (dur || 1)) * 100;
       timeDisplay.textContent = `${t.toFixed(1)}s / ${dur.toFixed(1)}s`;
+      if (this.dynamicSkeletonViewer && !this.dynamicSkeletonViewer.isPlaying) {
+        this.dynamicSkeletonViewer.seek(t);
+      }
     };
     scrubber.oninput = (e) => {
       const t = (e.target.value / 100) * this.dynamic3DViewer.duration;
       this.dynamic3DViewer.seek(t);
+      if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.seek(t);
     };
   }
 
@@ -1719,25 +1739,36 @@ class App {
       // JSON raw data
       document.getElementById("inspect-raw-json").textContent = JSON.stringify(landmarksData, null, 2);
 
-      // 3D Viewer for sample
-      if (!this.sampleInspect3DViewer) {
-        this.sampleInspect3DViewer = new ThreeHandViewer("inspect-3d-viewport");
+      // 3D Viewers for sample (Top Skeleton & Bottom 3D Hand Mesh)
+      if (!this.sampleInspectSkeletonViewer) {
+        this.sampleInspectSkeletonViewer = new ThreeHandViewer("inspect-skeleton-viewport", { mode: "skeleton" });
       }
+      if (!this.sampleInspect3DViewer) {
+        this.sampleInspect3DViewer = new ThreeHandViewer("inspect-3d-viewport", { mode: "hand" });
+      }
+
+      const applyToInspectViewers = (fn) => {
+        if (this.sampleInspectSkeletonViewer) fn(this.sampleInspectSkeletonViewer);
+        if (this.sampleInspect3DViewer) fn(this.sampleInspect3DViewer);
+      };
+
       if (landmarksData.frames && landmarksData.frames.length > 1) {
-        this.sampleInspect3DViewer.loadDynamicSequence(landmarksData.frames, sample.duration, sample.fps || 30);
+        applyToInspectViewers(v => v.loadDynamicSequence(landmarksData.frames, sample.duration, sample.fps || 30));
       } else if (landmarksData.frames && landmarksData.frames.length === 1) {
         const firstFrame = landmarksData.frames[0];
-        this.sampleInspect3DViewer.applyLandmarks({
+        const data = {
           right_hand_landmarks: firstFrame.right_hand_landmarks,
           left_hand_landmarks: firstFrame.left_hand_landmarks
-        });
+        };
+        applyToInspectViewers(v => v.applyLandmarks(data));
       } else if (landmarksData.right_hand_landmarks || landmarksData.left_hand_landmarks) {
-        this.sampleInspect3DViewer.applyLandmarks({
+        const data = {
           right_hand_landmarks: landmarksData.right_hand_landmarks,
           left_hand_landmarks: landmarksData.left_hand_landmarks
-        });
+        };
+        applyToInspectViewers(v => v.applyLandmarks(data));
       } else if (Array.isArray(landmarksData) && landmarksData.length === 21) {
-        this.sampleInspect3DViewer.applyLandmarks(landmarksData);
+        applyToInspectViewers(v => v.applyLandmarks(landmarksData));
       }
 
       document.getElementById("sample-inspector-modal").classList.remove("hidden");
@@ -1747,6 +1778,10 @@ class App {
   }
 
   closeSampleInspector() {
+    if (this.sampleInspectSkeletonViewer) {
+      this.sampleInspectSkeletonViewer.destroy();
+      this.sampleInspectSkeletonViewer = null;
+    }
     if (this.sampleInspect3DViewer) {
       this.sampleInspect3DViewer.destroy();
       this.sampleInspect3DViewer = null;
@@ -1948,19 +1983,22 @@ class App {
     const resetBtn = document.getElementById("btn-dyn-reset");
 
     playPauseBtn?.addEventListener("click", () => {
-      if (!this.dynamic3DViewer) return;
-      if (this.dynamic3DViewer.isPlaying) {
-        this.dynamic3DViewer.pause();
+      if (!this.dynamic3DViewer && !this.dynamicSkeletonViewer) return;
+      const isPlaying = this.dynamic3DViewer ? this.dynamic3DViewer.isPlaying : false;
+      if (isPlaying) {
+        if (this.dynamic3DViewer) this.dynamic3DViewer.pause();
+        if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.pause();
         if (playPauseIcon) playPauseIcon.textContent = "play_arrow";
       } else {
-        this.dynamic3DViewer.play();
+        if (this.dynamic3DViewer) this.dynamic3DViewer.play();
+        if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.play();
         if (playPauseIcon) playPauseIcon.textContent = "pause";
       }
     });
 
     resetBtn?.addEventListener("click", () => {
-      if (!this.dynamic3DViewer) return;
-      this.dynamic3DViewer.reset();
+      if (this.dynamic3DViewer) this.dynamic3DViewer.reset();
+      if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.reset();
       const scrubber = document.getElementById("dyn-timeline-scrubber");
       if (scrubber) scrubber.value = 0;
     });
@@ -1969,6 +2007,7 @@ class App {
       btn.addEventListener("click", () => {
         const speed = parseFloat(btn.getAttribute("data-speed")) || 1.0;
         if (this.dynamic3DViewer) this.dynamic3DViewer.setSpeed(speed);
+        if (this.dynamicSkeletonViewer) this.dynamicSkeletonViewer.setSpeed(speed);
         document.querySelectorAll(".dyn-speed-btn").forEach(b => {
           b.classList.remove("bg-primary/20", "text-primary", "font-bold");
           b.classList.add("text-outline");
