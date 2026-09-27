@@ -25,6 +25,7 @@ def list_signers(db: Session = Depends(get_db)):
             signer_id=s.signer_id,
             display_name=s.display_name,
             enabled=s.enabled,
+            is_master=getattr(s, "is_master", False) or False,
             created_at=s.created_at,
             sample_count=sample_count,
             assigned_gestures_count=len(assignments),
@@ -56,6 +57,7 @@ def create_signer(signer_in: SignerCreate, db: Session = Depends(get_db)):
         signer_id=signer.signer_id,
         display_name=signer.display_name,
         enabled=signer.enabled,
+        is_master=getattr(signer, "is_master", False) or False,
         created_at=signer.created_at,
         sample_count=0,
         assigned_gestures_count=0,
@@ -81,6 +83,7 @@ def get_signer(signer_id: str, db: Session = Depends(get_db)):
         signer_id=signer.signer_id,
         display_name=signer.display_name,
         enabled=signer.enabled,
+        is_master=getattr(signer, "is_master", False) or False,
         created_at=signer.created_at,
         sample_count=sample_count,
         assigned_gestures_count=len(assignments),
@@ -169,6 +172,42 @@ def toggle_signer_status(signer_id: str, db: Session = Depends(get_db)):
         signer_id=signer.signer_id,
         display_name=signer.display_name,
         enabled=signer.enabled,
+        is_master=getattr(signer, "is_master", False) or False,
+        created_at=signer.created_at,
+        sample_count=sample_count,
+        assigned_gestures_count=len(assignments),
+        completed_assignments_count=completed_count
+    )
+
+@router.put("/{signer_id}/set-master", response_model=SignerOut)
+def set_master_signer(signer_id: str, db: Session = Depends(get_db)):
+    """Designates this signer as the Master Signer for standardized Text-to-Gesture dictionary playback."""
+    clean_id = signer_id.strip()
+    signer = db.query(Signer).filter(
+        (Signer.signer_id == clean_id) | (func.lower(Signer.signer_id) == clean_id.lower())
+    ).first()
+    if not signer:
+        raise HTTPException(status_code=404, detail=f"Signer '{signer_id}' not found.")
+
+    # 1. Reset is_master on all signers
+    db.query(Signer).update({Signer.is_master: False})
+
+    # 2. Assign is_master to this signer and ensure enabled
+    signer.is_master = True
+    signer.enabled = True
+    db.commit()
+    db.refresh(signer)
+
+    sample_count = db.query(DatasetSample).filter(DatasetSample.signer_id == signer.signer_id).count()
+    assignments = db.query(CollectionAssignment).filter(CollectionAssignment.signer_id == signer.signer_id).all()
+    completed_count = sum(1 for a in assignments if a.status == "COMPLETED")
+
+    return SignerOut(
+        id=signer.id,
+        signer_id=signer.signer_id,
+        display_name=signer.display_name,
+        enabled=signer.enabled,
+        is_master=True,
         created_at=signer.created_at,
         sample_count=sample_count,
         assigned_gestures_count=len(assignments),

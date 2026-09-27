@@ -125,3 +125,28 @@ class TestExport:
         assert any("signers.csv" in n for n in names)
         assert any("assignments.csv" in n for n in names)
 
+class TestMasterSignerAndCanonicalPlayback:
+    def test_set_master_signer_and_query_canonical(self, client):
+        # 1. Set signer_001 as Master Signer
+        r = client.put("/api/signers/signer_001/set-master")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["is_master"] is True
+        assert data["signer_id"] == "signer_001"
+
+        # 2. Verify listing signers reflects master status
+        r_list = client.get("/api/signers")
+        assert r_list.status_code == 200
+        signers = r_list.json()
+        master = next((s for s in signers if s["signer_id"] == "signer_001"), None)
+        assert master is not None
+        assert master["is_master"] is True
+
+        # 3. Query canonical master-sample for 'water'
+        r_sample = client.get("/api/gestures/water/master-sample")
+        assert r_sample.status_code in (200, 404)
+        if r_sample.status_code == 200:
+            sample_data = r_sample.json()
+            assert "sample_id" in sample_data
+            assert sample_data["gesture_id"] == "water"
+

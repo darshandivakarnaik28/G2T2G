@@ -13,6 +13,7 @@ class Signer(Base):
     signer_id = Column(String(64), unique=True, index=True, nullable=False) # e.g. "S001", "S002"
     display_name = Column(String(128), nullable=False)
     enabled = Column(Boolean, default=True)
+    is_master = Column(Boolean, default=False) # Master signer for standardized Text-to-Gesture display
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     assignments = relationship("CollectionAssignment", back_populates="signer", cascade="all, delete-orphan")
@@ -72,6 +73,7 @@ class DatasetSample(Base):
     image_width = Column(Integer, nullable=True)
     image_height = Column(Integer, nullable=True)
     duration = Column(Float, nullable=True) # duration in seconds
+    is_master_reference = Column(Boolean, default=False) # Specifically designated master reference sample for T2G
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
     gesture = relationship("Gesture", back_populates="samples")

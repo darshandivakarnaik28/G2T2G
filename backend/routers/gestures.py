@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from ..database import get_db
 from ..models import Gesture, DatasetSample, ThreeDModel, LandmarkSequence, Signer, CollectionAssignment
-from ..schemas import GestureCreate, GestureUpdate, GestureOut, GestureDatasetBreakdownOut, GestureSignerStat
+from ..schemas import GestureCreate, GestureUpdate, GestureOut, GestureDatasetBreakdownOut, GestureSignerStat, DatasetSampleOut
 from ..services.storage_service import delete_sample_files, delete_gesture_folder
 
 router = APIRouter(prefix="/api/gestures", tags=["gestures"])
@@ -208,3 +208,69 @@ def delete_gesture(gesture_id: str, db: Session = Depends(get_db)):
     db.delete(g)
     db.commit()
     return {"message": f"Gesture '{gesture_id}' and all {len(samples)} associated samples deleted successfully."}
+
+@router.get("/{gesture_id}/master-sample", response_model=DatasetSampleOut)
+def get_gesture_master_sample(gesture_id: str, db: Session = Depends(get_db)):
+    """
+    Returns the designated Master Sign (gold standard) for this gesture for Text-to-Gesture playback:
+    1. Specifically starred master reference sample (is_master_reference = True)
+    2. Master Signer's highest-confidence sample
+    3. Fallback: Highest-confidence sample from any team member
+    """
+    clean_id = gesture_id.strip().lower()
+    g = db.query(Gesture).filter(Gesture.gesture_id == clean_id).first()
+    if not g:
+        raise HTTPException(status_code=404, detail=f"Gesture '{gesture_id}' not found.")
+
+    # 1. Check for explicitly starred reference sample
+    ref_sample = db.query(DatasetSample).filter(
+        DatasetSample.gesture_id == clean_id,
+        DatasetSample.is_master_reference == True
+    ).first()
+
+    if ref_sample:
+        return _format_sample_out(ref_sample, g)
+
+    # 2. Check for sample from designated Master Signer
+    master_signer = db.query(Signer).filter(Signer.is_master == True).first()
+    if master_signer:
+        master_sample = db.query(DatasetSample).filter(
+            DatasetSample.gesture_id == clean_id,
+            DatasetSample.signer_id == master_signer.signer_id
+        ).order_by(DatasetSample.detection_confidence.desc()).first()
+        if master_sample:
+            return _format_sample_out(master_sample, g)
+
+    # 3. Fallback: Highest confidence sample from any team signer
+    fallback_sample = db.query(DatasetSample).filter(
+        DatasetSample.gesture_id == clean_id
+    ).order_by(DatasetSample.detection_confidence.desc()).first()
+
+    if fallback_sample:
+        return _format_sample_out(fallback_sample, g)
+
+    raise HTTPException(status_code=404, detail=f"No samples recorded yet for gesture '{gesture_id}'.")
+
+def _format_sample_out(s: DatasetSample, g: Gesture) -> DatasetSampleOut:
+    return DatasetSampleOut(
+        id=s.id,
+        sample_id=s.sample_id,
+        gesture_id=s.gesture_id,
+        gesture_name=g.name,
+        gesture_kannada=g.kannada_meaning,
+        gesture_type=g.gesture_type,
+        signer_id=s.signer_id,
+        sample_type=s.sample_type,
+        stored_file_path=s.stored_file_path,
+        landmark_file_path=s.landmark_file_path,
+        frame_count=s.frame_count,
+        fps=s.fps,
+        hand_count_detected=s.hand_count_detected,
+        handedness=s.handedness,
+        detection_confidence=s.detection_confidence,
+        image_width=s.image_width,
+        image_height=s.image_height,
+        duration=s.duration,
+        is_master_reference=getattr(s, "is_master_reference", False) or False,
+        created_at=s.created_at
+    )

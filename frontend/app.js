@@ -715,6 +715,7 @@ class App {
             const completedCount = signerAssignments.filter(a => a.status === "COMPLETED" || a.collected_samples >= a.target_samples).length;
             const isSelected = s.signer_id === this.activeSignerId;
             const isActive = Boolean(s.enabled);
+            const isMaster = Boolean(s.is_master);
 
             const tr = document.createElement("tr");
             tr.className = "hover:bg-surface-container-high/40 transition-colors";
@@ -724,6 +725,11 @@ class App {
                 <span class="font-mono">${s.signer_id}</span>
               </td>
               <td class="p-3 font-medium text-on-background">${s.display_name}</td>
+              <td class="p-3">
+                ${isMaster 
+                  ? '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-amber-950/90 text-amber-300 border border-amber-600 font-bold flex items-center gap-1 w-fit"><span class="text-amber-400">★</span> MASTER SIGNER</span>' 
+                  : '<span class="text-[11px] text-outline font-mono">Contributor</span>'}
+              </td>
               <td class="p-3">
                 <span class="text-emerald-400 font-bold">${s.valid_samples ?? s.sample_count ?? 0}</span>
                 <span class="text-outline">/ ${s.total_samples ?? s.sample_count ?? 0}</span>
@@ -739,6 +745,7 @@ class App {
               </td>
               <td class="p-3 text-right">
                 <div class="flex items-center justify-end gap-2">
+                  ${!isMaster ? `<button onclick="app.setMasterSigner('${s.signer_id}')" class="px-2 py-1 rounded bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 border border-amber-800/60 text-[11px] font-mono flex items-center gap-1 cursor-pointer transition-colors" title="Set as Master Signer for Text-to-Gesture dictionary">★ Set Master</button>` : '<span class="text-[11px] font-mono text-amber-400 font-bold px-1.5 py-0.5 rounded bg-amber-950/40 border border-amber-700/50">★ Primary</span>'}
                   ${!isSelected ? `<button onclick="app.setActiveSigner('${s.signer_id}')" class="px-2 py-1 rounded bg-surface-container-high hover:bg-surface-variant text-[11px] text-primary cursor-pointer">Select</button>` : '<span class="text-[11px] text-emerald-400 font-medium">Selected</span>'}
                   <button onclick="app.toggleSignerStatus('${s.signer_id}')" class="px-2 py-1 rounded bg-surface-container-high hover:bg-surface-variant text-[11px] text-outline hover:text-on-background cursor-pointer">
                     ${isActive ? 'Set Inactive' : 'Set Active'}
@@ -930,6 +937,17 @@ class App {
       await this.populateSignerDropdowns();
     } catch (err) {
       alert("Failed to toggle signer status: " + err.message);
+    }
+  }
+
+  async setMasterSigner(signerId) {
+    try {
+      await api.setMasterSigner(signerId);
+      if (this.activeView === "team") await this.loadTeamPage();
+      await this.populateSignerDropdowns();
+      alert(`Signer "${signerId}" is now designated as the Master Signer for Text-to-Gesture dictionary playback.`);
+    } catch (err) {
+      alert("Failed to set master signer: " + err.message);
     }
   }
 
@@ -1829,9 +1847,40 @@ class App {
         this.sampleInspectSkeletonViewer.applyLandmarks(landmarksData);
       }
 
+      this.currentInspectedSample = sample;
+      const masterBtn = document.getElementById("btn-inspect-master-ref");
+      const masterBtnText = document.getElementById("inspect-master-ref-text");
+      const isMasterRef = Boolean(sample.is_master_reference);
+      if (masterBtn && masterBtnText) {
+        if (isMasterRef) {
+          masterBtn.className = "px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500 text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer font-bold";
+          masterBtnText.textContent = "★ Master Reference Sign (Active)";
+        } else {
+          masterBtn.className = "px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 border border-amber-800/60 text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer";
+          masterBtnText.textContent = "Set as Master Reference Sign";
+        }
+      }
+
       document.getElementById("sample-inspector-modal").classList.remove("hidden");
     } catch (e) {
       alert("Error inspecting sample: " + e.message);
+    }
+  }
+
+  async setMasterReferenceFromInspector() {
+    if (!this.currentInspectedSample) return;
+    try {
+      await api.setMasterReferenceSample(this.currentInspectedSample.sample_id);
+      this.currentInspectedSample.is_master_reference = true;
+      const masterBtn = document.getElementById("btn-inspect-master-ref");
+      const masterBtnText = document.getElementById("inspect-master-ref-text");
+      if (masterBtn && masterBtnText) {
+        masterBtn.className = "px-2.5 py-1 rounded bg-amber-500/20 text-amber-300 border border-amber-500 text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer font-bold";
+        masterBtnText.textContent = "★ Master Reference Sign (Active)";
+      }
+      alert(`Sample "${this.currentInspectedSample.sample_id}" is now locked as the Master Reference sign for gesture "${this.currentInspectedSample.gesture_id}".`);
+    } catch (err) {
+      alert("Failed to set master reference: " + err.message);
     }
   }
 
@@ -1844,6 +1893,7 @@ class App {
       this.sampleInspect3DViewer.destroy();
       this.sampleInspect3DViewer = null;
     }
+    this.currentInspectedSample = null;
     document.getElementById("sample-inspector-modal").classList.add("hidden");
   }
 

@@ -575,6 +575,7 @@
               <tr>
                 <th class="p-3">Signer ID</th>
                 <th class="p-3">Display Name</th>
+                <th class="p-3">Role / Dictionary</th>
                 <th class="p-3">Samples (Valid / Total)</th>
                 <th class="p-3">Assigned Gestures</th>
                 <th class="p-3">Completed Gestures</th>
@@ -1385,9 +1386,15 @@
         <span class="material-symbols-outlined text-[22px]">close</span>
       </button>
 
-      <div class="flex items-center gap-3 mb-4">
-        <span class="text-xs font-mono px-2 py-0.5 rounded bg-primary/20 text-primary">SAMPLE INSPECT</span>
-        <h3 id="inspect-sample-id" class="font-bold text-xl text-on-background font-mono truncate">smp_001</h3>
+      <div class="flex flex-wrap items-center justify-between gap-3 mb-4 pr-10">
+        <div class="flex items-center gap-3">
+          <span class="text-xs font-mono px-2 py-0.5 rounded bg-primary/20 text-primary">SAMPLE INSPECT</span>
+          <h3 id="inspect-sample-id" class="font-bold text-xl text-on-background font-mono truncate">smp_001</h3>
+        </div>
+        <button id="btn-inspect-master-ref" onclick="app.setMasterReferenceFromInspector()" class="px-2.5 py-1 rounded bg-amber-950/40 hover:bg-amber-900/60 text-amber-300 border border-amber-800/60 text-xs font-mono flex items-center gap-1.5 transition-colors cursor-pointer" title="Designate this take as the gold-standard reference sign for Text-to-Gesture display">
+          <span class="text-amber-400">★</span>
+          <span id="inspect-master-ref-text">Set as Master Reference Sign</span>
+        </button>
       </div>
 
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs text-outline mb-4">
@@ -1497,6 +1504,6 @@
   </div>
 
   <!-- Root Application JS Module (cache-busting query param ensures fresh load) -->
-  <script type="module" src="app.js?v=20260927_kannada_fix"></script>
+  <script type="module" src="app.js?v=20260927_master_signer"></script>
 </body>
 </html>

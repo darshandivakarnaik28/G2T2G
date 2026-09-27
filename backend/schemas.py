@@ -10,12 +10,14 @@ class SignerCreate(BaseModel):
     signer_id: str = Field(..., description="Unique Signer ID e.g. S001")
     display_name: str = Field(..., description="Full or display name of the team member")
     enabled: bool = True
+    is_master: bool = False
 
 class SignerOut(BaseModel):
     id: int
     signer_id: str
     display_name: str
     enabled: bool
+    is_master: bool = False
     created_at: datetime.datetime
     sample_count: int = 0
     assigned_gestures_count: int = 0
@@ -161,6 +163,7 @@ class DatasetSampleOut(BaseModel):
     image_width: Optional[int] = None
     image_height: Optional[int] = None
     duration: Optional[float] = None
+    is_master_reference: bool = False
     created_at: datetime.datetime
 
     class Config:

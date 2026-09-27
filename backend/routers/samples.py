@@ -560,3 +560,45 @@ def delete_sample(sample_id: str, db: Session = Depends(get_db)):
     _sync_signer_and_assignment(db, gid, sid)
 
     return {"message": f"Sample '{sample_id}' and all associated files deleted successfully."}
+
+@router.put("/{sample_id}/set-master-reference", response_model=DatasetSampleOut)
+def set_master_reference_sample(sample_id: str, db: Session = Depends(get_db)):
+    """Explicitly stars/designates this sample as the Master Reference sign for Text-to-Gesture playback."""
+    s = db.query(DatasetSample).filter(DatasetSample.sample_id == sample_id).first()
+    if not s:
+        raise HTTPException(status_code=404, detail="Sample not found")
+
+    g = db.query(Gesture).filter(Gesture.gesture_id == s.gesture_id).first()
+
+    # 1. Clear is_master_reference on other samples for this gesture
+    db.query(DatasetSample).filter(
+        DatasetSample.gesture_id == s.gesture_id
+    ).update({DatasetSample.is_master_reference: False})
+
+    # 2. Set this sample as master reference
+    s.is_master_reference = True
+    db.commit()
+    db.refresh(s)
+
+    return DatasetSampleOut(
+        id=s.id,
+        sample_id=s.sample_id,
+        gesture_id=s.gesture_id,
+        gesture_name=g.name if g else s.gesture_id,
+        gesture_kannada=g.kannada_meaning if g else None,
+        gesture_type=g.gesture_type if g else None,
+        signer_id=s.signer_id,
+        sample_type=s.sample_type,
+        stored_file_path=s.stored_file_path,
+        landmark_file_path=s.landmark_file_path,
+        frame_count=s.frame_count,
+        fps=s.fps,
+        hand_count_detected=s.hand_count_detected,
+        handedness=s.handedness,
+        detection_confidence=s.detection_confidence,
+        image_width=s.image_width,
+        image_height=s.image_height,
+        duration=s.duration,
+        is_master_reference=True,
+        created_at=s.created_at
+    )

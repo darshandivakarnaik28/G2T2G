@@ -34,10 +34,21 @@ def ensure_schema_compatibility():
         from sqlalchemy import text
         with engine.connect() as conn:
             if engine.dialect.name == "sqlite":
+                # Check dataset_samples table
                 res = conn.execute(text("PRAGMA table_info(dataset_samples)"))
-                cols = [r[1] for r in res.fetchall()]
-                if cols and "handedness" not in cols:
+                sample_cols = [r[1] for r in res.fetchall()]
+                if sample_cols and "handedness" not in sample_cols:
                     conn.execute(text("ALTER TABLE dataset_samples ADD COLUMN handedness VARCHAR DEFAULT 'RIGHT'"))
+                    conn.commit()
+                if sample_cols and "is_master_reference" not in sample_cols:
+                    conn.execute(text("ALTER TABLE dataset_samples ADD COLUMN is_master_reference BOOLEAN DEFAULT 0"))
+                    conn.commit()
+
+                # Check signers table
+                s_res = conn.execute(text("PRAGMA table_info(signers)"))
+                signer_cols = [r[1] for r in s_res.fetchall()]
+                if signer_cols and "is_master" not in signer_cols:
+                    conn.execute(text("ALTER TABLE signers ADD COLUMN is_master BOOLEAN DEFAULT 0"))
                     conn.commit()
     except Exception as e:
         print(f"Schema compatibility check notice: {e}")

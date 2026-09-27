@@ -255,9 +255,21 @@ class ApiService {
     return await this.fetchJson("/api/training-readiness");
   }
 
-  // Export
-  getExportUrl() {
-    return `${this.baseUrl}/api/dataset/export`;
+  // Master Signer & Canonical Sign Display
+  async setMasterSigner(signerId) {
+    return await this.fetchJson(`/api/signers/${signerId}/set-master`, {
+      method: "PUT"
+    });
+  }
+
+  async getMasterSample(gestureId) {
+    return await this.fetchJson(`/api/gestures/${gestureId}/master-sample`);
+  }
+
+  async setMasterReferenceSample(sampleId) {
+    return await this.fetchJson(`/api/samples/${sampleId}/set-master-reference`, {
+      method: "PUT"
+    });
   }
 
   // Asset URL helper
