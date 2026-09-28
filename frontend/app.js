@@ -4,7 +4,7 @@
 
 import { api } from "./services/api.js";
 import { MediaPipeTracker } from "./components/mediapipe_tracker.js";
-import { ThreeHandViewer } from "./components/three_viewer.js?v=20260926_fix11";
+import { ThreeHandViewer } from "./components/three_viewer.js?v=20260928_gesture_3d_player";
 
 class App {
   constructor() {
@@ -34,6 +34,9 @@ class App {
     this.capturedStaticData = null; // last captured frame data
     this.recordedDynamicData = null;// last recorded dynamic data
     this.signers = [];
+    this.detailsViewerMode = "skeleton";
+    this.detailsGestureSamples = [];
+    this.detailsActiveGesture = null;
 
     this.init();
   }
@@ -426,15 +429,22 @@ class App {
           const div = document.createElement("div");
           div.className = "p-4 rounded-lg bg-surface-container border border-outline-variant/30";
           const rows = smpList.map(s => `
-            <div class="flex items-center justify-between py-2 border-b border-[#334155]/50 last:border-none text-xs">
-              <div class="flex items-center gap-2">
+            <div class="flex items-center justify-between py-2 border-b border-[#334155]/50 last:border-none text-xs gap-2">
+              <div class="flex items-center gap-2 min-w-0 truncate">
                 <span class="material-symbols-outlined text-primary text-[16px]">${s.sample_type.includes('VIDEO') ? 'videocam' : 'photo_camera'}</span>
-                <span class="font-mono text-on-background">${s.sample_id}</span>
-                <span class="text-outline">(${s.sample_type})</span>
+                <span class="font-mono text-on-background font-semibold">${s.sample_id}</span>
+                <span class="text-outline text-[11px]">(${s.sample_type})</span>
               </div>
-              <div class="flex items-center gap-3">
-                <span class="text-outline text-[11px]">${new Date(s.created_at).toLocaleDateString()}</span>
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="text-outline text-[11px] hidden sm:inline">${new Date(s.created_at).toLocaleDateString()}</span>
                 <span class="px-2 py-0.5 rounded text-[10px] font-medium status-badge-success">${Math.round(s.detection_confidence * 100)}% Conf</span>
+                <button class="px-2 py-1 rounded bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 text-[11px] font-mono flex items-center gap-1 cursor-pointer transition-colors" onclick="app.previewSampleInDetails3D('${s.sample_id}')" title="Play / View this sample in 3D">
+                  <span class="material-symbols-outlined text-[13px]">3d_rotation</span>
+                  <span>3D View</span>
+                </button>
+                <button class="px-2 py-1 rounded bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background border border-outline-variant/30 text-[11px] font-mono cursor-pointer transition-colors" onclick="app.inspectSample('${s.sample_id}')" title="Inspect ground-truth media">
+                  Inspect
+                </button>
               </div>
             </div>
           `).join("");
@@ -531,6 +541,38 @@ class App {
         }
       }
 
+      this.detailsActiveGestureId = g.gesture_id;
+      this.detailsActiveGesture = g;
+      this.detailsGestureSamples = samples || [];
+
+      // Populate 3D Studio sample dropdown
+      const sampleSelect = document.getElementById("details-3d-sample-select");
+      if (sampleSelect) {
+        sampleSelect.innerHTML = "";
+        if (this.detailsGestureSamples.length === 0) {
+          const opt = document.createElement("option");
+          opt.value = "";
+          opt.textContent = "No samples collected yet";
+          sampleSelect.appendChild(opt);
+        } else {
+          // Sort: Master reference first, then by confidence desc
+          const sorted = [...this.detailsGestureSamples].sort((a, b) => {
+            if (a.is_master_reference && !b.is_master_reference) return -1;
+            if (!a.is_master_reference && b.is_master_reference) return 1;
+            return (b.detection_confidence || 0) - (a.detection_confidence || 0);
+          });
+
+          sorted.forEach((s) => {
+            const opt = document.createElement("option");
+            opt.value = s.sample_id;
+            const star = s.is_master_reference ? "★ " : "";
+            const conf = Math.round((s.detection_confidence || 0.9) * 100);
+            opt.textContent = `${star}${s.sample_id} • ${s.signer_id} (${s.sample_type}, ${conf}%)`;
+            sampleSelect.appendChild(opt);
+          });
+        }
+      }
+
       // Initialize Details 3D Viewer
       this.switchDetailsTab("overview");
       document.getElementById("gesture-details-modal").classList.remove("hidden");
@@ -567,10 +609,209 @@ class App {
 
     if (tab === "3d") {
       setTimeout(() => {
-        if (this.details3DViewer) this.details3DViewer.destroy();
-        this.details3DViewer = new ThreeHandViewer("details-3d-viewport");
+        this.setupDetails3DStudio();
       }, 100);
     }
+  }
+
+  setupDetails3DStudio(targetSampleId = null) {
+    const emptyState = document.getElementById("details-3d-empty-state");
+    const canvasWrapper = document.getElementById("details-3d-canvas-wrapper");
+    const playbackControls = document.getElementById("details-3d-playback-controls");
+
+    if (!this.detailsGestureSamples || this.detailsGestureSamples.length === 0) {
+      if (emptyState) emptyState.classList.remove("hidden");
+      if (canvasWrapper) canvasWrapper.classList.add("hidden");
+      if (playbackControls) playbackControls.classList.add("hidden");
+      return;
+    }
+
+    if (emptyState) emptyState.classList.add("hidden");
+    if (canvasWrapper) canvasWrapper.classList.remove("hidden");
+
+    if (!this.details3DViewer) {
+      this.details3DViewer = new ThreeHandViewer("details-3d-viewport", {
+        mode: this.detailsViewerMode || "skeleton",
+        showAvatar: false
+      });
+    }
+
+    this.details3DViewer.onTimelineUpdate = (currentTime, duration) => {
+      const scrubber = document.getElementById("details-3d-scrubber");
+      const timeDisplay = document.getElementById("details-3d-time-display");
+      if (scrubber) {
+        scrubber.value = duration > 0 ? (currentTime / duration) * 100 : 0;
+      }
+      if (timeDisplay) {
+        timeDisplay.textContent = `${currentTime.toFixed(1)}s / ${(duration || 1).toFixed(1)}s`;
+      }
+    };
+
+    const select = document.getElementById("details-3d-sample-select");
+    let sampleIdToLoad = targetSampleId || (select ? select.value : null);
+    if (!sampleIdToLoad && this.detailsGestureSamples.length > 0) {
+      sampleIdToLoad = this.detailsGestureSamples[0].sample_id;
+    }
+    if (select && sampleIdToLoad) {
+      select.value = sampleIdToLoad;
+    }
+
+    if (sampleIdToLoad) {
+      this.loadSampleIntoDetails3DViewer(sampleIdToLoad);
+    }
+  }
+
+  async loadSampleIntoDetails3DViewer(sampleId) {
+    if (!sampleId) return;
+    const loadingEl = document.getElementById("details-3d-loading");
+    const badgeEl = document.getElementById("details-3d-sample-badge");
+    const liveTag = document.getElementById("details-3d-live-tag");
+    const playbackControls = document.getElementById("details-3d-playback-controls");
+    const playPauseIcon = document.getElementById("icon-details-play-pause");
+    const playPauseText = document.getElementById("text-details-play-pause");
+
+    if (loadingEl) loadingEl.classList.remove("hidden");
+
+    try {
+      const sample = this.detailsGestureSamples?.find(s => s.sample_id === sampleId) || (await api.getSamples({ sample_id: sampleId }))[0];
+      const landmarksData = await api.getSampleLandmarks(sampleId);
+
+      if (!this.details3DViewer) {
+        this.details3DViewer = new ThreeHandViewer("details-3d-viewport", {
+          mode: this.detailsViewerMode || "skeleton",
+          showAvatar: false
+        });
+      }
+
+      const gName = this.detailsActiveGesture?.name || sample?.gesture_id || "Gesture";
+      const isDynamic = sample?.sample_type?.includes("VIDEO") || (landmarksData.frames && landmarksData.frames.length > 1);
+
+      if (isDynamic && landmarksData.frames && landmarksData.frames.length > 1) {
+        if (badgeEl) {
+          badgeEl.textContent = `DYNAMIC • ${landmarksData.frames.length} FRAMES`;
+          badgeEl.className = "px-2 py-0.5 rounded text-[11px] font-mono bg-blue-950 text-blue-300 border border-blue-800";
+        }
+        if (liveTag) liveTag.textContent = `Performing: ${gName} (${sample?.signer_id})`;
+        if (playbackControls) playbackControls.classList.remove("hidden");
+
+        this.details3DViewer.loadDynamicSequence(landmarksData.frames, sample?.duration, sample?.fps || 30);
+        this.details3DViewer.play();
+        if (playPauseIcon) playPauseIcon.textContent = "pause";
+        if (playPauseText) playPauseText.textContent = "Pause";
+      } else {
+        if (badgeEl) {
+          badgeEl.textContent = `STATIC POSE • 21 LM`;
+          badgeEl.className = "px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800";
+        }
+        if (liveTag) liveTag.textContent = `Posed: ${gName} (${sample?.signer_id})`;
+        if (playbackControls) playbackControls.classList.add("hidden");
+
+        this.details3DViewer.pause();
+        if (landmarksData.frames && landmarksData.frames.length >= 1) {
+          const first = landmarksData.frames[0];
+          this.details3DViewer.applyLandmarks({
+            right_hand_landmarks: first.right_hand_landmarks || [],
+            left_hand_landmarks: first.left_hand_landmarks || []
+          });
+        } else if (landmarksData.right_hand_landmarks || landmarksData.left_hand_landmarks) {
+          this.details3DViewer.applyLandmarks({
+            right_hand_landmarks: landmarksData.right_hand_landmarks || [],
+            left_hand_landmarks: landmarksData.left_hand_landmarks || []
+          });
+        } else if (Array.isArray(landmarksData) && landmarksData.length === 21) {
+          this.details3DViewer.applyLandmarks(landmarksData);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load sample into 3D viewer:", err);
+      if (liveTag) liveTag.textContent = "Notice: Landmarks not available for this sample";
+    } finally {
+      if (loadingEl) loadingEl.classList.add("hidden");
+    }
+  }
+
+  handleDetailsSampleChange(sampleId) {
+    this.loadSampleIntoDetails3DViewer(sampleId);
+  }
+
+  previewSampleInDetails3D(sampleId) {
+    this.switchDetailsTab("3d");
+    setTimeout(() => {
+      const select = document.getElementById("details-3d-sample-select");
+      if (select) select.value = sampleId;
+      this.loadSampleIntoDetails3DViewer(sampleId);
+    }, 150);
+  }
+
+  setDetailsViewerMode(mode) {
+    this.detailsViewerMode = mode;
+    const btnSkel = document.getElementById("btn-details-mode-skeleton");
+    const btnHand = document.getElementById("btn-details-mode-hand");
+    if (mode === "skeleton") {
+      btnSkel?.classList.add("bg-primary", "text-on-primary", "font-medium");
+      btnSkel?.classList.remove("text-on-surface-variant");
+      btnHand?.classList.remove("bg-primary", "text-on-primary", "font-medium");
+      btnHand?.classList.add("text-on-surface-variant");
+    } else {
+      btnHand?.classList.add("bg-primary", "text-on-primary", "font-medium");
+      btnHand?.classList.remove("text-on-surface-variant");
+      btnSkel?.classList.remove("bg-primary", "text-on-primary", "font-medium");
+      btnSkel?.classList.add("text-on-surface-variant");
+    }
+    if (this.details3DViewer) {
+      this.details3DViewer.setMode(mode);
+    }
+  }
+
+  setDetailsViewAngle(angle) {
+    if (this.details3DViewer) {
+      this.details3DViewer.setView(angle);
+    }
+  }
+
+  toggleDetailsPlayPause() {
+    if (!this.details3DViewer) return;
+    const icon = document.getElementById("icon-details-play-pause");
+    const text = document.getElementById("text-details-play-pause");
+    if (this.details3DViewer.isPlaying) {
+      this.details3DViewer.pause();
+      if (icon) icon.textContent = "play_arrow";
+      if (text) text.textContent = "Play";
+    } else {
+      this.details3DViewer.play();
+      if (icon) icon.textContent = "pause";
+      if (text) text.textContent = "Pause";
+    }
+  }
+
+  restartDetailsPlayback() {
+    if (!this.details3DViewer) return;
+    this.details3DViewer.reset();
+    this.details3DViewer.play();
+    const icon = document.getElementById("icon-details-play-pause");
+    const text = document.getElementById("text-details-play-pause");
+    if (icon) icon.textContent = "pause";
+    if (text) text.textContent = "Pause";
+  }
+
+  setDetailsPlaybackSpeed(speed) {
+    if (!this.details3DViewer) return;
+    this.details3DViewer.setSpeed(speed);
+    [0.5, 1.0, 1.5].forEach(s => {
+      const btn = document.getElementById(`btn-speed-${String(s).replace('.', '')}`);
+      if (!btn) return;
+      if (s === speed) {
+        btn.className = "px-2 py-0.5 rounded text-[11px] font-mono bg-primary/20 text-primary font-bold cursor-pointer";
+      } else {
+        btn.className = "px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background cursor-pointer";
+      }
+    });
+  }
+
+  handleDetailsScrubber(val) {
+    if (!this.details3DViewer || !this.details3DViewer.duration) return;
+    const time = (parseFloat(val) / 100) * this.details3DViewer.duration;
+    this.details3DViewer.seek(time);
   }
 
   quickCollectForSigner(gestureId, signerId) {

@@ -1437,9 +1437,94 @@
         <div id="details-signers-tree" class="space-y-3"></div>
       </div>
 
-      <!-- Tab: 3D Viewport -->
+      <!-- Tab: 3D Viewport Studio -->
       <div id="tab-content-3d" class="hidden space-y-3">
-        <div id="details-3d-viewport" class="h-80 rounded three-canvas-container"></div>
+        <!-- 3D Studio Header Bar -->
+        <div class="flex flex-wrap items-center justify-between gap-3 p-3 rounded-lg bg-surface-container-lowest border border-outline-variant/30">
+          <div class="flex items-center gap-2 sm:gap-3 flex-wrap">
+            <span class="material-symbols-outlined text-[18px] text-primary">model_training</span>
+            <label class="text-xs font-mono uppercase text-outline">Sample:</label>
+            <select id="details-3d-sample-select" onchange="app.handleDetailsSampleChange(this.value)" class="bg-surface-container border border-outline-variant/40 rounded px-2.5 py-1 text-xs text-on-background font-mono focus:border-primary">
+              <!-- Populated dynamically with all samples of this gesture -->
+            </select>
+            <span id="details-3d-sample-badge" class="px-2 py-0.5 rounded text-[11px] font-mono bg-primary/20 text-primary border border-primary/30">STATIC POSE</span>
+          </div>
+
+          <!-- Mode switcher: 21-Skeleton vs 3D Hand Mesh -->
+          <div class="flex items-center gap-1 p-0.5 bg-surface-container rounded-lg border border-outline-variant/30 text-xs font-mono">
+            <button id="btn-details-mode-skeleton" onclick="app.setDetailsViewerMode('skeleton')" class="px-2.5 py-1 rounded bg-primary text-on-primary font-medium flex items-center gap-1 cursor-pointer">
+              <span class="material-symbols-outlined text-[14px]">account_tree</span>
+              <span>21-Skeleton</span>
+            </button>
+            <button id="btn-details-mode-hand" onclick="app.setDetailsViewerMode('hand')" class="px-2.5 py-1 rounded text-on-surface-variant hover:text-on-background flex items-center gap-1 cursor-pointer">
+              <span class="material-symbols-outlined text-[14px]">pan_tool</span>
+              <span>3D Hand</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Zero state when gesture has no samples -->
+        <div id="details-3d-empty-state" class="hidden p-8 text-center bg-surface-container-lowest rounded-lg border border-dashed border-outline-variant/40 space-y-3">
+          <span class="material-symbols-outlined text-4xl text-outline">front_hand</span>
+          <h4 class="text-sm font-bold text-on-background">No Samples Recorded for this Gesture Yet</h4>
+          <p class="text-xs text-outline max-w-md mx-auto">Collect samples with the webcam to visualize the 21-landmark articulated motion in real time.</p>
+          <button onclick="app.quickCollectForSigner(app.detailsActiveGestureId, app.activeSignerId)" class="btn-primary px-4 py-2 rounded text-xs font-medium inline-flex items-center gap-1.5 cursor-pointer">
+            <span class="material-symbols-outlined text-[16px]">add_a_photo</span>
+            <span>Collect Samples Now</span>
+          </button>
+        </div>
+
+        <!-- 3D Canvas Box -->
+        <div id="details-3d-canvas-wrapper" class="relative rounded-lg overflow-hidden border border-outline-variant/30 bg-[#0d1524]">
+          <div id="details-3d-viewport" class="h-84 sm:h-96 w-full three-canvas-container"></div>
+          
+          <!-- View presets floating in top right -->
+          <div class="absolute top-3 right-3 flex items-center gap-1 p-1 bg-surface-container/85 backdrop-blur rounded border border-outline-variant/40 z-10 text-[11px] font-mono">
+            <button onclick="app.setDetailsViewAngle('default')" class="px-2 py-0.5 hover:bg-surface-variant rounded text-outline hover:text-on-background cursor-pointer" title="Isometric view">Iso</button>
+            <button onclick="app.setDetailsViewAngle('front')" class="px-2 py-0.5 hover:bg-surface-variant rounded text-outline hover:text-on-background cursor-pointer" title="Front view">Front</button>
+            <button onclick="app.setDetailsViewAngle('top')" class="px-2 py-0.5 hover:bg-surface-variant rounded text-outline hover:text-on-background cursor-pointer" title="Top-down view">Top</button>
+            <button onclick="app.setDetailsViewAngle('side')" class="px-2 py-0.5 hover:bg-surface-variant rounded text-outline hover:text-on-background cursor-pointer" title="Side view">Side</button>
+          </div>
+
+          <!-- Live Gesture Tag badge overlay -->
+          <div class="absolute bottom-3 left-3 flex items-center gap-2 p-1.5 px-2.5 bg-surface-container/85 backdrop-blur rounded border border-outline-variant/40 z-10 text-xs font-mono">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span id="details-3d-live-tag" class="text-on-background font-semibold">MediaPipe 21-Rig Active</span>
+          </div>
+
+          <!-- Loading overlay -->
+          <div id="details-3d-loading" class="hidden absolute inset-0 bg-[#0d1524]/80 flex flex-col items-center justify-center gap-2 z-20">
+            <span class="material-symbols-outlined text-3xl text-primary animate-spin">progress_activity</span>
+            <span class="text-xs font-mono text-outline">Loading 21-landmark gesture motion...</span>
+          </div>
+        </div>
+
+        <!-- Dynamic Timeline & Playback Bar (Visible for dynamic/video samples) -->
+        <div id="details-3d-playback-controls" class="hidden p-3 rounded-lg bg-surface-container-lowest border border-outline-variant/30 space-y-2">
+          <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center gap-2">
+              <button id="btn-details-play-pause" onclick="app.toggleDetailsPlayPause()" class="p-1.5 px-2.5 rounded bg-primary text-on-primary hover:bg-primary/90 flex items-center justify-center cursor-pointer text-xs font-mono gap-1">
+                <span id="icon-details-play-pause" class="material-symbols-outlined text-[16px]">pause</span>
+                <span id="text-details-play-pause">Pause</span>
+              </button>
+              <button onclick="app.restartDetailsPlayback()" class="p-1.5 px-2 rounded bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background flex items-center justify-center cursor-pointer" title="Replay from start">
+                <span class="material-symbols-outlined text-[16px]">replay</span>
+              </button>
+              <span id="details-3d-time-display" class="text-xs font-mono text-on-background">0.0s / 3.0s</span>
+            </div>
+
+            <div class="flex items-center gap-1.5">
+              <span class="text-[11px] font-mono text-outline">Speed:</span>
+              <button id="btn-speed-05" onclick="app.setDetailsPlaybackSpeed(0.5)" class="px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background cursor-pointer">0.5x</button>
+              <button id="btn-speed-10" onclick="app.setDetailsPlaybackSpeed(1.0)" class="px-2 py-0.5 rounded text-[11px] font-mono bg-primary/20 text-primary font-bold cursor-pointer">1x</button>
+              <button id="btn-speed-15" onclick="app.setDetailsPlaybackSpeed(1.5)" class="px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container hover:bg-surface-variant text-outline hover:text-on-background cursor-pointer">1.5x</button>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-2">
+            <input id="details-3d-scrubber" type="range" min="0" max="100" value="0" class="w-full h-1.5 bg-surface-container rounded-lg appearance-none cursor-pointer accent-primary" oninput="app.handleDetailsScrubber(this.value)">
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1571,6 +1656,6 @@
   </div>
 
   <!-- Root Application JS Module (cache-busting query param ensures fresh load) -->
-  <script type="module" src="app.js?v=20260928_signer_folders_fix"></script>
+  <script type="module" src="app.js?v=20260928_gesture_3d_player"></script>
 </body>
 </html>

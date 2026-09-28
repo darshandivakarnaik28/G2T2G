@@ -27,10 +27,10 @@ export class ThreeHandViewer {
     this.loadedModel = null;
     this.isRiggedModel = false;
 
-    // Human Avatar Body (Nathan FBX / Mannequin)
+    // Human Avatar Body (Nathan FBX / Mannequin) - Off by default so only real hands render
     this.avatarBody = null;
     this.mannequinBody = null;
-    this.showAvatar = this.mode === "hand";
+    this.showAvatar = this.options.showAvatar === true;
 
     // Dynamic animation state
     this.animationFrames = [];
@@ -175,6 +175,25 @@ export class ThreeHandViewer {
     this.jointNodes = this.rightHand.jointNodes;
     this.boneMeshes = this.rightHand.boneMeshes;
     this.palmMesh = this.rightHand.palmMesh;
+  }
+
+  /** Dynamically toggle between 'skeleton' (21-joints), 'hand' (volumetric mesh), or 'both' */
+  setMode(newMode) {
+    this.mode = newMode;
+    ["rightHand", "leftHand"].forEach(side => {
+      const hand = this[side];
+      if (!hand) return;
+      if (newMode === "skeleton") {
+        if (hand.skeletonGroup) hand.skeletonGroup.visible = true;
+        if (hand.handMeshGroup) hand.handMeshGroup.visible = false;
+      } else if (newMode === "hand") {
+        if (hand.skeletonGroup) hand.skeletonGroup.visible = false;
+        if (hand.handMeshGroup) hand.handMeshGroup.visible = true;
+      } else if (newMode === "both") {
+        if (hand.skeletonGroup) hand.skeletonGroup.visible = true;
+        if (hand.handMeshGroup) hand.handMeshGroup.visible = true;
+      }
+    });
   }
 
   _createRig(side = "right") {
