@@ -33,6 +33,7 @@ class App {
     this.dynamicMethod = "record";  // record or upload
     this.capturedStaticData = null; // last captured frame data
     this.recordedDynamicData = null;// last recorded dynamic data
+    this.signers = [];
 
     this.init();
   }
@@ -61,6 +62,15 @@ class App {
         this.pauseAutoCollection();
       }
     });
+
+    // Automatically stop camera when browser tab is hidden/switched
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        this.tracker.stopCamera();
+      } else if (!document.hidden && this.activeView === "collection") {
+        this.handleCollectionGestureChange();
+      }
+    });
   }
 
   // ==========================================
@@ -69,6 +79,7 @@ class App {
   async populateSignerDropdowns() {
     try {
       const signers = await api.getSigners();
+      this.signers = signers || [];
       const globalSelect = document.getElementById("global-active-signer-select");
       const assignSignerSelect = document.getElementById("input-assign-signer");
 
@@ -115,6 +126,7 @@ class App {
       if (mySignerBadge) {
         mySignerBadge.textContent = this.activeSignerId || "None";
       }
+      this.updateCollectorStorageBanner();
     } catch (err) {
       console.warn("Failed to populate signers dropdown:", err);
     }
@@ -196,8 +208,8 @@ class App {
   }
 
   navigateTo(viewName) {
-    // If leaving collection page, release camera
-    if (this.activeView === "collection" && viewName !== "collection") {
+    // If leaving collection page or navigating to any other tab, immediately shut camera off
+    if (viewName !== "collection") {
       this.tracker.stopCamera();
     }
 
@@ -971,8 +983,9 @@ class App {
   async setMasterSigner(signerId) {
     try {
       await api.setMasterSigner(signerId);
-      if (this.activeView === "team") await this.loadTeamPage();
       await this.populateSignerDropdowns();
+      this.updateCollectorStorageBanner();
+      if (this.activeView === "team") await this.loadTeamPage();
       alert(`Signer "${signerId}" is now designated as the Master Signer for Text-to-Gesture dictionary playback.`);
     } catch (err) {
       alert("Failed to set master signer: " + err.message);
@@ -1378,6 +1391,9 @@ class App {
     if (!this.capturedStaticData) return;
 
     const signerId = document.getElementById("collect-signer-input").value.trim() || "S001";
+    if (!this.signers || this.signers.length === 0) {
+      try { this.signers = await api.getSigners(); } catch (e) {}
+    }
     const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
     const isMaster = Boolean(signer?.is_master);
 
@@ -1395,12 +1411,10 @@ class App {
       formData.append("width", this.capturedStaticData.width);
       formData.append("height", this.capturedStaticData.height);
 
-      if (isMaster) {
+      if (this.capturedStaticData.imageBase64) {
         formData.append("image_base64", this.capturedStaticData.imageBase64);
-        formData.append("save_media", "true");
-      } else {
-        formData.append("save_media", "false");
       }
+      formData.append("save_media", isMaster ? "true" : "false");
 
       const saved = await api.uploadWebcamImageSample(formData);
 
@@ -1447,6 +1461,13 @@ class App {
       return;
     }
 
+    // Initialize temporary batch buffer in memory (zero disk/DB writes until user confirms)
+    this.pendingBatchFrames = [];
+    const reviewPanel = document.getElementById("auto-batch-review-panel");
+    if (reviewPanel) reviewPanel.classList.add("hidden");
+    const savingInd = document.getElementById("batch-saving-indicator");
+    if (savingInd) savingInd.classList.add("hidden");
+
     const banner = document.getElementById("auto-collection-banner");
     const progCount = document.getElementById("auto-prog-count");
     const progPct = document.getElementById("auto-prog-pct");
@@ -1489,45 +1510,167 @@ class App {
               : "px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container-high text-outline");
         }
       },
-      // onSampleCaptured callback: persistent SQLite upload directly per valid frame
-      async (frame, collectedIndex) => {
-        try {
-          const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
-          const isMaster = Boolean(signer?.is_master);
-
-          const formData = new FormData();
-          formData.append("gesture_id", gestureId);
-          formData.append("signer_id", signerId);
-          formData.append("handedness", frame.handedness || "RIGHT");
-          formData.append("landmarks_json", JSON.stringify(frame.landmarks));
-          formData.append("confidence", frame.confidence);
-          formData.append("width", frame.width);
-          formData.append("height", frame.height);
-
-          if (isMaster) {
-            formData.append("image_base64", frame.imageBase64);
-            formData.append("save_media", "true");
-          } else {
-            formData.append("save_media", "false");
-          }
-
-          await api.uploadWebcamImageSample(formData);
-        } catch (err) {
-          console.warn(`Error auto-saving frame #${collectedIndex}:`, err);
-        }
+      // onSampleCaptured callback: hold frame in memory buffer
+      (frame, collectedIndex) => {
+        this.pendingBatchFrames.push(frame);
       },
-      // onComplete callback
+      // onComplete callback: halt and display batch review confirmation
       async (totalCollected) => {
         if (statusBadge) {
-          statusBadge.textContent = "COMPLETED";
-          statusBadge.className = "px-2 py-0.5 rounded text-[11px] font-mono bg-emerald-950 text-emerald-300 border border-emerald-800";
+          statusBadge.textContent = "READY FOR REVIEW";
+          statusBadge.className = "px-2 py-0.5 rounded text-[11px] font-mono bg-blue-950 text-blue-300 border border-blue-800";
         }
-        if (reasonEl) reasonEl.textContent = `All ${totalCollected} samples successfully collected and stored in database!`;
-        await this.loadDashboard();
-        await this.refreshGesturesList();
+        if (reasonEl) reasonEl.textContent = `All ${totalCollected} samples captured! Review below before saving.`;
+
+        if (!this.signers || this.signers.length === 0) {
+          try { this.signers = await api.getSigners(); } catch (e) {}
+        }
+        const g = this.gestures.find(item => item.gesture_id === gestureId);
+        const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
+        const isMaster = Boolean(signer?.is_master);
+
+        const avgConf = this.pendingBatchFrames.length > 0
+          ? Math.round((this.pendingBatchFrames.reduce((acc, f) => acc + (f.confidence || 0.9), 0) / this.pendingBatchFrames.length) * 100)
+          : 95;
+
+        document.getElementById("batch-review-gesture").textContent = `${g?.name || gestureId} ${g?.kannada_meaning ? `(${g.kannada_meaning})` : ""}`;
+        document.getElementById("batch-review-signer").textContent = signerId;
+        document.getElementById("batch-review-conf").textContent = `${avgConf}%`;
+        document.getElementById("batch-review-mode").textContent = isMaster ? "👑 Master Media + 21-LM" : "⚡ 21-LM JSON (Saved)";
+        document.getElementById("batch-review-badge").textContent = `${this.pendingBatchFrames.length} / ${target} READY`;
+
+        const saveBatchBtn = document.getElementById("btn-batch-save");
+        if (saveBatchBtn) {
+          saveBatchBtn.disabled = false;
+          saveBatchBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">check_circle</span> <span>✓ Save All ${this.pendingBatchFrames.length} Samples to Database</span>`;
+        }
+
+        const retakeBatchBtn = document.getElementById("btn-batch-retake");
+        if (retakeBatchBtn) {
+          retakeBatchBtn.disabled = false;
+          retakeBatchBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">replay</span> <span>↺ Retake All ${this.pendingBatchFrames.length} Samples</span>`;
+        }
+
+        const panel = document.getElementById("auto-batch-review-panel");
+        if (panel) {
+          panel.classList.remove("hidden");
+          panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        }
       },
       800 // 800ms debounce for natural pose variation
     );
+  }
+
+  async saveBatch() {
+    if (!this.pendingBatchFrames || this.pendingBatchFrames.length === 0) {
+      alert("No pending samples in memory to save.");
+      return;
+    }
+
+    const signerId = (document.getElementById("collect-signer-input")?.value || "S001").trim();
+    const gestureId = this.selectedGestureId;
+    if (!this.signers || this.signers.length === 0) {
+      try { this.signers = await api.getSigners(); } catch (e) {}
+    }
+    const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
+    const isMaster = Boolean(signer?.is_master);
+
+    const saveBtn = document.getElementById("btn-batch-save");
+    const retakeBtn = document.getElementById("btn-batch-retake");
+    const savingInd = document.getElementById("batch-saving-indicator");
+    const savingCount = document.getElementById("batch-saving-count");
+    const savingFill = document.getElementById("batch-saving-fill");
+
+    if (saveBtn) saveBtn.disabled = true;
+    if (retakeBtn) retakeBtn.disabled = true;
+    if (savingInd) savingInd.classList.remove("hidden");
+
+    const total = this.pendingBatchFrames.length;
+    let savedCount = 0;
+
+    try {
+      for (let i = 0; i < total; i++) {
+        const frame = this.pendingBatchFrames[i];
+        const formData = new FormData();
+        formData.append("gesture_id", gestureId);
+        formData.append("signer_id", signerId);
+        formData.append("handedness", frame.handedness || "RIGHT");
+        formData.append("landmarks_json", JSON.stringify(frame.landmarks));
+        formData.append("confidence", frame.confidence || 0.95);
+        formData.append("width", frame.width || 640);
+        formData.append("height", frame.height || 480);
+
+        if (frame.imageBase64) {
+          formData.append("image_base64", frame.imageBase64);
+        }
+        formData.append("save_media", isMaster ? "true" : "false");
+
+        await api.uploadWebcamImageSample(formData);
+        savedCount++;
+
+        const pct = Math.round((savedCount / total) * 100);
+        if (savingCount) savingCount.textContent = `${savedCount} / ${total} saved (${pct}%)`;
+        if (savingFill) savingFill.style.width = `${pct}%`;
+      }
+
+      this.pendingBatchFrames = [];
+      alert(`🎉 Success! All ${savedCount} samples have been permanently committed to the database.`);
+
+      const reviewPanel = document.getElementById("auto-batch-review-panel");
+      if (reviewPanel) reviewPanel.classList.add("hidden");
+      const banner = document.getElementById("auto-collection-banner");
+      if (banner) banner.classList.add("hidden");
+
+      await this.loadDashboard();
+      await this.refreshGesturesList();
+      if (this.activeView === "my-collection") {
+        await this.loadMyCollectionPage();
+      }
+    } catch (err) {
+      alert(`Error saving batch at sample #${savedCount + 1}: ` + err.message);
+    } finally {
+      if (saveBtn) saveBtn.disabled = false;
+      if (retakeBtn) retakeBtn.disabled = false;
+      if (savingInd) savingInd.classList.add("hidden");
+    }
+  }
+
+  retakeBatch() {
+    const total = this.pendingBatchFrames ? this.pendingBatchFrames.length : 0;
+    if (total > 0 && !confirm(`Discard this batch of ${total} samples and retake from sample 1?`)) {
+      return;
+    }
+
+    // Drop entire memory buffer without touching database or disk
+    this.pendingBatchFrames = [];
+
+    const reviewPanel = document.getElementById("auto-batch-review-panel");
+    if (reviewPanel) reviewPanel.classList.add("hidden");
+
+    // Reset progress UI
+    const targetInput = document.getElementById("collect-target-samples-input");
+    const target = parseInt(targetInput?.value, 10) || 50;
+    const progCount = document.getElementById("auto-prog-count");
+    const progPct = document.getElementById("auto-prog-pct");
+    const progFill = document.getElementById("auto-progress-fill");
+    const validEl = document.getElementById("auto-valid-count");
+    const rejectedEl = document.getElementById("auto-rejected-count");
+    const statusBadge = document.getElementById("auto-status-badge");
+    const reasonEl = document.getElementById("auto-last-reason");
+
+    if (progCount) progCount.textContent = `0 / ${target}`;
+    if (progPct) progPct.textContent = `0%`;
+    if (progFill) progFill.style.width = `0%`;
+    if (validEl) validEl.textContent = `0`;
+    if (rejectedEl) rejectedEl.textContent = `0`;
+    if (statusBadge) {
+      statusBadge.textContent = "READY TO RETAKE";
+      statusBadge.className = "px-2 py-0.5 rounded text-[11px] font-mono bg-amber-950 text-amber-300 border border-amber-800";
+    }
+    if (reasonEl) reasonEl.textContent = "Previous batch discarded. Position hand to start retaking.";
+
+    // Restart auto-collection fresh
+    this.startAutoCollection();
   }
 
   pauseAutoCollection() {
@@ -1558,8 +1701,43 @@ class App {
       statusBadge.textContent = "STOPPED";
       statusBadge.className = "px-2 py-0.5 rounded text-[11px] font-mono bg-surface-container-high text-outline";
     }
-    if (reasonEl) reasonEl.textContent = "Auto-collection stopped by user.";
-    this.loadDashboard();
+
+    if (this.pendingBatchFrames && this.pendingBatchFrames.length > 0) {
+      if (reasonEl) reasonEl.textContent = `Collection stopped at ${this.pendingBatchFrames.length} samples. Save or retake below.`;
+
+      const g = this.gestures.find(item => item.gesture_id === this.selectedGestureId);
+      const signerId = (document.getElementById("collect-signer-input")?.value || "S001").trim();
+      const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
+      const isMaster = Boolean(signer?.is_master);
+
+      const avgConf = Math.round((this.pendingBatchFrames.reduce((acc, f) => acc + (f.confidence || 0.9), 0) / this.pendingBatchFrames.length) * 100);
+
+      document.getElementById("batch-review-gesture").textContent = `${g?.name || this.selectedGestureId} ${g?.kannada_meaning ? `(${g.kannada_meaning})` : ""}`;
+      document.getElementById("batch-review-signer").textContent = signerId;
+      document.getElementById("batch-review-conf").textContent = `${avgConf}%`;
+      document.getElementById("batch-review-mode").textContent = isMaster ? "👑 Master Media + 21-LM" : "⚡ 21-LM JSON (Saved)";
+      document.getElementById("batch-review-badge").textContent = `${this.pendingBatchFrames.length} SAMPLES COLLECTED`;
+
+      const saveBatchBtn = document.getElementById("btn-batch-save");
+      if (saveBatchBtn) {
+        saveBatchBtn.disabled = false;
+        saveBatchBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">check_circle</span> <span>✓ Save ${this.pendingBatchFrames.length} Samples to Database</span>`;
+      }
+
+      const retakeBatchBtn = document.getElementById("btn-batch-retake");
+      if (retakeBatchBtn) {
+        retakeBatchBtn.disabled = false;
+        retakeBatchBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">replay</span> <span>↺ Retake All Samples</span>`;
+      }
+
+      const panel = document.getElementById("auto-batch-review-panel");
+      if (panel) {
+        panel.classList.remove("hidden");
+        panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+      }
+    } else {
+      if (reasonEl) reasonEl.textContent = "Auto-collection stopped by user.";
+    }
   }
 
   retakeStaticSample() {
@@ -1743,6 +1921,9 @@ class App {
     if (!this.recordedDynamicData) return;
 
     const signerId = document.getElementById("collect-signer-input").value.trim() || "S001";
+    if (!this.signers || this.signers.length === 0) {
+      try { this.signers = await api.getSigners(); } catch (e) {}
+    }
     const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
     const isMaster = Boolean(signer?.is_master);
 
@@ -1761,12 +1942,10 @@ class App {
       formData.append("frame_count", this.recordedDynamicData.frameCount);
       formData.append("confidence", 0.94);
 
-      if (isMaster) {
+      if (this.recordedDynamicData.videoBlob) {
         formData.append("video", this.recordedDynamicData.videoBlob, `recording_${Date.now()}.webm`);
-        formData.append("save_media", "true");
-      } else {
-        formData.append("save_media", "false");
       }
+      formData.append("save_media", isMaster ? "true" : "false");
 
       const saved = await api.uploadWebcamVideoSample(formData);
 

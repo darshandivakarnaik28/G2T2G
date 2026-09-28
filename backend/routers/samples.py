@@ -144,7 +144,12 @@ async def create_webcam_image_sample(
     # Storage optimization: Only Master Signer keeps heavy image files unless explicitly forced
     signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
     is_master = bool(signer_obj and getattr(signer_obj, "is_master", False))
-    should_save_media = save_media if save_media is not None else is_master
+    if is_master:
+        should_save_media = True
+    elif save_media is not None:
+        should_save_media = bool(save_media)
+    else:
+        should_save_media = False
 
     stored_path = "landmarks_only"
     orig_filename = f"landmarks_pose_{sample_id}.json"
@@ -300,7 +305,12 @@ async def create_image_sample(
     sample_id = f"smp_{uuid.uuid4().hex[:8]}"
     signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
     is_master = bool(signer_obj and getattr(signer_obj, "is_master", False))
-    should_save_media = save_media if save_media is not None else is_master
+    if is_master:
+        should_save_media = True
+    elif save_media is not None:
+        should_save_media = bool(save_media)
+    else:
+        should_save_media = False
 
     stored_path = "landmarks_only"
     orig_filename = f"sample_{sample_id}.json"
@@ -425,7 +435,12 @@ async def create_webcam_video_sample(
     sample_id = f"smp_vid_{uuid.uuid4().hex[:8]}"
     signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
     is_master = bool(signer_obj and getattr(signer_obj, "is_master", False))
-    should_save_media = save_media if save_media is not None else is_master
+    if is_master:
+        should_save_media = True
+    elif save_media is not None:
+        should_save_media = bool(save_media)
+    else:
+        should_save_media = False
 
     stored_path = "landmarks_only"
     orig_filename = f"recording_{sample_id}_landmarks.json"

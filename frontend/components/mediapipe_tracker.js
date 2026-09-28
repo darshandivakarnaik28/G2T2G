@@ -519,12 +519,24 @@ export class MediaPipeTracker {
       try { this.camera.stop(); } catch (e) {}
       this.camera = null;
     }
-    if (this.videoElement && this.videoElement.srcObject) {
-      try {
-        this.videoElement.srcObject.getTracks().forEach(t => t.stop());
-      } catch (e) {}
-      this.videoElement.srcObject = null;
-    }
+    const allVideos = [
+      this.videoElement,
+      document.getElementById("static-live-video"),
+      document.getElementById("dynamic-live-video")
+    ];
+    allVideos.forEach(v => {
+      if (v && v.srcObject) {
+        try {
+          const stream = v.srcObject;
+          if (stream.getTracks) {
+            stream.getTracks().forEach(track => {
+              try { track.stop(); } catch (err) {}
+            });
+          }
+        } catch (e) {}
+        v.srcObject = null;
+      }
+    });
     if (this.canvasCtx && this.canvasElement) {
       this.canvasCtx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
     }

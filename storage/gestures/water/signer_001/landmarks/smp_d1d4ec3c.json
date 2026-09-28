@@ -1,0 +1,20 @@
+{
+  "gesture_id": "water",
+  "gesture_name": "Water",
+  "signer_id": "signer_001",
+  "signer_name": "Darshan",
+  "sample_id": "smp_d1d4ec3c",
+  "type": "STATIC",
+  "fps": null,
+  "frames": [
+    {
+      "right_hand_landmarks": [
+        {
+          "x": 0.2,
+          "y": 0.4,
+          "z": 0.1
+        }
+      ]
+    }
+  ]
+}

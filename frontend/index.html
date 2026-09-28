@@ -745,6 +745,69 @@
             </div>
           </div>
 
+          <!-- Auto-Collection Batch Review & Confirmation Panel -->
+          <div id="auto-batch-review-panel" class="hidden p-5 rounded-lg bg-surface-container border-2 border-emerald-500/80 shadow-2xl space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500 flex items-center justify-center text-emerald-400">
+                  <span class="material-symbols-outlined text-2xl">verified</span>
+                </div>
+                <div>
+                  <h3 class="font-bold text-base text-on-background flex items-center gap-2">
+                    <span>Batch Collection Complete!</span>
+                    <span id="batch-review-badge" class="px-2.5 py-0.5 rounded-full text-xs font-mono bg-emerald-950 border border-emerald-800 text-emerald-300 font-bold">50 / 50</span>
+                  </h3>
+                  <p class="text-xs text-outline">Review your batch. If you made any mistake during signing, you can retake all 50 samples again.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs font-mono bg-surface-container-lowest p-3 rounded-lg border border-outline-variant/30">
+              <div>
+                <span class="text-outline text-[10px] block">TARGET GESTURE</span>
+                <strong id="batch-review-gesture" class="text-primary text-sm truncate block">Water</strong>
+              </div>
+              <div>
+                <span class="text-outline text-[10px] block">SIGNER ID</span>
+                <strong id="batch-review-signer" class="text-on-background text-sm block">S001</strong>
+              </div>
+              <div>
+                <span class="text-outline text-[10px] block">AVG CONFIDENCE</span>
+                <strong id="batch-review-conf" class="text-emerald-400 text-sm block">96%</strong>
+              </div>
+              <div>
+                <span class="text-outline text-[10px] block">STORAGE MODE</span>
+                <strong id="batch-review-mode" class="text-amber-300 text-sm block">⚡ 21-LM JSON</strong>
+              </div>
+            </div>
+
+            <!-- Action Buttons: Save All vs Retake All -->
+            <div class="flex flex-wrap items-center justify-end gap-3 pt-2 border-t border-[#334155]/60">
+              <button id="btn-batch-retake" onclick="app.retakeBatch()" class="px-5 py-2.5 rounded-lg bg-rose-950 hover:bg-rose-900 text-rose-300 border border-rose-700 text-xs font-semibold flex items-center gap-2 cursor-pointer transition-colors shadow-md">
+                <span class="material-symbols-outlined text-[18px]">replay</span>
+                <span>↺ Retake All 50 Samples</span>
+              </button>
+              <button id="btn-batch-save" onclick="app.saveBatch()" class="px-6 py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 cursor-pointer transition-all shadow-lg hover:shadow-emerald-500/20">
+                <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                <span>✓ Save All 50 Samples to Database</span>
+              </button>
+            </div>
+
+            <!-- Saving progress bar inside review modal -->
+            <div id="batch-saving-indicator" class="hidden space-y-1.5 pt-2">
+              <div class="flex justify-between text-xs font-mono text-outline">
+                <span id="batch-saving-text" class="text-primary flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+                  Saving samples to database...
+                </span>
+                <span id="batch-saving-count" class="font-bold text-on-background">0 / 50</span>
+              </div>
+              <div class="w-full h-2.5 rounded-full bg-surface-container-lowest overflow-hidden border border-outline-variant/30">
+                <div id="batch-saving-fill" class="h-full bg-gradient-to-r from-emerald-500 to-primary transition-all duration-150" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+
           <!-- Static Webcam Live Feed Area -->
           <div id="static-camera-area" class="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <div class="lg:col-span-2 space-y-4">
@@ -1508,6 +1571,6 @@
   </div>
 
   <!-- Root Application JS Module (cache-busting query param ensures fresh load) -->
-  <script type="module" src="app.js?v=20260928_storage_opt"></script>
+  <script type="module" src="app.js?v=20260928_signer_folders_fix"></script>
 </body>
 </html>
