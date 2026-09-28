@@ -120,6 +120,7 @@ async def create_webcam_image_sample(
     confidence: float = Form(0.95),
     width: int = Form(640),
     height: int = Form(480),
+    save_media: Optional[bool] = Form(None),
     db: Session = Depends(get_db)
 ):
     clean_gid = gesture_id.strip().lower()
@@ -140,23 +141,33 @@ async def create_webcam_image_sample(
 
     sample_id = f"smp_{uuid.uuid4().hex[:8]}"
 
-    # Decode image bytes
-    if image_file:
-        img_bytes = await image_file.read()
-        ext = image_file.filename.split(".")[-1].lower() if "." in image_file.filename else "jpg"
-    elif image_base64:
-        if "," in image_base64:
-            header, encoded = image_base64.split(",", 1)
-            ext = "png" if "png" in header else "jpg"
-            img_bytes = base64.b64decode(encoded)
-        else:
-            img_bytes = base64.b64decode(image_base64)
-            ext = "jpg"
-    else:
-        raise HTTPException(status_code=400, detail="Image file or base64 data required.")
+    # Storage optimization: Only Master Signer keeps heavy image files unless explicitly forced
+    signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
+    is_master = bool(signer_obj and getattr(signer_obj, "is_master", False))
+    should_save_media = save_media if save_media is not None else is_master
 
-    # Save to hierarchical storage
-    stored_path = save_image_bytes(clean_gid, img_bytes, ext=ext, signer_id=clean_sid)
+    stored_path = "landmarks_only"
+    orig_filename = f"landmarks_pose_{sample_id}.json"
+
+    if should_save_media and (image_file or image_base64):
+        if image_file:
+            img_bytes = await image_file.read()
+            ext = image_file.filename.split(".")[-1].lower() if "." in (image_file.filename or "") else "jpg"
+        elif image_base64:
+            if "," in image_base64:
+                header, encoded = image_base64.split(",", 1)
+                ext = "png" if "png" in header else "jpg"
+                img_bytes = base64.b64decode(encoded)
+            else:
+                img_bytes = base64.b64decode(image_base64)
+                ext = "jpg"
+        else:
+            img_bytes = None
+            ext = "jpg"
+
+        if img_bytes:
+            stored_path = save_image_bytes(clean_gid, img_bytes, ext=ext, signer_id=clean_sid)
+            orig_filename = f"webcam_pose_{sample_id}.{ext}"
 
     # Parse landmarks
     try:
@@ -164,7 +175,6 @@ async def create_webcam_image_sample(
     except Exception:
         parsed_lm = {}
 
-    signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
     signer_name = signer_obj.display_name if signer_obj else clean_sid
 
     lm_payload = {
@@ -203,7 +213,7 @@ async def create_webcam_image_sample(
         gesture_id=clean_gid,
         signer_id=clean_sid,
         sample_type="WEBCAM_IMAGE",
-        original_filename=f"webcam_pose_{sample_id}.{ext}",
+        original_filename=orig_filename,
         stored_file_path=stored_path,
         landmark_file_path=lm_path,
         frame_count=1,
@@ -264,11 +274,12 @@ async def create_image_sample(
     gesture_id: str = Form(...),
     signer_id: str = Form(...),
     landmarks_json: str = Form(...),
-    image: UploadFile = File(...),
+    image: Optional[UploadFile] = File(None),
     handedness: Optional[str] = Form(None),
     confidence: float = Form(0.95),
     width: int = Form(640),
     height: int = Form(480),
+    save_media: Optional[bool] = Form(None),
     db: Session = Depends(get_db)
 ):
     clean_gid = gesture_id.strip().lower()
@@ -287,17 +298,25 @@ async def create_image_sample(
     _sync_signer_and_assignment(db, clean_gid, clean_sid)
 
     sample_id = f"smp_{uuid.uuid4().hex[:8]}"
-    img_bytes = await image.read()
-    ext = image.filename.split(".")[-1].lower() if "." in image.filename else "jpg"
+    signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
+    is_master = bool(signer_obj and getattr(signer_obj, "is_master", False))
+    should_save_media = save_media if save_media is not None else is_master
 
-    stored_path = save_image_bytes(clean_gid, img_bytes, ext=ext, signer_id=clean_sid)
+    stored_path = "landmarks_only"
+    orig_filename = f"sample_{sample_id}.json"
+
+    if should_save_media and image:
+        img_bytes = await image.read()
+        if len(img_bytes) > 0:
+            ext = image.filename.split(".")[-1].lower() if "." in (image.filename or "") else "jpg"
+            stored_path = save_image_bytes(clean_gid, img_bytes, ext=ext, signer_id=clean_sid)
+            orig_filename = image.filename
 
     try:
         parsed_lm = json.loads(landmarks_json)
     except Exception:
         parsed_lm = {}
 
-    signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
     signer_name = signer_obj.display_name if signer_obj else clean_sid
 
     lm_payload = {
@@ -319,7 +338,7 @@ async def create_image_sample(
         gesture_id=clean_gid,
         signer_id=clean_sid,
         sample_type="IMAGE",
-        original_filename=image.filename,
+        original_filename=orig_filename,
         stored_file_path=stored_path,
         landmark_file_path=lm_path,
         frame_count=1,
@@ -379,12 +398,13 @@ async def create_webcam_video_sample(
     gesture_id: str = Form(...),
     signer_id: str = Form(...),
     landmarks_sequence_json: str = Form(...),
-    video: UploadFile = File(...),
+    video: Optional[UploadFile] = File(None),
     handedness: Optional[str] = Form(None),
     fps: float = Form(30.0),
     duration: float = Form(4.0),
     frame_count: int = Form(120),
     confidence: float = Form(0.92),
+    save_media: Optional[bool] = Form(None),
     db: Session = Depends(get_db)
 ):
     clean_gid = gesture_id.strip().lower()
@@ -403,10 +423,19 @@ async def create_webcam_video_sample(
     _sync_signer_and_assignment(db, clean_gid, clean_sid)
 
     sample_id = f"smp_vid_{uuid.uuid4().hex[:8]}"
-    vid_bytes = await video.read()
-    ext = video.filename.split(".")[-1].lower() if "." in video.filename else "webm"
+    signer_obj = db.query(Signer).filter(Signer.signer_id == clean_sid).first()
+    is_master = bool(signer_obj and getattr(signer_obj, "is_master", False))
+    should_save_media = save_media if save_media is not None else is_master
 
-    stored_path = save_video_bytes(clean_gid, vid_bytes, ext=ext, signer_id=clean_sid)
+    stored_path = "landmarks_only"
+    orig_filename = f"recording_{sample_id}_landmarks.json"
+
+    if should_save_media and video:
+        vid_bytes = await video.read()
+        if len(vid_bytes) > 0:
+            ext = video.filename.split(".")[-1].lower() if "." in (video.filename or "") else "webm"
+            stored_path = save_video_bytes(clean_gid, vid_bytes, ext=ext, signer_id=clean_sid)
+            orig_filename = video.filename or f"recording_{sample_id}.{ext}"
 
     try:
         frames_list = json.loads(landmarks_sequence_json)
@@ -441,7 +470,7 @@ async def create_webcam_video_sample(
         gesture_id=clean_gid,
         signer_id=clean_sid,
         sample_type="WEBCAM_VIDEO",
-        original_filename=video.filename or f"recording_{sample_id}.{ext}",
+        original_filename=orig_filename,
         stored_file_path=stored_path,
         landmark_file_path=lm_path,
         frame_count=actual_frames_count,

@@ -63,7 +63,7 @@ class DatasetSample(Base):
     signer_id = Column(String(64), ForeignKey("signers.signer_id"), index=True, nullable=False) # e.g. "S001"
     sample_type = Column(String(32), nullable=False) # "IMAGE", "WEBCAM_IMAGE", "VIDEO", "WEBCAM_VIDEO"
     original_filename = Column(String(256), nullable=True)
-    stored_file_path = Column(String(512), nullable=False)
+    stored_file_path = Column(String(512), nullable=True, default="")
     landmark_file_path = Column(String(512), nullable=True)
     frame_count = Column(Integer, default=1)
     fps = Column(Float, nullable=True, default=30.0)

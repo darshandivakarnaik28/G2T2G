@@ -153,7 +153,7 @@ class DatasetSampleOut(BaseModel):
     gesture_type: Optional[str] = None
     signer_id: str
     sample_type: str
-    stored_file_path: str
+    stored_file_path: Optional[str] = ""
     landmark_file_path: Optional[str] = None
     frame_count: int
     fps: Optional[float] = 30.0

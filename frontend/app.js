@@ -127,9 +127,36 @@ class App {
     });
 
     const collectSignerInput = document.getElementById("collect-signer-input");
+    collectSignerInput?.addEventListener("input", (e) => {
+      this.updateCollectorStorageBanner();
+    });
     collectSignerInput?.addEventListener("change", (e) => {
       this.setActiveSigner(e.target.value.trim().toUpperCase());
     });
+  }
+
+  updateCollectorStorageBanner() {
+    const banner = document.getElementById("collect-storage-mode-banner");
+    if (!banner) return;
+    const inputVal = (document.getElementById("collect-signer-input")?.value || this.activeSignerId || "").trim().toUpperCase();
+    const signer = this.signers?.find(s => s.signer_id.toUpperCase() === inputVal);
+    const isMaster = Boolean(signer?.is_master);
+
+    if (isMaster) {
+      banner.className = "px-3 py-1 rounded-lg border text-xs font-mono flex items-center gap-1.5 bg-amber-950/60 border-amber-800 text-amber-300";
+      banner.innerHTML = `
+        <span class="material-symbols-outlined text-[15px]">stars</span>
+        <span>👑 MASTER SIGNER (Full Video & 21-LM JSON)</span>
+      `;
+      banner.title = "Master Signer: High-quality media is stored for Text-to-Gesture dictionary playback.";
+    } else {
+      banner.className = "px-3 py-1 rounded-lg border text-xs font-mono flex items-center gap-1.5 bg-emerald-950/60 border-emerald-800 text-emerald-300";
+      banner.innerHTML = `
+        <span class="material-symbols-outlined text-[15px]">bolt</span>
+        <span>⚡ STORAGE OPTIMIZED (21-LM JSON Only • ~99% Disk Saved)</span>
+      `;
+      banner.title = "Storage Optimized: Teammate motions are saved as 21-landmark JSON for AI training without heavy video bloat.";
+    }
   }
 
   setActiveSigner(signerId) {
@@ -149,6 +176,7 @@ class App {
     if (mySignerBadge) {
       mySignerBadge.textContent = signerId;
     }
+    this.updateCollectorStorageBanner();
     if (this.activeView === "my-collection") {
       this.loadMyCollectionPage();
     }
@@ -1350,9 +1378,12 @@ class App {
     if (!this.capturedStaticData) return;
 
     const signerId = document.getElementById("collect-signer-input").value.trim() || "S001";
+    const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
+    const isMaster = Boolean(signer?.is_master);
+
     const saveBtn = document.getElementById("btn-save-static-sample");
     saveBtn.disabled = true;
-    saveBtn.textContent = "Saving to SQLite...";
+    saveBtn.textContent = isMaster ? "Saving Master Media & Landmarks..." : "Saving 21-LM (Storage Optimized)...";
 
     try {
       const formData = new FormData();
@@ -1360,19 +1391,26 @@ class App {
       formData.append("signer_id", signerId);
       formData.append("handedness", this.capturedStaticData.handedness || "RIGHT");
       formData.append("landmarks_json", JSON.stringify(this.capturedStaticData.landmarks));
-      formData.append("image_base64", this.capturedStaticData.imageBase64);
       formData.append("confidence", this.capturedStaticData.confidence);
       formData.append("width", this.capturedStaticData.width);
       formData.append("height", this.capturedStaticData.height);
+
+      if (isMaster) {
+        formData.append("image_base64", this.capturedStaticData.imageBase64);
+        formData.append("save_media", "true");
+      } else {
+        formData.append("save_media", "false");
+      }
 
       const saved = await api.uploadWebcamImageSample(formData);
 
       // Show success notification
       const statusEl = document.getElementById("static-save-status");
+      const isLandmarksOnly = saved.stored_file_path === "landmarks_only";
       statusEl.innerHTML = `
         <div class="p-3 rounded bg-emerald-950/60 border border-emerald-800 text-emerald-300 text-xs flex items-center gap-2">
           <span class="material-symbols-outlined text-[18px]">check_circle</span>
-          <span>Sample <strong>${saved.sample_id}</strong> saved to database! Stored at: <code>${saved.stored_file_path}</code></span>
+          <span>Sample <strong>${saved.sample_id}</strong> saved! Mode: <strong>${isLandmarksOnly ? "⚡ 21-LM JSON Only (Storage Saved)" : "👑 Master Media + Landmarks"}</strong></span>
         </div>
       `;
 
@@ -1454,15 +1492,24 @@ class App {
       // onSampleCaptured callback: persistent SQLite upload directly per valid frame
       async (frame, collectedIndex) => {
         try {
+          const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
+          const isMaster = Boolean(signer?.is_master);
+
           const formData = new FormData();
           formData.append("gesture_id", gestureId);
           formData.append("signer_id", signerId);
           formData.append("handedness", frame.handedness || "RIGHT");
           formData.append("landmarks_json", JSON.stringify(frame.landmarks));
-          formData.append("image_base64", frame.imageBase64);
           formData.append("confidence", frame.confidence);
           formData.append("width", frame.width);
           formData.append("height", frame.height);
+
+          if (isMaster) {
+            formData.append("image_base64", frame.imageBase64);
+            formData.append("save_media", "true");
+          } else {
+            formData.append("save_media", "false");
+          }
 
           await api.uploadWebcamImageSample(formData);
         } catch (err) {
@@ -1696,25 +1743,35 @@ class App {
     if (!this.recordedDynamicData) return;
 
     const signerId = document.getElementById("collect-signer-input").value.trim() || "S001";
+    const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
+    const isMaster = Boolean(signer?.is_master);
+
     const saveBtn = document.getElementById("btn-save-dynamic-sample");
     saveBtn.disabled = true;
-    saveBtn.textContent = "Saving Video & Sequence...";
+    saveBtn.textContent = isMaster ? "Saving Master Video & Sequence..." : "Saving 21-LM Sequence (Storage Saved)...";
 
     try {
       const formData = new FormData();
       formData.append("gesture_id", this.selectedGestureId);
       formData.append("signer_id", signerId);
       formData.append("handedness", this.recordedDynamicData.handedness || "RIGHT");
-      formData.append("video", this.recordedDynamicData.videoBlob, `recording_${Date.now()}.webm`);
       formData.append("landmarks_sequence_json", JSON.stringify(this.recordedDynamicData.frames));
       formData.append("fps", this.recordedDynamicData.fps);
       formData.append("duration", this.recordedDynamicData.duration);
       formData.append("frame_count", this.recordedDynamicData.frameCount);
       formData.append("confidence", 0.94);
 
+      if (isMaster) {
+        formData.append("video", this.recordedDynamicData.videoBlob, `recording_${Date.now()}.webm`);
+        formData.append("save_media", "true");
+      } else {
+        formData.append("save_media", "false");
+      }
+
       const saved = await api.uploadWebcamVideoSample(formData);
 
-      alert(`Dynamic sample saved successfully! Sample ID: ${saved.sample_id}`);
+      const modeMsg = isMaster ? "👑 Master Video + 21-Landmark Sequence" : "⚡ 21-Landmark Sequence (Storage Saved)";
+      alert(`Sample saved successfully!\nMode: ${modeMsg}\nSample ID: ${saved.sample_id}`);
       saveBtn.disabled = false;
       saveBtn.textContent = "Save Dynamic Sample to Dataset";
       document.getElementById("dynamic-recorded-panel").classList.add("hidden");
@@ -1745,9 +1802,17 @@ class App {
         tr.className = "data-table-row hover:bg-surface-variant/30 text-sm cursor-pointer";
         tr.onclick = () => this.inspectSample(s.sample_id);
 
+        const isLandmarksOnly = !s.stored_file_path || s.stored_file_path === "landmarks_only" || s.stored_file_path.trim() === "";
+        const storageBadge = isLandmarksOnly
+          ? `<span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-mono bg-emerald-950/80 text-emerald-400 border border-emerald-800" title="Landmarks Only (Saved 99% disk space)">⚡ JSON Only</span>`
+          : `<span class="ml-1.5 px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-950/80 text-amber-300 border border-amber-800" title="Full Video Saved (Master / Media)">🎥 Media</span>`;
+
         tr.innerHTML = `
           <td class="py-3 px-4 font-medium text-on-background">${s.gesture_name || s.gesture_id} <span class="text-xs text-primary">${s.gesture_kannada ? `(${s.gesture_kannada})` : ""}</span></td>
-          <td class="py-3 px-4"><span class="px-2 py-0.5 rounded text-xs ${s.sample_type.includes("VIDEO") ? "bg-purple-950 text-purple-300" : "bg-blue-950 text-blue-300"}">${s.sample_type}</span></td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded text-xs ${s.sample_type.includes("VIDEO") ? "bg-purple-950 text-purple-300" : "bg-blue-950 text-blue-300"}">${s.sample_type}</span>
+            ${storageBadge}
+          </td>
           <td class="py-3 px-4 text-on-surface-variant">${s.signer_id}</td>
           <td class="py-3 px-4 font-mono text-xs text-outline">${s.frame_count} frames</td>
           <td class="py-3 px-4 font-mono text-xs text-primary">${Math.round(s.detection_confidence * 100)}%</td>
@@ -1781,39 +1846,58 @@ class App {
       document.getElementById("inspect-conf").textContent = `${Math.round(sample.detection_confidence * 100)}%`;
       document.getElementById("inspect-frames").textContent = sample.frame_count;
 
-      // Media container (image or video)
+      // Media container (image, video, or landmarks-only badge)
       const mediaContainer = document.getElementById("inspect-media-container");
       mediaContainer.innerHTML = "";
-      const fileUrl = api.getAssetUrl(sample.stored_file_path);
+      const hasMedia = sample.stored_file_path && sample.stored_file_path !== "landmarks_only" && sample.stored_file_path.trim() !== "";
 
-      if (sample.sample_type.includes("VIDEO")) {
-        const vid = document.createElement("video");
-        vid.src = fileUrl;
-        vid.controls = true;
-        vid.autoplay = true;
-        vid.loop = true;
-        vid.className = "w-full h-full object-contain";
-        vid.onplay = () => {
-          if (this.sampleInspectSkeletonViewer && !this.sampleInspectSkeletonViewer.isPlaying) {
-            this.sampleInspectSkeletonViewer.play();
-          }
-        };
-        vid.onpause = () => {
-          if (this.sampleInspectSkeletonViewer && this.sampleInspectSkeletonViewer.isPlaying) {
-            this.sampleInspectSkeletonViewer.pause();
-          }
-        };
-        vid.ontimeupdate = () => {
-          if (this.sampleInspectSkeletonViewer) {
-            this.sampleInspectSkeletonViewer.seek(vid.currentTime);
-          }
-        };
-        mediaContainer.appendChild(vid);
+      if (hasMedia) {
+        const fileUrl = api.getAssetUrl(sample.stored_file_path);
+
+        if (sample.sample_type.includes("VIDEO")) {
+          const vid = document.createElement("video");
+          vid.src = fileUrl;
+          vid.controls = true;
+          vid.autoplay = true;
+          vid.loop = true;
+          vid.className = "w-full h-full object-contain";
+          vid.onplay = () => {
+            if (this.sampleInspectSkeletonViewer && !this.sampleInspectSkeletonViewer.isPlaying) {
+              this.sampleInspectSkeletonViewer.play();
+            }
+          };
+          vid.onpause = () => {
+            if (this.sampleInspectSkeletonViewer && this.sampleInspectSkeletonViewer.isPlaying) {
+              this.sampleInspectSkeletonViewer.pause();
+            }
+          };
+          vid.ontimeupdate = () => {
+            if (this.sampleInspectSkeletonViewer) {
+              this.sampleInspectSkeletonViewer.seek(vid.currentTime);
+            }
+          };
+          mediaContainer.appendChild(vid);
+        } else {
+          const img = document.createElement("img");
+          img.src = fileUrl;
+          img.className = "w-full h-full object-contain";
+          mediaContainer.appendChild(img);
+        }
       } else {
-        const img = document.createElement("img");
-        img.src = fileUrl;
-        img.className = "w-full h-full object-contain";
-        mediaContainer.appendChild(img);
+        // Show clean Landmarks-Only visual placeholder
+        mediaContainer.innerHTML = `
+          <div class="w-full h-full min-h-[260px] flex flex-col items-center justify-center p-6 text-center bg-surface-container/60 rounded border border-dashed border-emerald-800/60">
+            <span class="material-symbols-outlined text-4xl text-emerald-400 mb-2">dataset</span>
+            <div class="text-xs font-bold text-emerald-300 tracking-wide uppercase">Landmarks-Only Sample</div>
+            <div class="text-[11px] text-outline mt-1.5 max-w-[240px]">
+              Raw video/image omitted to save disk space. The 21-landmark 3D coordinate motion data is captured for AI training.
+            </div>
+            <div class="mt-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-emerald-950/80 border border-emerald-700/50 text-emerald-300 text-[11px]">
+              <span class="material-symbols-outlined text-[14px]">check_circle</span>
+              <span>Ready for AI Model</span>
+            </div>
+          </div>
+        `;
       }
 
       // JSON raw data
