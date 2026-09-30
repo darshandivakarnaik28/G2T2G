@@ -183,6 +183,11 @@ app.include_router(export.router)
 # Mount central storage folder for media serving
 app.mount("/storage", StaticFiles(directory=str(STORAGE_DIR)), name="storage")
 
+# Mount end-user application interface
+CONNECT_DIR = BASE_DIR / "frontend" / "connect"
+if CONNECT_DIR.exists():
+    app.mount("/connect", StaticFiles(directory=str(CONNECT_DIR), html=True), name="connect")
+
 # Mount frontend directory at root (after API routers)
 FRONTEND_DIR = BASE_DIR / "frontend"
 if FRONTEND_DIR.exists():

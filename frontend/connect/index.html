@@ -1,0 +1,1349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <meta content="web_standard" name="shell-type"/>
+  <title>ISL Connect - G2T2G Indian Sign Language Platform</title>
+  <link rel="icon" type="image/svg+xml" href="assets/logo.svg"/>
+  <style>
+    @layer base {
+      html, body { margin: 0; padding: 0; }
+      body { overscroll-behavior: none; }
+      main > :first-child { margin-top: 0 !important; }
+      main > :last-child { margin-bottom: 0 !important; }
+    }
+    ::-webkit-scrollbar { display: none; }
+    .nav-link.active {
+      background-color: #2563eb !important;
+      color: #eeefff !important;
+      font-weight: 700 !important;
+    }
+    .mobile-nav-btn.active {
+      background-color: #2563eb !important;
+      color: #ffffff !important;
+      font-weight: 700 !important;
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-surface": "#131b2e",
+            "on-secondary-fixed": "#00201d",
+            "on-secondary-fixed-variant": "#005049",
+            "tertiary-fixed-dim": "#bdcac1",
+            "tertiary-container": "#647069",
+            "on-surface-variant": "#434655",
+            "inverse-surface": "#283044",
+            "secondary-fixed": "#89f5e7",
+            "inverse-on-surface": "#eef0ff",
+            "tertiary": "#4c5851",
+            "primary-fixed-dim": "#b4c5ff",
+            "on-tertiary": "#ffffff",
+            "on-error-container": "#93000a",
+            "surface-tint": "#0053db",
+            "on-background": "#131b2e",
+            "surface-container-lowest": "#ffffff",
+            "surface-dim": "#d2d9f4",
+            "background": "#faf8ff",
+            "surface-container-highest": "#dae2fd",
+            "outline": "#737686",
+            "surface": "#faf8ff",
+            "error-container": "#ffdad6",
+            "on-tertiary-fixed": "#131e19",
+            "surface-container-low": "#f2f3ff",
+            "secondary": "#006a61",
+            "surface-variant": "#dae2fd",
+            "on-error": "#ffffff",
+            "on-primary-fixed": "#00174b",
+            "outline-variant": "#c3c6d7",
+            "on-tertiary-fixed-variant": "#3e4943",
+            "surface-container": "#eaedff",
+            "on-secondary-container": "#006f66",
+            "surface-container-high": "#e2e7ff",
+            "on-secondary": "#ffffff",
+            "error": "#ba1a1a",
+            "primary-fixed": "#dbe1ff",
+            "primary-container": "#2563eb",
+            "on-primary-container": "#eeefff",
+            "on-tertiary-container": "#e7f4eb",
+            "secondary-container": "#86f2e4",
+            "surface-bright": "#faf8ff",
+            "inverse-primary": "#b4c5ff",
+            "primary": "#004ac6",
+            "on-primary": "#ffffff",
+            "secondary-fixed-dim": "#6bd8cb",
+            "on-primary-fixed-variant": "#003ea8"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.125rem",
+            "lg": "0.25rem",
+            "xl": "0.5rem",
+            "full": "0.75rem"
+          },
+          "spacing": {
+            "space-sm": "0.5rem",
+            "space-md": "1rem",
+            "space-xs": "0.25rem",
+            "space-lg": "1.5rem",
+            "margin": "2rem",
+            "space-xl": "2.5rem",
+            "gutter": "1.5rem"
+          },
+          "fontFamily": {
+            "body-md": ["Inter"],
+            "headline-lg": ["Atkinson Hyperlegible Next"],
+            "headline-lg-mobile": ["Atkinson Hyperlegible Next"],
+            "label-sm": ["Inter"],
+            "headline-sm": ["Atkinson Hyperlegible Next"],
+            "headline-md": ["Atkinson Hyperlegible Next"],
+            "body-sm": ["Inter"],
+            "label-md": ["Inter"],
+            "body-lg": ["Inter"]
+          },
+          "fontSize": {
+            "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+            "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "headline-lg-mobile": ["26px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+            "label-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+            "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }],
+            "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+            "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+            "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+            "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }]
+          }
+        }
+      }
+    };
+  </script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@100..900&family=Inter:wght@100..900&display=swap" rel="stylesheet"/>
+
+  <!-- Three.js + OrbitControls for 3D Articulated Avatar -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+</head>
+<body class="bg-surface text-on-surface antialiased flex flex-col min-h-screen">
+
+  <!-- Master Application Header Bar -->
+  <header class="fixed top-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-surface-container">
+    <div class="h-16 max-w-7xl mx-auto px-gutter flex items-center justify-between">
+      <!-- Brand & Logo -->
+      <div class="flex items-center gap-space-md cursor-pointer select-none" onclick="navigateTo('home')">
+        <img alt="ISL Connect Logo" class="h-8 w-8 object-contain" src="assets/logo.svg"/>
+        <div class="flex items-baseline gap-2">
+          <span class="font-headline-md text-on-surface tracking-tight font-bold">G2T2G</span>
+          <span class="hidden sm:inline-block text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold">ISL Connect</span>
+        </div>
+      </div>
+
+      <!-- Navigation Links -->
+      <nav class="hidden md:flex items-center gap-space-sm" id="desktop-nav">
+        <a class="nav-link font-medium rounded-lg px-space-md py-space-xs text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-view="home" href="#home" onclick="navigateTo('home'); return false;">Home</a>
+        <a class="nav-link font-medium rounded-lg px-space-md py-space-xs text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-view="normal" href="#normal" onclick="navigateTo('normal'); return false;">Normal User</a>
+        <a class="nav-link font-medium rounded-lg px-space-md py-space-xs text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-view="sign" href="#sign" onclick="navigateTo('sign'); return false;">Sign User</a>
+        <a class="nav-link font-medium rounded-lg px-space-md py-space-xs text-body-md text-on-surface-variant hover:text-on-surface transition-colors" data-view="chat" href="#chat" onclick="navigateTo('chat'); return false;">Live Chat</a>
+        <a class="font-medium rounded-lg px-space-md py-space-xs text-body-md text-on-surface-variant hover:text-on-surface transition-colors" href="#how-it-works" onclick="scrollToHowItWorks(); return false;">How it Works</a>
+      </nav>
+
+      <!-- Action Controls -->
+      <div class="flex items-center gap-space-sm sm:gap-space-md">
+        <!-- Bilingual Quick Switcher -->
+        <button id="header-lang-btn" onclick="toggleGlobalLang()" class="px-space-md py-1.5 rounded-full text-xs font-bold bg-surface-container hover:bg-surface-container-high text-primary transition-colors flex items-center gap-1.5 border border-primary/20" title="Switch Language">
+          <span class="material-symbols-outlined text-[16px]">translate</span>
+          <span id="header-lang-label">EN | ಕನ್ನಡ</span>
+        </button>
+
+        <!-- Accessibility High Contrast Toggle -->
+        <button aria-label="Accessibility Controls" class="p-2 rounded-lg hover:bg-surface-container-high hover:text-on-surface text-on-surface-variant transition-colors" onclick="toggleAccessibility()" title="Toggle High Contrast">
+          <span class="material-symbols-outlined text-[20px]">accessibility</span>
+        </button>
+
+        <!-- Profile Avatar Indicator -->
+        <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center cursor-pointer shadow-sm" title="Connected Profile">
+          <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile Subnav Bar -->
+    <div class="flex md:hidden border-t border-surface-container px-2 py-1 justify-around bg-surface-container-lowest">
+      <button class="mobile-nav-btn text-xs font-medium px-2 py-1 rounded" data-view="home" onclick="navigateTo('home')">Home</button>
+      <button class="mobile-nav-btn text-xs font-medium px-2 py-1 rounded" data-view="normal" onclick="navigateTo('normal')">Normal</button>
+      <button class="mobile-nav-btn text-xs font-medium px-2 py-1 rounded" data-view="sign" onclick="navigateTo('sign')">Sign</button>
+      <button class="mobile-nav-btn text-xs font-medium px-2 py-1 rounded" data-view="chat" onclick="navigateTo('chat')">Live Chat</button>
+    </div>
+  </header>
+
+  <!-- Application Body Panels -->
+  <main class="w-full pt-20 md:pt-16 bg-surface flex-1 flex flex-col">
+    <!-- 1. Home View Panel -->
+    <div id="panel-home" class="view-panel block">
+
+      <div class="flex flex-col w-full">
+
+<!-- Hero Section -->
+
+<section class="relative w-full overflow-hidden bg-gradient-to-br from-surface via-surface-container-low to-surface-container-high py-margin lg:py-space-xl">
+
+<div class="absolute -top-24 -right-24 w-96 h-96 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+
+<div class="absolute -bottom-24 -left-24 w-96 h-96 bg-secondary/10 rounded-full blur-3xl pointer-events-none"></div>
+
+<div class="max-w-7xl mx-auto px-gutter grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-center relative z-10">
+
+<div class="lg:col-span-7 flex flex-col gap-space-lg text-left">
+
+<div class="inline-flex items-center gap-space-xs bg-surface-container px-space-md py-space-xs rounded-full w-fit">
+
+<span class="material-symbols-outlined text-primary text-[18px]">verified</span>
+
+<span class="text-label-md text-on-surface-variant font-medium">Next-Gen ISL Translation &amp; Communication</span>
+
+</div>
+
+<h1 class="font-headline-lg lg:text-[48px] lg:leading-[56px] text-on-surface tracking-tight">
+
+          Communicate Beyond Words
+
+        </h1>
+
+<p class="text-body-lg text-on-surface-variant max-w-2xl">
+
+          Real-time Indian Sign Language communication bridging sign users and hearing individuals instantly. Empowering seamless, accessible conversations everywhere.
+
+        </p>
+
+<div class="flex flex-wrap items-center gap-space-md pt-space-xs">
+
+<a class="h-12 px-space-xl bg-primary text-on-primary font-label-md rounded-lg flex items-center justify-center gap-space-xs hover:bg-primary/90 transition-all shadow-sm" href="#user-selection">
+
+<span>Start Communication</span>
+
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+
+</a>
+
+<a class="h-12 px-space-xl bg-surface-container-high text-on-surface font-label-md rounded-lg flex items-center justify-center gap-space-xs hover:bg-surface-container-highest transition-all" href="#how-it-works">
+
+<span>How It Works</span>
+
+<span class="material-symbols-outlined text-[18px]">help</span>
+
+</a>
+
+</div>
+
+<div class="grid grid-cols-3 gap-space-md pt-space-md max-w-lg">
+
+<div class="flex flex-col">
+
+<span class="font-headline-md text-primary">99.2%</span>
+
+<span class="text-body-sm text-on-surface-variant">Translation Accuracy</span>
+
+</div>
+
+<div class="flex flex-col">
+
+<span class="font-headline-md text-secondary">&lt;0.5s</span>
+
+<span class="text-body-sm text-on-surface-variant">Real-time Latency</span>
+
+</div>
+
+<div class="flex flex-col">
+
+<span class="font-headline-md text-primary">24/7</span>
+
+<span class="text-body-sm text-on-surface-variant">Accessible Support</span>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="lg:col-span-5 relative">
+
+<div class="relative w-full aspect-square rounded-xl overflow-hidden shadow-xl bg-surface-container-high">
+
+<div class="w-full h-full bg-cover bg-center" data-alt="A modern professional illustration featuring diverse sign language users and hearing individuals communicating seamlessly via tablet and holographic live sign translation interface, clean clinical blue and teal tones, bright modern workspace background." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBaAnzzmVqNy4b6AugtwmZY5vn5QyvDMv2fQrv81yUTSXfbQuROG5l-YMW-ClLrqE50LtKmmGeEIY0JwUsddWr6ZJodMumdyORKpFtJFDXPmm2PTm7WQBdc4UMNDfb2bAQAigx0xRyVzm37AB-5Fg17xB8tk4U66wT1djyGPLm4uHqifBdeGnlbpZa4c9sDcSYFFoM13Bb-HyC6r_43zBhU-IuJlcz5-_-T_2ARls9Y0c-hynCEtR4t')"></div>
+
+<div class="absolute inset-0 bg-gradient-to-t from-on-surface/40 via-transparent to-transparent flex items-end p-space-lg">
+
+<div class="bg-surface/90 backdrop-blur-md p-space-md rounded-lg w-full flex items-center justify-between shadow-lg">
+
+<div class="flex items-center gap-space-md">
+
+<div class="w-10 h-10 rounded-full bg-secondary text-on-secondary flex items-center justify-center">
+
+<span class="material-symbols-outlined">sign_language</span>
+
+</div>
+
+<div>
+
+<h4 class="text-body-md font-bold text-on-surface">Live ISL Stream Active</h4>
+
+<p class="text-body-sm text-on-surface-variant">Translating Sign to Voice &amp; Text</p>
+
+</div>
+
+</div>
+
+<span class="w-3 h-3 rounded-full bg-secondary animate-pulse"></span>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- User Selection Section -->
+
+<section class="w-full py-space-xl bg-surface-container-low" id="user-selection">
+
+<div class="max-w-7xl mx-auto px-gutter flex flex-col gap-space-xl">
+
+<div class="text-center max-w-2xl mx-auto flex flex-col gap-space-sm">
+
+<h2 class="font-headline-lg text-on-surface">Select Your Communication Mode</h2>
+
+<p class="text-body-md text-on-surface-variant">Choose your preferred way to interact. Our platform dynamically adapts to bridge the gap effortlessly.</p>
+
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-lg max-w-4xl mx-auto w-full">
+
+<!-- Sign User Card -->
+
+<div class="group cursor-pointer bg-surface p-space-xl rounded-xl shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between relative overflow-hidden" onclick="selectUserType('sign')">
+
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"></div>
+
+<div class="flex flex-col gap-space-lg relative z-10">
+
+<div class="w-16 h-16 rounded-xl bg-primary-container text-on-primary-container flex items-center justify-center shadow-inner">
+
+<span class="material-symbols-outlined text-[32px]">sign_language</span>
+
+</div>
+
+<div class="flex flex-col gap-space-xs">
+
+<span class="text-label-sm uppercase tracking-wider text-primary font-bold">Primary Interface</span>
+
+<h3 class="font-headline-md text-on-surface">Sign User</h3>
+
+<p class="text-body-md text-on-surface-variant">Communicate naturally using Indian Sign Language (ISL). Camera captures your signs and translates them to voice and text in real-time.</p>
+
+</div>
+
+<div class="flex flex-col gap-space-sm pt-space-sm">
+
+<div class="flex items-center gap-space-sm text-body-sm text-on-surface-variant">
+
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+
+<span>AI-powered sign recognition</span>
+
+</div>
+
+<div class="flex items-center gap-space-sm text-body-sm text-on-surface-variant">
+
+<span class="material-symbols-outlined text-primary text-[18px]">check_circle</span>
+
+<span>Instant voice synthesis for hearing participants</span>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="pt-space-xl relative z-10">
+
+<button class="w-full h-12 bg-primary text-on-primary font-label-md rounded-lg flex items-center justify-center gap-space-xs group-hover:bg-primary/90 transition-colors">
+
+<span>Start as Sign User</span>
+
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+
+</button>
+
+</div>
+
+</div>
+
+<!-- Normal / Hearing User Card -->
+
+<div class="group cursor-pointer bg-surface p-space-xl rounded-xl shadow-md hover:shadow-xl transition-all duration-300 flex flex-col justify-between relative overflow-hidden" onclick="selectUserType('hearing')">
+
+<div class="absolute top-0 right-0 w-32 h-32 bg-secondary/5 rounded-bl-full pointer-events-none group-hover:scale-110 transition-transform"></div>
+
+<div class="flex flex-col gap-space-lg relative z-10">
+
+<div class="w-16 h-16 rounded-xl bg-secondary-container text-on-secondary-container flex items-center justify-center shadow-inner">
+
+<span class="material-symbols-outlined text-[32px]">record_voice_over</span>
+
+</div>
+
+<div class="flex flex-col gap-space-xs">
+
+<span class="text-label-sm uppercase tracking-wider text-secondary font-bold">Hearing / Speech Interface</span>
+
+<h3 class="font-headline-md text-on-surface">Normal User</h3>
+
+<p class="text-body-md text-on-surface-variant">Communicate using Text input or Voice transcription. Your messages are instantly translated into visual ISL animations and avatars.</p>
+
+</div>
+
+<div class="flex flex-col gap-space-sm pt-space-sm">
+
+<div class="flex items-center gap-space-sm text-body-sm text-on-surface-variant">
+
+<span class="material-symbols-outlined text-secondary text-[18px]">check_circle</span>
+
+<span>Speech-to-ISL instant translation</span>
+
+</div>
+
+<div class="flex items-center gap-space-sm text-body-sm text-on-surface-variant">
+
+<span class="material-symbols-outlined text-secondary text-[18px]">check_circle</span>
+
+<span>Type-to-sign 3D avatar rendering</span>
+
+</div>
+
+</div>
+
+</div>
+
+<div class="pt-space-xl relative z-10">
+
+<button class="w-full h-12 bg-secondary text-on-secondary font-label-md rounded-lg flex items-center justify-center gap-space-xs group-hover:bg-secondary/90 transition-colors">
+
+<span>Start as Hearing User</span>
+
+<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+<!-- How It Works Preview Section -->
+
+<section class="w-full py-space-xl bg-surface" id="how-it-works">
+
+<div class="max-w-7xl mx-auto px-gutter flex flex-col gap-space-xl">
+
+<div class="text-center max-w-2xl mx-auto flex flex-col gap-space-sm">
+
+<h2 class="font-headline-lg text-on-surface">How ISL Connect Works</h2>
+
+<p class="text-body-md text-on-surface-variant">A seamless three-step architecture designed for crystal clear cross-modal communication.</p>
+
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
+
+<div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-space-md">
+
+<div class="w-12 h-12 rounded-lg bg-primary text-on-primary flex items-center justify-center font-headline-md">1</div>
+
+<h3 class="font-headline-sm text-on-surface">Connect &amp; Select</h3>
+
+<p class="text-body-sm text-on-surface-variant">Both participants open the session and choose their communication profile—Sign User or Hearing User.</p>
+
+</div>
+
+<div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-space-md">
+
+<div class="w-12 h-12 rounded-lg bg-primary text-on-primary flex items-center justify-center font-headline-md">2</div>
+
+<h3 class="font-headline-sm text-on-surface">Real-Time Translation</h3>
+
+<p class="text-body-sm text-on-surface-variant">Our deep-learning engine translates sign gestures into spoken audio and text, while speech/text converts into fluid ISL animations.</p>
+
+</div>
+
+<div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-space-md">
+
+<div class="w-12 h-12 rounded-lg bg-primary text-on-primary flex items-center justify-center font-headline-md">3</div>
+
+<h3 class="font-headline-sm text-on-surface">Natural Dialogue</h3>
+
+<p class="text-body-sm text-on-surface-variant">Enjoy smooth, bidirectional conversations in professional, medical, educational, or casual environments.</p>
+
+</div>
+
+</div>
+
+</div>
+
+</section>
+
+
+
+</div>
+    </div>
+
+    <!-- 2. Normal User Experience View Panel -->
+    <div id="panel-normal" class="view-panel hidden">
+      <div class="flex flex-col w-full min-h-[884px] bg-surface" data-stitch-vh="min-h-[884px]===min-h-screen">
+
+<!-- Top Banner / Breadcrumb area -->
+
+<div class="max-w-7xl mx-auto w-full px-gutter pt-space-md pb-space-sm flex flex-col md:flex-row md:items-center md:justify-between gap-space-md">
+
+<div>
+
+<div class="flex items-center gap-space-xs text-label-sm text-primary font-bold uppercase tracking-wider">
+
+<span class="material-symbols-outlined text-[16px]">translate</span>
+
+<span>Interactive Translation Studio</span>
+
+</div>
+
+<h1 class="font-headline-lg text-on-surface mt-space-xs">Normal User Interface &amp; 3D ISL Engine</h1>
+
+</div>
+
+<div class="flex items-center gap-space-sm">
+
+<span class="inline-flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-secondary-container text-on-secondary-container text-label-md font-bold">
+
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+
+        Live Connection: Active
+
+      </span>
+
+<button class="px-space-md py-space-xs bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-lg text-label-md font-medium transition-colors flex items-center gap-space-xs">
+
+<span class="material-symbols-outlined text-[18px]">help</span>
+
+        Guide
+
+      </button>
+
+</div>
+
+</div>
+
+<!-- Main Grid Layout -->
+
+<div class="max-w-7xl mx-auto w-full px-gutter pb-space-xl grid grid-cols-1 lg:grid-cols-12 gap-space-lg">
+
+<!-- Left Column: Input Panel & Conversation Feed (7 cols on desktop) -->
+
+<div class="lg:col-span-7 flex flex-col gap-space-lg">
+
+<!-- Input Section Card -->
+
+<div class="bg-surface-container-low rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+
+<div class="flex items-center justify-between">
+
+<div class="flex items-center gap-space-xs">
+
+<span class="material-symbols-outlined text-primary text-[20px]">keyboard</span>
+
+<h2 class="font-headline-sm text-on-surface">Compose Message</h2>
+
+</div>
+
+<span class="text-label-sm text-on-surface-variant">Type or speak to convert to Indian Sign Language (ISL)</span>
+
+</div>
+
+<!-- Text Input & Voice Controls -->
+
+<div class="relative flex flex-col gap-space-sm">
+
+<textarea id="normal-text-input" class="w-full bg-surface text-on-surface placeholder:text-outline p-space-md rounded-xl outline-none focus:ring-2 focus:ring-primary transition-all text-body-md resize-none shadow-inner" placeholder="Type your message here to translate into 3D ISL animation..." rows="3"></textarea>
+
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-xs">
+
+<!-- Voice Input Button (Speak) -->
+
+<div class="flex items-center gap-space-sm">
+
+<button class="flex items-center gap-space-xs px-space-lg py-space-sm bg-primary hover:bg-primary-container text-on-primary rounded-xl font-medium text-label-md transition-all shadow-md group" id="speak-btn" onclick="toggleVoiceRecording()">
+
+<span class="material-symbols-outlined group-hover:scale-110 transition-transform">mic</span>
+
+<span id="speak-btn-text">Speak Message</span>
+
+</button>
+
+<div class="hidden items-center gap-space-xs text-secondary text-label-md font-medium animate-pulse" id="mic-status">
+
+<span class="w-3 h-3 rounded-full bg-secondary"></span> Listening...
+
+              </div>
+
+</div>
+
+<!-- Translate Action -->
+
+<button class="flex items-center gap-space-xs px-space-lg py-space-sm bg-secondary text-on-secondary rounded-xl font-medium text-label-md hover:opacity-95 transition-all shadow-sm" onclick="triggerTranslation()">
+
+<span>Generate ISL</span>
+
+<span class="material-symbols-outlined text-[18px]">auto_awesome</span>
+
+</button>
+
+</div>
+
+</div>
+
+<!-- Quick Quick-phrase chips -->
+
+<div class="flex flex-wrap items-center gap-space-xs pt-space-xs">
+
+<span class="text-label-sm text-on-surface-variant">Quick Phrases:</span>
+
+<button class="px-space-sm py-space-xs rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface text-label-sm transition-colors" onclick="setInputValue('Hello')">Hello</button>
+<button class="px-space-sm py-space-xs rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface text-label-sm transition-colors" onclick="setInputValue('Thank you')">Thank you</button>
+<button class="px-space-sm py-space-xs rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface text-label-sm transition-colors" onclick="setInputValue('How are you?')">How are you?</button>
+<button class="px-space-sm py-space-xs rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface text-label-sm transition-colors" onclick="setInputValue('Need help')">Need help</button>
+<button class="px-space-sm py-space-xs rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface text-label-sm transition-colors" onclick="setInputValue('Water')">Water</button>
+</div>
+</div>
+<!-- Shared Conversation Feed -->
+<div class="bg-surface-container-low rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary text-[20px]">forum</span>
+<h2 class="font-headline-sm text-on-surface">Conversation Feed</h2>
+</div>
+<span class="text-label-sm text-on-surface-variant">Live transcript &amp; ISL log</span>
+</div>
+<!-- Feed List -->
+<div id="normal-chat-feed" class="flex flex-col gap-space-md max-h-[380px] overflow-y-auto pr-space-xs">
+  <div id="normal-chat-empty" class="flex flex-col items-center justify-center p-8 text-center text-on-surface-variant/60 my-auto">
+    <span class="material-symbols-outlined text-[36px] mb-2 opacity-40">chat_bubble_outline</span>
+    <p class="text-body-sm font-medium">No messages yet</p>
+    <p class="text-xs opacity-75 mt-0.5">Type or speak above to generate 3D ISL animation</p>
+  </div>
+</div>
+
+</div>
+
+</div>
+
+<!-- Right Column: 3D ISL Animation Viewer & Controls (5 cols on desktop) -->
+
+<div class="lg:col-span-5 flex flex-col gap-space-lg">
+
+<!-- Idle State: Friendly Pet Mascot -->
+<div id="normal-pet-idle" class="bg-surface-container-low rounded-xl p-space-lg shadow-sm border border-surface-container flex flex-col items-center justify-center text-center py-10 min-h-[440px]">
+  <!-- Cute Pet Mascot with glowing halo -->
+  <div class="relative mb-space-md">
+    <div class="w-28 h-28 rounded-full bg-gradient-to-br from-primary/10 via-secondary/15 to-primary-container/20 flex items-center justify-center shadow-lg border border-primary/20 animate-pulse">
+      <svg class="w-16 h-16 text-primary drop-shadow-sm" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="32" cy="34" r="20" fill="currentColor" fill-opacity="0.15"/>
+        <path d="M18 20 C14 10, 22 8, 25 18 Z" fill="currentColor"/>
+        <path d="M46 20 C50 10, 42 8, 39 18 Z" fill="currentColor"/>
+        <circle cx="32" cy="32" r="16" fill="white" stroke="currentColor" stroke-width="2.5"/>
+        <circle cx="26" cy="30" r="2.5" fill="#131b2e"/>
+        <circle cx="38" cy="30" r="2.5" fill="#131b2e"/>
+        <circle cx="27" cy="29" r="0.8" fill="white"/>
+        <circle cx="39" cy="29" r="0.8" fill="white"/>
+        <path d="M30 35 C31 36, 33 36, 34 35" stroke="#131b2e" stroke-width="2" stroke-linecap="round"/>
+        <polygon points="31,33 33,33 32,34.5" fill="#ec4899"/>
+        <circle cx="22" cy="33" r="2" fill="#f472b6" fill-opacity="0.6"/>
+        <circle cx="42" cy="33" r="2" fill="#f472b6" fill-opacity="0.6"/>
+        <path d="M46 36 C50 34, 52 38, 48 41 Z" fill="currentColor"/>
+      </svg>
+    </div>
+    <span class="absolute -bottom-1 -right-1 bg-secondary text-on-secondary px-2.5 py-0.5 rounded-full text-[11px] font-bold shadow-sm flex items-center gap-1">
+      <span class="material-symbols-outlined text-[13px]">pets</span> ISL Buddy
+    </span>
+  </div>
+
+  <h3 class="font-headline-sm text-on-surface font-bold text-lg mb-1">Please compose a message</h3>
+  <p class="text-body-sm text-on-surface-variant max-w-[280px] mb-4">
+    Type or speak a message on the left to reveal the <strong>Master Signer Gesture</strong> and <strong>3D 21-Landmark Hand</strong>!
+  </p>
+  <div class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-container text-xs font-medium text-primary border border-primary/20">
+    <span class="material-symbols-outlined text-[16px]">touch_app</span>
+    Try clicking "Water", "Hello", or use the microphone
+  </div>
+</div>
+
+<!-- Dual Frames Container: Upper Master Signer Gesture + Below 3D 21-Landmark Model -->
+<div id="normal-dual-frames" class="hidden flex-col gap-space-md">
+
+  <!-- UPPER FRAME: Master Signer Gesture Reference -->
+  <div class="bg-inverse-surface rounded-xl overflow-hidden shadow-xl flex flex-col relative border border-secondary/30">
+    <div class="p-space-sm px-space-md flex items-center justify-between bg-gradient-to-b from-inverse-surface/90 to-transparent border-b border-outline/20">
+      <div class="flex items-center gap-space-xs">
+        <span class="material-symbols-outlined text-secondary-fixed text-[18px]">verified</span>
+        <span class="text-label-md font-bold text-inverse-on-surface">Upper: Master Signer Gesture</span>
+      </div>
+      <span id="master-gesture-badge" class="px-space-xs py-0.5 rounded bg-secondary/80 text-on-secondary text-label-sm font-medium">Master Reference</span>
+    </div>
+
+    <!-- Master Image / Gesture Display Container -->
+    <div class="relative w-full h-[220px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden">
+      <img id="master-reference-img" class="w-full h-full object-contain p-2" src="/storage/images/water_T001_117c83e631.jpg" alt="Master Reference Gesture"/>
+      <div id="master-reference-fallback" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center p-4">
+        <span class="material-symbols-outlined text-secondary-fixed text-[44px] opacity-70 mb-1">person_celebrating</span>
+        <p class="text-inverse-on-surface font-bold text-sm" id="master-fallback-title">Master Reference Gesture</p>
+        <p class="text-tertiary-fixed-dim text-xs mt-0.5">Verified master signer reference recording</p>
+      </div>
+      <!-- Caption Overlay Bar -->
+      <div class="absolute bottom-2 left-2 right-2 bg-inverse-surface/90 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center justify-between text-xs border border-outline/30">
+        <span id="master-sign-title" class="font-bold text-inverse-on-surface">WATER (ನೀರು)</span>
+        <span id="master-signer-id" class="text-secondary-fixed font-mono text-[11px]">Signer: T001 (Master Reference)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- BELOW FRAME: 3D 21-Landmark Hand Model -->
+  <div class="bg-inverse-surface rounded-xl overflow-hidden shadow-xl flex flex-col relative border border-primary/30">
+    <div class="p-space-sm px-space-md flex items-center justify-between bg-gradient-to-b from-inverse-surface/90 to-transparent border-b border-outline/20">
+      <div class="flex items-center gap-space-xs">
+        <span class="material-symbols-outlined text-primary-fixed text-[18px]">view_in_ar</span>
+        <span class="text-label-md font-bold text-inverse-on-surface">Below: 3D 21-Landmark Hand Model</span>
+      </div>
+      <div class="flex items-center gap-2">
+        <span id="model-status-badge" class="px-2 py-0.5 rounded-full bg-surface-container/20 text-secondary-fixed text-[11px] font-medium border border-secondary/40 flex items-center gap-1.5">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse"></span>Awaiting Trained Model
+        </span>
+        <span class="px-space-xs py-0.5 rounded bg-primary text-on-primary text-label-sm font-medium">21 Landmarks</span>
+      </div>
+    </div>
+
+    <!-- 3D Canvas Area -->
+    <div id="normal-avatar-canvas-container" class="relative w-full h-[240px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden">
+      <!-- Top Status Banner -->
+      <div id="model-standby-banner" class="absolute top-2 left-2 right-2 bg-inverse-surface/85 backdrop-blur-md px-2.5 py-1 rounded-md flex items-center justify-between text-[11px] border border-outline/30 z-10">
+        <span class="flex items-center gap-1 text-tertiary-fixed-dim">
+          <span class="material-symbols-outlined text-[14px] text-amber-400">hourglass_empty</span>
+          <span>Ready for Trained Model Landmark Stream</span>
+        </span>
+        <span class="text-[10px] text-outline font-mono">Dummy motion removed</span>
+      </div>
+
+      <!-- Floating Viewport Controls (Rotate / Zoom on overlay) -->
+      <div class="absolute bottom-3 right-3 z-20 flex items-center gap-space-xs bg-inverse-surface/90 backdrop-blur-md p-1.5 rounded-lg border border-outline/30">
+        <button class="p-1 text-inverse-on-surface hover:text-secondary-fixed transition-colors" onclick="adjustZoom(0.1)" title="Zoom In">
+          <span class="material-symbols-outlined text-[16px]">zoom_in</span>
+        </button>
+        <button class="p-1 text-inverse-on-surface hover:text-secondary-fixed transition-colors" onclick="adjustZoom(-0.1)" title="Zoom Out">
+          <span class="material-symbols-outlined text-[16px]">zoom_out</span>
+        </button>
+        <div class="w-[1px] h-3.5 bg-outline/40 my-auto"></div>
+        <button class="p-1 text-inverse-on-surface hover:text-secondary-fixed transition-colors" onclick="resetCamera()" title="Reset Camera Rotation">
+          <span class="material-symbols-outlined text-[16px]">rotate_right</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Playback / Model Stream Status Panel -->
+    <div class="bg-surface-container-high p-space-sm px-space-md flex flex-col gap-2">
+      <!-- Timeline Scrubber -->
+      <div class="flex items-center gap-2">
+        <span id="current-time" class="text-xs text-on-surface-variant font-medium">0:00</span>
+        <input id="normal-scrubber" class="flex-1 accent-primary cursor-pointer h-1.5 bg-surface-variant rounded-lg" max="100" min="0" type="range" value="0">
+        <span id="total-time" class="text-xs text-on-surface-variant font-medium">0:00</span>
+      </div>
+
+      <!-- Control Buttons & Model Standby Indicator -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-space-xs">
+          <button class="w-8 h-8 rounded-full bg-surface-container text-on-surface-variant flex items-center justify-center transition-colors opacity-70 cursor-not-allowed" id="play-pause-btn" disabled title="Awaiting Trained Model">
+            <span class="material-symbols-outlined text-[18px]" id="play-icon">play_arrow</span>
+          </button>
+          <button class="p-1.5 rounded-lg bg-surface-container hover:bg-surface-container-highest text-on-surface transition-colors cursor-pointer" onclick="reset3DModelPose()" title="Reset 3D Hand to Neutral Pose">
+            <span class="material-symbols-outlined text-[18px]">restart_alt</span>
+          </button>
+          <span class="text-[11px] text-on-surface-variant italic ml-1">Streaming from trained model pending</span>
+        </div>
+        <!-- Speed Control Pills -->
+        <div class="flex items-center bg-surface-container rounded-lg p-0.5 gap-0.5">
+          <button class="speed-btn px-2 py-0.5 rounded text-xs font-medium text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" onclick="setSpeed(0.5, this)">0.5x</button>
+          <button class="speed-btn px-2 py-0.5 rounded bg-primary text-on-primary text-xs font-medium shadow-sm transition-colors cursor-pointer" onclick="setSpeed(1.0, this)">1.0x</button>
+          <button class="speed-btn px-2 py-0.5 rounded text-xs font-medium text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" onclick="setSpeed(1.5, this)">1.5x</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Quick Tips Card -->
+
+<div class="bg-surface-container-low rounded-xl p-space-lg shadow-sm flex items-start gap-space-md">
+
+<div class="p-2 rounded-lg bg-secondary-container text-on-secondary-container shrink-0">
+
+<span class="material-symbols-outlined text-[20px]">lightbulb</span>
+
+</div>
+
+<div class="flex flex-col gap-space-xs">
+
+<h3 class="font-headline-sm text-on-surface text-body-lg font-bold">Pro-Tip for Clear ISL Output</h3>
+
+<p class="text-body-sm text-on-surface-variant">Keep sentences concise and structured. The 3D avatar automatically translates regional sign variations and grammatical markers for optimal comprehension.</p>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- Interactive Script -->
+
+
+
+</div>
+    </div>
+
+    <!-- 3. Sign User Experience View Panel -->
+    <div id="panel-sign" class="view-panel hidden">
+      <div class="flex flex-col w-full">
+
+<!-- Top Control Bar / Status Header -->
+
+<div class="w-full bg-surface-container-low px-gutter py-space-md flex flex-wrap items-center justify-between gap-space-md shadow-sm">
+
+<div class="flex items-center gap-space-md">
+
+<div class="flex items-center gap-space-xs bg-surface-container-high px-space-md py-space-xs rounded-full">
+
+<span class="w-3 h-3 rounded-full bg-error animate-pulse"></span>
+
+<span class="font-label-md text-on-surface uppercase tracking-wider">Live ISL Stream</span>
+
+</div>
+
+<div class="flex items-center gap-space-xs text-on-surface-variant font-body-sm">
+
+<span class="material-symbols-outlined text-[20px]">videocam</span>
+
+<span>1080p @ 60fps</span>
+
+</div>
+
+</div>
+
+<div class="flex items-center gap-space-md">
+
+<!-- Language Switcher -->
+
+<div class="flex items-center bg-surface-container-high p-1 rounded-full">
+
+<button class="px-space-md py-1 rounded-full font-label-sm transition-all bg-primary text-on-primary" id="btn-en" onclick="switchLang('en')">English</button>
+
+<button class="px-space-md py-1 rounded-full font-label-sm transition-all text-on-surface-variant hover:text-on-surface" id="btn-kn" onclick="switchLang('kn')">ಕನ್ನಡ (Kannada)</button>
+
+</div>
+
+<!-- Quick Audio Controls -->
+
+<div class="flex items-center gap-space-xs">
+
+<button id="sign-cam-toggle-btn" onclick="toggleSignCamera()" class="w-10 h-10 rounded-full bg-surface-container-high hover:bg-surface-container-highest flex items-center justify-center text-on-surface transition-colors mr-1" title="Toggle Webcam"><span class="material-symbols-outlined text-[20px]" id="sign-cam-icon">videocam</span></button><button class="w-10 h-10 rounded-full bg-surface-container-high hover:bg-surface-container-highest flex items-center justify-center text-on-surface transition-colors" id="audio-toggle-btn" onclick="toggleAudio()" title="Mute/Unmute Audio">
+
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">volume_up</span>
+
+</button>
+
+<button class="w-10 h-10 rounded-full bg-surface-container-high hover:bg-surface-container-highest flex items-center justify-center text-on-surface transition-colors" onclick="replayLast()" title="Replay Last Output">
+
+<span class="material-symbols-outlined">replay</span>
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- Main Content Layout: Bento Grid & Split View -->
+
+<div class="max-w-7xl mx-auto w-full px-gutter py-margin grid grid-cols-1 lg:grid-cols-12 gap-margin">
+
+<!-- Left Column: Camera Feed & Gesture Recognition (8 Cols) -->
+
+<div class="lg:col-span-8 flex flex-col gap-space-lg">
+
+<!-- Camera Container -->
+
+<div id="sign-camera-container" class="relative w-full aspect-[16/10] bg-inverse-surface rounded-xl overflow-hidden shadow-xl flex items-center justify-center group">
+
+<!-- Real Webcam Video & Canvas Tracking Overlay -->
+  <video id="sign-webcam-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover hidden"></video>
+  <canvas id="sign-mesh-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
+<!-- Background placeholder simulating live video feed -->
+
+<div class="absolute inset-0 bg-cover bg-center opacity-80" data-alt="A high-tech clinical sign language interpretation studio with soft lighting, dark indigo and teal accents, displaying an individual performing Indian Sign Language in front of a neutral gradient backdrop." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAnY-7LnvsdQgTdcQs5eXhYxQHx1OF6Pi8qDbN2FSbYP7wb3XbG66A88dKSbLSYzw2TdyORdMdr3XvbXp1e4FIyzCK0namKsdn_vTHCMoEfaCibtplFSQJxhrGmlqR_UxybQdv44apI4Al383xlMKHmrZOe_ZJDsg9GWQnHjx-ON6oiq0m7wlmnkn7kMTPphz5J3pmcWDyAGFeQJ8PcQ0I-0Z3jKX3ftzWBEt2xxYpk7C1XBU530zu-')"></div>
+
+<!-- Subtle Grid Overlay for Tech Vibe -->
+
+<div class="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
+
+<!-- Hand Detection Mesh Simulation (SVG Overlay) -->
+
+<svg class="absolute inset-0 w-full h-full pointer-events-none text-secondary-fixed" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 800 500">
+
+<!-- Palm joints & connections -->
+
+<circle cx="400" cy="300" fill="currentColor" r="6"></circle>
+
+<circle cx="360" cy="240" fill="currentColor" r="4"></circle>
+
+<circle cx="390" cy="200" fill="currentColor" r="4"></circle>
+
+<circle cx="430" cy="200" fill="currentColor" r="4"></circle>
+
+<circle cx="460" cy="230" fill="currentColor" r="4"></circle>
+
+<path d="M400 300 L360 240 L390 200 M400 300 L390 200 L430 200 M400 300 L430 200 L460 230" stroke-opacity="0.6"></path>
+
+<!-- Bounding box for hand detection -->
+
+<rect height="200" rx="8" stroke-dasharray="8 4" stroke-opacity="0.8" width="180" x="320" y="150"></rect>
+
+</svg>
+
+<!-- Top-Left Badge: Hand Detection Active -->
+
+<div class="absolute top-space-md left-space-md bg-inverse-surface/80 backdrop-blur-md px-space-md py-space-xs rounded-full flex items-center gap-space-xs text-secondary-fixed border border-secondary/30">
+
+<span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">hand_gesture</span>
+
+<span class="font-label-sm text-inverse-on-surface">Hand Detected (Right)</span>
+
+</div>
+
+<!-- Top-Right Badge: Confidence Score -->
+
+<div class="absolute top-space-md right-space-md bg-inverse-surface/80 backdrop-blur-md px-space-md py-space-xs rounded-full flex items-center gap-space-xs text-inverse-on-surface">
+
+<span class="text-xs text-tertiary-fixed-dim">Confidence:</span>
+
+<span class="font-label-md text-secondary-fixed">98.4%</span>
+
+</div>
+
+<!-- Bottom Overlay: Current Recognized Gesture Banner -->
+
+<div class="absolute bottom-space-md left-space-md right-space-md bg-inverse-surface/90 backdrop-blur-xl p-space-md rounded-xl flex items-center justify-between border border-outline/20">
+
+<div class="flex flex-col">
+
+<span class="font-label-sm text-tertiary-fixed-dim uppercase tracking-wider">Gesture Recognized</span>
+
+<span class="font-headline-lg text-inverse-on-surface" id="recognized-text">HELLO</span>
+
+</div>
+
+<div class="flex items-center gap-space-sm">
+
+<button class="bg-primary hover:bg-primary/90 text-on-primary px-space-lg py-space-sm rounded-lg font-label-md flex items-center gap-space-xs transition-colors shadow-lg" onclick="speakCurrent()">
+
+<span class="material-symbols-outlined text-[20px]">volume_up</span>
+
+<span>Speak Out</span>
+
+</button>
+
+<button class="bg-surface-variant hover:bg-surface-variant/80 text-on-surface-variant px-space-md py-space-sm rounded-lg font-label-md transition-colors" onclick="clearGesture()">
+
+              Clear
+
+            </button>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- Quick Gesture Shortcut Toolbar -->
+
+<div class="bg-surface-container-low p-space-md rounded-xl flex flex-col gap-space-sm">
+
+<div class="flex items-center justify-between">
+
+<span class="font-label-md text-on-surface-variant">Quick Sign Shortcuts</span>
+
+<span class="text-body-sm text-outline">Click to simulate gesture input</span>
+
+</div>
+
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-space-sm">
+
+<button class="p-space-md bg-surface hover:bg-surface-container rounded-lg text-left transition-all shadow-sm flex flex-col gap-space-xs" onclick="simulateGesture('HELLO', 'ನಮಸ್ಕಾರ (Namaskara)')">
+
+<span class="font-label-md text-primary">HELLO</span>
+
+<span class="text-body-sm text-on-surface-variant">ನಮಸ್ಕಾರ</span>
+
+</button>
+
+<button class="p-space-md bg-surface hover:bg-surface-container rounded-lg text-left transition-all shadow-sm flex flex-col gap-space-xs" onclick="simulateGesture('THANK YOU', 'ಧನ್ಯವಾದಗಳು (Dhanyavadagalu)')">
+
+<span class="font-label-md text-primary">THANK YOU</span>
+
+<span class="text-body-sm text-on-surface-variant">ಧನ್ಯವಾದಗಳು</span>
+
+</button>
+
+<button class="p-space-md bg-surface hover:bg-surface-container rounded-lg text-left transition-all shadow-sm flex flex-col gap-space-xs" onclick="simulateGesture('HELP NEEDED', 'ಸಹಾಯ ಬೇಕು (Sahaya Beku)')">
+
+<span class="font-label-md text-primary">HELP NEEDED</span>
+
+<span class="text-body-sm text-on-surface-variant">ಸಹಾಯ ಬೇಕು</span>
+
+</button>
+
+<button class="p-space-md bg-surface hover:bg-surface-container rounded-lg text-left transition-all shadow-sm flex flex-col gap-space-xs" onclick="simulateGesture('ALL CLEAR', 'ಎಲ್ಲವೂ ಸರಿ (Ellavu Sari)')">
+
+<span class="font-label-md text-primary">ALL CLEAR</span>
+
+<span class="text-body-sm text-on-surface-variant">ಎಲ್ಲವೂ ಸರಿ</span>
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- Right Column: Shared Conversation Feed (4 Cols) -->
+
+<div class="lg:col-span-4 flex flex-col bg-surface-container-low rounded-xl p-space-lg shadow-sm h-[640px] max-h-[819px]">
+
+<!-- Feed Header -->
+
+<div class="flex items-center justify-between pb-space-md mb-space-md border-b border-outline-variant/30">
+
+<div class="flex items-center gap-space-xs">
+
+<span class="material-symbols-outlined text-primary text-[22px]">forum</span>
+
+<span class="font-headline-sm text-on-surface">Conversation Feed</span>
+
+</div>
+
+<span class="text-label-sm bg-secondary-container text-on-secondary-container px-space-sm py-space-xs rounded-full">Bidirectional</span>
+
+</div>
+
+<!-- Message History Container -->
+
+<div class="flex-1 overflow-y-auto flex flex-col gap-space-md pr-space-xs" id="chat-feed">
+  <div id="sign-chat-empty" class="flex flex-col items-center justify-center p-8 text-center text-on-surface-variant/60 my-auto">
+    <span class="material-symbols-outlined text-[36px] mb-2 opacity-40">hand_gesture</span>
+    <p class="text-body-sm font-medium">No gestures signed yet</p>
+    <p class="text-xs opacity-75 mt-0.5">Use camera or quick sign buttons to start communicating</p>
+  </div>
+</div>
+
+<!-- Input / Voice Output Bar at Bottom of Feed -->
+
+<div class="pt-space-md mt-space-md border-t border-outline-variant/30 flex flex-col gap-space-sm">
+
+<div class="flex items-center gap-space-xs">
+
+<input class="flex-1 bg-surface border border-outline-variant rounded-lg px-space-md py-space-sm text-on-surface focus:outline-none focus:border-primary text-body-sm" id="manual-text-input" placeholder="Type or translate sign message..." type="text">
+
+<button class="bg-primary text-on-primary px-space-md py-space-sm rounded-lg font-label-md hover:bg-primary/90 transition-colors" onclick="sendManualMessage()">
+
+            Send
+
+          </button>
+
+</div>
+
+<div class="flex items-center justify-between text-body-sm text-on-surface-variant">
+
+<span class="flex items-center gap-space-xs">
+
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+
+            Auto voice output active
+
+          </span>
+
+<button class="text-error hover:underline text-xs" onclick="clearFeed()">Clear Chat</button>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- Interactive JavaScript -->
+
+
+
+</div>
+    </div>
+
+    <!-- 4. Live Chat View Panel -->
+    <div id="panel-chat" class="view-panel hidden">
+      <!-- Top Banner / Breadcrumb area -->
+
+<div class="max-w-7xl mx-auto w-full px-gutter pt-space-md pb-space-sm flex flex-col md:flex-row md:items-center md:justify-between gap-space-md">
+
+<div>
+
+<div class="flex items-center gap-space-xs text-label-sm text-primary font-bold uppercase tracking-wider">
+
+<span class="material-symbols-outlined text-[16px]">forum</span>
+
+<span>Unified Communication Workspace</span>
+
+</div>
+
+<h1 class="font-headline-lg text-on-surface mt-space-xs">Live Chat &amp; Real-Time ISL Translation</h1>
+
+</div>
+
+<div class="flex items-center gap-space-sm">
+
+<span class="inline-flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-secondary-container text-on-secondary-container text-label-md font-bold">
+
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+
+        Live Connection: Active
+
+      </span>
+
+</div>
+
+</div>
+
+<!-- Main Grid Layout -->
+
+<div class="max-w-7xl mx-auto w-full px-gutter pb-space-xl grid grid-cols-1 lg:grid-cols-12 gap-space-lg flex-1">
+
+<!-- Left Column: Camera Feed & 3D Avatar (5 cols) -->
+
+<div class="lg:col-span-5 flex flex-col gap-space-lg">
+
+<!-- Live Gesture Recognition Camera Stream -->
+
+<div class="bg-inverse-surface rounded-xl overflow-hidden shadow-xl flex flex-col relative">
+
+<div class="absolute top-0 inset-x-0 z-10 p-space-md flex items-center justify-between bg-gradient-to-b from-inverse-surface/80 to-transparent">
+
+<div class="flex items-center gap-space-xs">
+
+<span class="material-symbols-outlined text-secondary-fixed text-[20px]">videocam</span>
+
+<span class="text-label-md font-bold text-inverse-on-surface">Sign User Camera Stream</span>
+
+</div>
+
+<span class="px-space-xs py-0.5 rounded bg-secondary/80 text-on-secondary text-label-sm animate-pulse">AI Tracking Active</span>
+
+</div>
+
+<div id="chat-camera-container" class="relative w-full h-[260px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden">
+
+<div class="absolute inset-0 opacity-10 bg-[radial-gradient(#89f5e7_1px,transparent_1px)] [background-size:16px_16px]"></div>
+
+<div class="relative z-0 flex flex-col items-center justify-center text-center p-space-md">
+
+<div class="w-20 h-20 rounded-full bg-secondary/10 flex items-center justify-center mb-space-xs border border-secondary/20 shadow-[0_0_20px_rgba(137,245,231,0.15)]">
+
+<span class="material-symbols-outlined text-secondary-fixed text-[40px]">back_hand</span>
+
+</div>
+
+<p class="text-inverse-on-surface font-headline-sm text-sm">Waiting for gestures...</p>
+
+<p class="text-tertiary-fixed-dim text-body-sm text-xs mt-1">Camera active for real-time sign recognition</p>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- 3D ISL Avatar Viewer -->
+
+<div class="bg-inverse-surface rounded-xl overflow-hidden shadow-xl flex flex-col relative">
+
+<div class="absolute top-0 inset-x-0 z-10 p-space-md flex items-center justify-between bg-gradient-to-b from-inverse-surface/80 to-transparent">
+
+<div class="flex items-center gap-space-xs">
+
+<span class="material-symbols-outlined text-secondary-fixed text-[20px]">view_in_ar</span>
+
+<span class="text-label-md font-bold text-inverse-on-surface">3D ISL Avatar Output</span>
+
+</div>
+
+<span class="px-space-xs py-0.5 rounded bg-secondary/80 text-on-secondary text-label-sm">v2.4</span>
+
+</div>
+
+<div id="chat-avatar-container" class="relative w-full h-[220px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden">
+
+<div class="absolute inset-0 opacity-10 bg-[radial-gradient(#89f5e7_1px,transparent_1px)] [background-size:16px_16px]"></div>
+
+<div class="relative z-0 flex flex-col items-center justify-center text-center p-space-md">
+
+<div class="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center mb-space-xs border border-secondary/20">
+
+<span class="material-symbols-outlined text-secondary-fixed text-[32px]">front_hand</span>
+
+</div>
+
+<p class="text-inverse-on-surface font-headline-sm text-sm">Avatar Ready</p>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<!-- Right Column: Continuous Unified Chat Feed & Dock (7 cols) -->
+
+<div class="lg:col-span-7 flex flex-col gap-space-lg">
+
+<div class="bg-surface-container-low rounded-xl p-space-lg shadow-sm flex flex-col flex-1 justify-between min-h-[500px]">
+
+<div class="flex items-center justify-between pb-space-md border-b border-surface-container">
+
+<div class="flex items-center gap-space-xs">
+
+<span class="material-symbols-outlined text-primary text-[20px]">forum</span>
+
+<h2 class="font-headline-sm text-on-surface">Continuous Live Conversation</h2>
+
+</div>
+
+<span class="text-label-sm text-on-surface-variant">Synchronized ISL &amp; Text Stream</span>
+
+</div>
+
+<!-- Scrolling Feed -->
+
+<div id="live-chat-feed" class="flex flex-col gap-space-md py-space-md max-h-[420px] overflow-y-auto pr-space-xs flex-1">
+  <div id="live-chat-empty" class="flex flex-col items-center justify-center p-8 text-center text-on-surface-variant/60 my-auto">
+    <span class="material-symbols-outlined text-[36px] mb-2 opacity-40">forum</span>
+    <p class="text-body-sm font-medium">No live conversation yet</p>
+    <p class="text-xs opacity-75 mt-0.5">Send a message or sign on camera to begin real-time translation</p>
+  </div>
+</div>
+
+<!-- Bottom Control Dock -->
+
+<div class="pt-space-md border-t border-surface-container flex flex-col gap-space-sm">
+
+<div class="flex items-center gap-space-sm">
+
+<div class="relative flex-1">
+
+<input id="live-chat-input" class="w-full bg-surface text-on-surface placeholder:text-outline px-space-md py-3 rounded-xl outline-none focus:ring-2 focus:ring-primary transition-all text-body-md shadow-inner" placeholder="Type message or sign on camera..." type="text" onkeydown="if(event.key==='Enter') sendLiveMessage()">
+
+</div>
+
+<button class="p-3 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl transition-colors" id="live-mic-btn" title="Voice Input (Mic)" onclick="toggleLiveVoiceRecording()">
+
+<span class="material-symbols-outlined text-[20px]">mic</span>
+
+</button>
+
+<button class="p-3 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl transition-colors" id="live-cam-toggle-btn" title="Camera Toggle" onclick="toggleLiveCamera()">
+
+<span class="material-symbols-outlined text-[20px]">videocam</span>
+
+</button>
+
+<button id="live-lang-btn" onclick="toggleGlobalLang()" class="px-space-md py-3 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl text-label-md font-medium transition-colors">
+
+              <span id="live-lang-label">English / ಕನ್ನಡ</span>
+
+            </button>
+
+<button id="live-send-btn" onclick="sendLiveMessage()" class="px-space-lg py-3 bg-primary hover:bg-primary-container text-on-primary rounded-xl font-medium text-label-md transition-all shadow-md flex items-center gap-space-xs cursor-pointer">
+
+<span>Send</span>
+
+<span class="material-symbols-outlined text-[18px]">send</span>
+
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+</div>
+    </div>
+
+  </main>
+
+  <!-- Master Application Footer -->
+  <footer class="w-full bg-surface-container-low py-margin border-t border-surface-container">
+    <div class="max-w-7xl mx-auto px-gutter flex flex-col sm:flex-row items-center justify-between gap-4 text-on-surface-variant text-body-sm">
+      <div class="flex items-center gap-2">
+        <img alt="ISL Connect Logo" class="h-5 w-5 object-contain" src="assets/logo.svg"/>
+        <span>&copy; 2024 ISL Connect - G2T2G Bridging Indian Sign Language. All rights reserved.</span>
+      </div>
+      <div class="flex items-center gap-space-lg text-xs">
+        <a href="#home" onclick="navigateTo('home'); return false;" class="hover:underline">Home</a>
+        <a href="#normal" onclick="navigateTo('normal'); return false;" class="hover:underline">Hearing User</a>
+        <a href="#sign" onclick="navigateTo('sign'); return false;" class="hover:underline">Sign User</a>
+        <a href="#chat" onclick="navigateTo('chat'); return false;" class="hover:underline">Live Workspace</a>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Application Logic -->
+  <script src="app.js?v=20260930_1"></script>
+</body>
+</html>
