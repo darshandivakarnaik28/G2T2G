@@ -910,18 +910,18 @@ function triggerTranslation() {
     if (emptyState) emptyState.remove();
 
     const msgDiv = document.createElement('div');
-    msgDiv.className = "flex flex-col gap-space-xs bg-surface p-space-md rounded-xl shadow-sm animate-fade-in";
+    msgDiv.className = "flex flex-col gap-space-xs bg-surface/90 backdrop-blur-sm p-4 rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow animate-fade-in";
     msgDiv.innerHTML = `
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-space-xs">
-          <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold">U</div>
+          <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
           <span class="text-label-md font-bold text-on-surface">You (Hearing User)</span>
         </div>
-        <span class="text-label-sm text-on-surface-variant">${timeStr}</span>
+        <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
       </div>
       <p class="text-body-md text-on-surface pl-7">${text}</p>
       <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
-        <span class="px-space-xs py-0.5 rounded bg-primary-fixed text-on-primary-fixed text-label-sm font-medium flex items-center gap-1">
+        <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
           <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D 21-Landmark Output
         </span>
       </div>
@@ -1078,13 +1078,13 @@ function simulateGesture(textEn, textKn) {
     msgDiv.className = "flex flex-col items-end gap-xs max-w-[85%] self-end animate-fade-in";
     msgDiv.innerHTML = `
       <div class="flex items-center gap-space-xs">
-        <span class="text-[10px] text-outline">${timeStr}</span>
-        <span class="text-label-sm text-on-surface-variant">You (Sign User - ISL)</span>
-        <div class="w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center text-[10px] font-bold">IS</div>
+        <span class="text-[10px] text-outline font-medium">${timeStr}</span>
+        <span class="text-label-sm text-on-surface-variant font-medium">You (Sign User - ISL)</span>
+        <div class="w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center text-[10px] font-bold shadow-xs">IS</div>
       </div>
-      <div class="bg-primary text-on-primary p-space-md rounded-xl text-body-md shadow-sm flex flex-col gap-space-xs">
-        <span>${textEn}</span>
-        <span class="text-xs text-primary-fixed-dim border-t border-primary-fixed/20 pt-1">ಕನ್ನಡ: ${textKn}</span>
+      <div class="bg-gradient-to-br from-primary to-primary-container text-on-primary p-4 rounded-2xl rounded-tr-sm text-body-md shadow-md border border-primary-fixed/20 flex flex-col gap-space-xs hover:shadow-lg transition-shadow">
+        <span class="font-bold tracking-wide">${textEn}</span>
+        <span class="text-xs text-primary-fixed-dim border-t border-primary-fixed/20 pt-1 font-medium">ಕನ್ನಡ: ${textKn}</span>
       </div>
     `;
     feed.appendChild(msgDiv);
@@ -1137,18 +1137,18 @@ function sendLiveMessage() {
     if (emptyState) emptyState.remove();
 
     const msg = document.createElement('div');
-    msg.className = "flex flex-col gap-space-xs bg-surface-container p-space-md rounded-xl animate-fade-in";
+    msg.className = "flex flex-col gap-space-xs bg-surface/90 backdrop-blur-sm p-4 rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow animate-fade-in";
     msg.innerHTML = `
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-space-xs">
-          <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold">U</div>
+          <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
           <span class="text-label-md font-bold text-on-surface">You</span>
         </div>
-        <span class="text-label-sm text-on-surface-variant">${timeStr}</span>
+        <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
       </div>
-      <p class="text-body-md text-on-surface pl-7">"${text}"</p>
+      <p class="text-body-md text-on-surface pl-7 font-medium">"${text}"</p>
       <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
-        <span class="px-space-xs py-0.5 rounded bg-primary-fixed text-on-primary-fixed text-label-sm font-medium flex items-center gap-1">
+        <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
           <span class="material-symbols-outlined text-[14px]">sign_language</span> Translated to 3D ISL Avatar
         </span>
       </div>
