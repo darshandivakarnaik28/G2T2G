@@ -146,6 +146,59 @@ function scrollToHowItWorks() {
 window.scrollToHowItWorks = scrollToHowItWorks;
 
 // --------------------------------------------------------------------------
+// Theme (Dark / Light Mode) Management
+// --------------------------------------------------------------------------
+function initTheme() {
+  const savedTheme = localStorage.getItem('isl_theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const isDark = savedTheme === 'dark' || (!savedTheme && prefersDark);
+  applyTheme(isDark);
+}
+
+function applyTheme(isDark) {
+  state.isDarkMode = isDark;
+  if (isDark) {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+
+  // Update desktop toggle knob and icon
+  const knob = document.getElementById('theme-toggle-knob');
+  const knobIcon = document.getElementById('theme-knob-icon');
+  const mobileIcon = document.getElementById('mobile-theme-icon');
+
+  if (knob) {
+    if (isDark) {
+      knob.classList.remove('translate-x-0');
+      knob.classList.add('translate-x-6');
+    } else {
+      knob.classList.remove('translate-x-6');
+      knob.classList.add('translate-x-0');
+    }
+  }
+
+  if (knobIcon) {
+    knobIcon.textContent = isDark ? 'dark_mode' : 'light_mode';
+    knobIcon.className = `material-symbols-outlined text-[14px] transition-colors duration-200 ${
+      isDark ? 'text-primary' : 'text-amber-500'
+    }`;
+  }
+
+  if (mobileIcon) {
+    mobileIcon.textContent = isDark ? 'light_mode' : 'dark_mode';
+  }
+
+  localStorage.setItem('isl_theme', isDark ? 'dark' : 'light');
+}
+
+function toggleDarkMode() {
+  const currentIsDark = document.documentElement.classList.contains('dark');
+  applyTheme(!currentIsDark);
+}
+window.toggleDarkMode = toggleDarkMode;
+
+// --------------------------------------------------------------------------
 // Accessibility & Global Language Toggles
 // --------------------------------------------------------------------------
 function toggleAccessibility() {
@@ -1117,6 +1170,9 @@ window.sendLiveMessage = sendLiveMessage;
 // Initialization on DOM Ready
 // --------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {
+  // Initialize Theme preference (Dark / Light Mode)
+  initTheme();
+
   // Check initial hash
   const initialHash = window.location.hash.replace('#', '') || 'home';
   if (['home', 'normal', 'sign', 'chat'].includes(initialHash)) {

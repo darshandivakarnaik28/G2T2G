@@ -6,7 +6,65 @@
   <meta content="web_standard" name="shell-type"/>
   <title>ISL Connect - G2T2G Indian Sign Language Platform</title>
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg"/>
+  <script>
+    // Instant Dark Mode initialization to prevent flash
+    (function() {
+      const savedTheme = localStorage.getItem('isl_theme');
+      const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (savedTheme === 'dark' || (!savedTheme && prefersDark)) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    })();
+  </script>
   <style>
+    :root {
+      --surface: 250 248 255;
+      --on-surface: 19 27 46;
+      --surface-container-lowest: 255 255 255;
+      --surface-container-low: 242 243 255;
+      --surface-container: 234 237 255;
+      --surface-container-high: 226 231 255;
+      --surface-container-highest: 218 226 253;
+      --on-surface-variant: 67 70 85;
+      --outline: 115 118 134;
+      --outline-variant: 195 198 215;
+      --primary: 0 74 198;
+      --primary-container: 37 99 235;
+      --on-primary: 255 255 255;
+      --on-primary-container: 238 239 255;
+      --secondary: 0 106 97;
+      --secondary-container: 134 242 228;
+      --on-secondary: 255 255 255;
+      --on-secondary-container: 0 111 102;
+      --inverse-surface: 40 48 68;
+      --inverse-on-surface: 238 240 255;
+    }
+
+    html.dark {
+      --surface: 13 18 30;
+      --on-surface: 238 242 255;
+      --surface-container-lowest: 8 11 19;
+      --surface-container-low: 18 24 40;
+      --surface-container: 24 33 54;
+      --surface-container-high: 32 44 72;
+      --surface-container-highest: 42 58 92;
+      --on-surface-variant: 156 163 175;
+      --outline: 90 100 120;
+      --outline-variant: 35 48 76;
+      --primary: 59 130 246;
+      --primary-container: 37 99 235;
+      --on-primary: 255 255 255;
+      --on-primary-container: 219 234 254;
+      --secondary: 20 184 166;
+      --secondary-container: 15 118 110;
+      --on-secondary: 255 255 255;
+      --on-secondary-container: 153 246 228;
+      --inverse-surface: 238 242 255;
+      --inverse-on-surface: 13 18 30;
+    }
+
     @layer base {
       html, body { margin: 0; padding: 0; }
       body { overscroll-behavior: none; }
@@ -14,6 +72,15 @@
       main > :last-child { margin-bottom: 0 !important; }
     }
     ::-webkit-scrollbar { display: none; }
+    
+    /* Smooth theme transitions for surfaces and borders */
+    body, header, nav, main, section, footer,
+    div.bg-surface, div.bg-surface-container, div.bg-surface-container-low,
+    div.bg-surface-container-high, div.bg-surface-container-lowest,
+    textarea, input, button {
+      transition: background-color 0.22s ease, border-color 0.22s ease, color 0.18s ease;
+    }
+
     .nav-link.active {
       background-color: #2563eb !important;
       color: #eeefff !important;
@@ -39,52 +106,38 @@
       theme: {
         extend: {
           "colors": {
-            "on-surface": "#131b2e",
-            "on-secondary-fixed": "#00201d",
-            "on-secondary-fixed-variant": "#005049",
-            "tertiary-fixed-dim": "#bdcac1",
-            "tertiary-container": "#647069",
-            "on-surface-variant": "#434655",
-            "inverse-surface": "#283044",
-            "secondary-fixed": "#89f5e7",
-            "inverse-on-surface": "#eef0ff",
-            "tertiary": "#4c5851",
-            "primary-fixed-dim": "#b4c5ff",
-            "on-tertiary": "#ffffff",
-            "on-error-container": "#93000a",
+            "surface": "rgb(var(--surface) / <alpha-value>)",
+            "on-surface": "rgb(var(--on-surface) / <alpha-value>)",
+            "surface-container-lowest": "rgb(var(--surface-container-lowest) / <alpha-value>)",
+            "surface-container-low": "rgb(var(--surface-container-low) / <alpha-value>)",
+            "surface-container": "rgb(var(--surface-container) / <alpha-value>)",
+            "surface-container-high": "rgb(var(--surface-container-high) / <alpha-value>)",
+            "surface-container-highest": "rgb(var(--surface-container-highest) / <alpha-value>)",
+            "on-surface-variant": "rgb(var(--on-surface-variant) / <alpha-value>)",
+            "outline": "rgb(var(--outline) / <alpha-value>)",
+            "outline-variant": "rgb(var(--outline-variant) / <alpha-value>)",
+            "primary": "rgb(var(--primary) / <alpha-value>)",
+            "primary-container": "rgb(var(--primary-container) / <alpha-value>)",
+            "on-primary": "rgb(var(--on-primary) / <alpha-value>)",
+            "on-primary-container": "rgb(var(--on-primary-container) / <alpha-value>)",
+            "secondary": "rgb(var(--secondary) / <alpha-value>)",
+            "secondary-container": "rgb(var(--secondary-container) / <alpha-value>)",
+            "on-secondary": "rgb(var(--on-secondary) / <alpha-value>)",
+            "on-secondary-container": "rgb(var(--on-secondary-container) / <alpha-value>)",
+            "inverse-surface": "rgb(var(--inverse-surface) / <alpha-value>)",
+            "inverse-on-surface": "rgb(var(--inverse-on-surface) / <alpha-value>)",
             "surface-tint": "#0053db",
-            "on-background": "#131b2e",
-            "surface-container-lowest": "#ffffff",
-            "surface-dim": "#d2d9f4",
-            "background": "#faf8ff",
-            "surface-container-highest": "#dae2fd",
-            "outline": "#737686",
-            "surface": "#faf8ff",
-            "error-container": "#ffdad6",
-            "on-tertiary-fixed": "#131e19",
-            "surface-container-low": "#f2f3ff",
-            "secondary": "#006a61",
-            "surface-variant": "#dae2fd",
-            "on-error": "#ffffff",
-            "on-primary-fixed": "#00174b",
-            "outline-variant": "#c3c6d7",
-            "on-tertiary-fixed-variant": "#3e4943",
-            "surface-container": "#eaedff",
-            "on-secondary-container": "#006f66",
-            "surface-container-high": "#e2e7ff",
-            "on-secondary": "#ffffff",
-            "error": "#ba1a1a",
-            "primary-fixed": "#dbe1ff",
-            "primary-container": "#2563eb",
-            "on-primary-container": "#eeefff",
-            "on-tertiary-container": "#e7f4eb",
-            "secondary-container": "#86f2e4",
-            "surface-bright": "#faf8ff",
-            "inverse-primary": "#b4c5ff",
-            "primary": "#004ac6",
-            "on-primary": "#ffffff",
+            "secondary-fixed": "#89f5e7",
             "secondary-fixed-dim": "#6bd8cb",
-            "on-primary-fixed-variant": "#003ea8"
+            "primary-fixed": "#dbe1ff",
+            "primary-fixed-dim": "#b4c5ff",
+            "tertiary": "#4c5851",
+            "tertiary-container": "#647069",
+            "tertiary-fixed-dim": "#bdcac1",
+            "error": "#ba1a1a",
+            "error-container": "#ffdad6",
+            "on-error": "#ffffff",
+            "on-error-container": "#93000a"
           },
           "borderRadius": {
             "DEFAULT": "0.125rem",
@@ -165,6 +218,20 @@
           <span id="header-lang-label">EN | ಕನ್ನಡ</span>
         </button>
 
+        <!-- Dark / Light Mode Toggle Switch -->
+        <div class="flex items-center" title="Toggle Theme (Light / Dark)">
+          <button id="theme-toggle-btn" onclick="toggleDarkMode()" aria-label="Toggle Dark Mode" class="relative inline-flex items-center h-8 w-14 rounded-full p-0.5 transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-primary bg-surface-container hover:bg-surface-container-high border border-outline/30 cursor-pointer shadow-inner">
+            <span class="sr-only">Toggle dark mode</span>
+            <!-- Ambient Track Icons -->
+            <span class="absolute left-1.5 text-[14px] material-symbols-outlined text-amber-500 select-none pointer-events-none">light_mode</span>
+            <span class="absolute right-1.5 text-[14px] material-symbols-outlined text-primary-fixed-dim select-none pointer-events-none">dark_mode</span>
+            <!-- Sliding Thumb Knob -->
+            <span id="theme-toggle-knob" class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-surface-container-lowest shadow-md transform transition-all duration-300 translate-x-0 z-10 border border-outline/10">
+              <span id="theme-knob-icon" class="material-symbols-outlined text-[14px] text-amber-500 transition-transform duration-200">light_mode</span>
+            </span>
+          </button>
+        </div>
+
         <!-- Accessibility High Contrast Toggle -->
         <button aria-label="Accessibility Controls" class="p-2 rounded-lg hover:bg-surface-container-high hover:text-on-surface text-on-surface-variant transition-colors" onclick="toggleAccessibility()" title="Toggle High Contrast">
           <span class="material-symbols-outlined text-[20px]">accessibility</span>
@@ -178,11 +245,14 @@
     </div>
 
     <!-- Mobile Subnav Bar -->
-    <div class="flex md:hidden border-t border-surface-container px-2 py-1 justify-around bg-surface-container-lowest">
+    <div class="flex md:hidden border-t border-surface-container px-2 py-1 justify-around items-center bg-surface-container-lowest">
       <button class="mobile-nav-btn text-xs font-medium px-2 py-1 rounded" data-view="home" onclick="navigateTo('home')">Home</button>
       <button class="mobile-nav-btn text-xs font-medium px-2 py-1 rounded" data-view="normal" onclick="navigateTo('normal')">Normal</button>
       <button class="mobile-nav-btn text-xs font-medium px-2 py-1 rounded" data-view="sign" onclick="navigateTo('sign')">Sign</button>
       <button class="mobile-nav-btn text-xs font-medium px-2 py-1 rounded" data-view="chat" onclick="navigateTo('chat')">Live Chat</button>
+      <button class="p-1 rounded text-on-surface-variant hover:text-on-surface flex items-center" onclick="toggleDarkMode()" title="Toggle Dark Mode">
+        <span class="material-symbols-outlined text-[18px]" id="mobile-theme-icon">dark_mode</span>
+      </button>
     </div>
   </header>
 
