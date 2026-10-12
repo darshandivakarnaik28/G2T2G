@@ -945,6 +945,10 @@ async function toggleSignCamera() {
   const icon = document.getElementById('sign-cam-icon');
   const btn = document.getElementById('sign-cam-toggle-btn');
   const canvas = document.getElementById('sign-mesh-canvas');
+  const standby = document.getElementById('sign-camera-standby');
+  const badgeLeft = document.getElementById('sign-live-badge-left');
+  const badgeRight = document.getElementById('sign-live-badge-right');
+  const recognizedText = document.getElementById('recognized-text');
 
   state.isCameraActiveSign = !state.isCameraActiveSign;
 
@@ -958,12 +962,37 @@ async function toggleSignCamera() {
         video.srcObject = stream;
         video.classList.remove('hidden');
       }
+      if (standby) standby.classList.add('hidden');
+      if (badgeLeft) {
+        badgeLeft.classList.remove('hidden');
+        badgeLeft.classList.add('flex');
+      }
+      if (badgeRight) {
+        badgeRight.classList.remove('hidden');
+        badgeRight.classList.add('flex');
+      }
       if (icon) icon.textContent = 'videocam_off';
       if (btn) btn.classList.add('bg-secondary-container', 'text-on-secondary-container');
+      if (recognizedText && recognizedText.textContent === 'READY') {
+        recognizedText.textContent = 'LISTENING...';
+      }
       startHandMeshSimulation(canvas);
     } catch (err) {
       console.warn("Webcam access declined or unavailable, running realistic tracking simulator:", err);
-      if (icon) icon.textContent = 'videocam';
+      if (standby) standby.classList.add('hidden');
+      if (badgeLeft) {
+        badgeLeft.classList.remove('hidden');
+        badgeLeft.classList.add('flex');
+      }
+      if (badgeRight) {
+        badgeRight.classList.remove('hidden');
+        badgeRight.classList.add('flex');
+      }
+      if (icon) icon.textContent = 'videocam_off';
+      if (btn) btn.classList.add('bg-secondary-container', 'text-on-secondary-container');
+      if (recognizedText && recognizedText.textContent === 'READY') {
+        recognizedText.textContent = 'LISTENING...';
+      }
       startHandMeshSimulation(canvas);
     }
   } else {
@@ -975,8 +1004,24 @@ async function toggleSignCamera() {
       video.classList.add('hidden');
       video.srcObject = null;
     }
+    if (standby) standby.classList.remove('hidden');
+    if (badgeLeft) {
+      badgeLeft.classList.add('hidden');
+      badgeLeft.classList.remove('flex');
+    }
+    if (badgeRight) {
+      badgeRight.classList.add('hidden');
+      badgeRight.classList.remove('flex');
+    }
     if (icon) icon.textContent = 'videocam';
     if (btn) btn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+    if (recognizedText && (recognizedText.textContent === 'LISTENING...' || recognizedText.textContent === 'READY')) {
+      recognizedText.textContent = 'READY';
+    }
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
   }
 }
 window.toggleSignCamera = toggleSignCamera;

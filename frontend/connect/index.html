@@ -1053,45 +1053,58 @@
 <!-- Left Column: Camera Feed & Gesture Recognition (8 Cols) -->
 <div class="lg:col-span-8 flex flex-col gap-space-lg">
 
-  <!-- Camera Container -->
-  <div id="sign-camera-container" class="relative w-full aspect-[16/10] bg-inverse-surface rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center group border border-secondary/30 card-interactive">
+  <!-- Camera Container with Standby "Performs sign here" State -->
+  <div id="sign-camera-container" class="relative w-full aspect-[16/10] bg-inverse-surface rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl flex items-center justify-center border border-secondary/30 card-interactive">
     <!-- Real Webcam Video & Canvas Tracking Overlay -->
-    <video id="sign-webcam-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover hidden"></video>
-    <canvas id="sign-mesh-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-10"></canvas>
-    <!-- Background placeholder simulating live video feed -->
-    <div class="absolute inset-0 bg-cover bg-center opacity-80 group-hover:scale-102 transition-transform duration-700" data-alt="A high-tech clinical sign language interpretation studio with soft lighting, dark indigo and teal accents, displaying an individual performing Indian Sign Language in front of a neutral gradient backdrop." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAnY-7LnvsdQgTdcQs5eXhYxQHx1OF6Pi8qDbN2FSbYP7wb3XbG66A88dKSbLSYzw2TdyORdMdr3XvbXp1e4FIyzCK0namKsdn_vTHCMoEfaCibtplFSQJxhrGmlqR_UxybQdv44apI4Al383xlMKHmrZOe_ZJDsg9GWQnHjx-ON6oiq0m7wlmnkn7kMTPphz5J3pmcWDyAGFeQJ8PcQ0I-0Z3jKX3ftzWBEt2xxYpk7C1XBU530zu-')"></div>
+    <video id="sign-webcam-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover hidden z-10"></video>
+    <canvas id="sign-mesh-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-20"></canvas>
 
-    <!-- Subtle Grid Overlay for Tech Vibe -->
-    <div class="absolute inset-0 bg-[linear-gradient(to_right,#ffffff0a_1px,transparent_1px),linear-gradient(to_bottom,#ffffff0a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none"></div>
+    <!-- Initial Standby Overlay: "Performs Sign Here" -->
+    <div id="sign-camera-standby" class="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-space-lg bg-gradient-to-br from-[#12192c] via-[#0d1322] to-[#070b14] overflow-hidden">
+      <!-- Ambient Studio Radial Glow -->
+      <div class="absolute inset-0 opacity-15 bg-[radial-gradient(#89f5e7_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none"></div>
+      <div class="absolute w-72 h-72 rounded-full bg-secondary/10 blur-3xl pointer-events-none"></div>
 
-    <!-- Hand Detection Mesh Simulation (SVG Overlay) -->
-    <svg class="absolute inset-0 w-full h-full pointer-events-none text-secondary-fixed" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 800 500">
-      <circle cx="400" cy="300" fill="currentColor" r="6"></circle>
-      <circle cx="360" cy="240" fill="currentColor" r="4"></circle>
-      <circle cx="390" cy="200" fill="currentColor" r="4"></circle>
-      <circle cx="430" cy="200" fill="currentColor" r="4"></circle>
-      <circle cx="460" cy="230" fill="currentColor" r="4"></circle>
-      <path d="M400 300 L360 240 L390 200 M400 300 L390 200 L430 200 M400 300 L430 200 L460 230" stroke-opacity="0.6"></path>
-      <rect height="200" rx="8" stroke-dasharray="8 4" stroke-opacity="0.8" width="180" x="320" y="150"></rect>
-    </svg>
+      <div class="relative z-10 flex flex-col items-center max-w-md">
+        <!-- Interactive Big Camera Action Trigger -->
+        <button onclick="toggleSignCamera()" class="group relative w-24 h-24 rounded-3xl bg-secondary/15 hover:bg-secondary/25 border-2 border-secondary/40 hover:border-secondary flex items-center justify-center shadow-[0_0_35px_rgba(137,245,231,0.25)] hover:shadow-[0_0_50px_rgba(137,245,231,0.45)] transition-all duration-300 btn-bounce cursor-pointer mb-space-md" title="Click to open camera and perform sign">
+          <span class="material-symbols-outlined text-secondary-fixed text-[44px] group-hover:scale-110 transition-transform">videocam</span>
+          <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-secondary animate-pulse"></span>
+        </button>
 
-    <!-- Top-Left Badge: Hand Detection Active -->
-    <div class="absolute top-space-md left-space-md bg-inverse-surface/85 backdrop-blur-md px-3.5 py-1.5 rounded-full flex items-center gap-space-xs text-secondary-fixed border border-secondary/30 shadow-lg">
-      <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">hand_gesture</span>
-      <span class="font-label-sm text-inverse-on-surface font-semibold">Hand Detected (Right)</span>
+        <!-- Primary Standby Prompt -->
+        <h3 class="font-headline-md text-inverse-on-surface text-xl sm:text-2xl font-bold tracking-tight">
+          Performs sign here
+        </h3>
+        <p class="text-tertiary-fixed-dim text-body-sm mt-1.5 max-w-xs leading-relaxed">
+          Click the video icon above to open your camera and start real-time Indian Sign Language input.
+        </p>
+
+        <!-- Quick Start Pill Button -->
+        <button onclick="toggleSignCamera()" class="mt-space-md px-space-xl py-2.5 bg-gradient-to-r from-secondary to-teal-500 text-on-secondary-fixed font-bold text-label-md rounded-xl shadow-lg hover:shadow-secondary/25 transition-all flex items-center gap-space-xs btn-bounce cursor-pointer">
+          <span class="material-symbols-outlined text-[18px]">videocam</span>
+          <span>Start Camera Input</span>
+        </button>
+      </div>
     </div>
 
-    <!-- Top-Right Badge: Confidence Score -->
-    <div class="absolute top-space-md right-space-md bg-inverse-surface/85 backdrop-blur-md px-3.5 py-1.5 rounded-full flex items-center gap-space-xs text-inverse-on-surface border border-outline/20 shadow-lg">
+    <!-- Active Camera Live HUD: Top-Left Hand Detection Badge -->
+    <div id="sign-live-badge-left" class="hidden absolute top-space-md left-space-md bg-inverse-surface/90 backdrop-blur-md px-3.5 py-1.5 rounded-full z-30 items-center gap-space-xs text-secondary-fixed border border-secondary/30 shadow-lg">
+      <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">hand_gesture</span>
+      <span class="font-label-sm text-inverse-on-surface font-semibold" id="sign-detected-hand">Hand Detected (21 Joints)</span>
+    </div>
+
+    <!-- Active Camera Live HUD: Top-Right Confidence Score -->
+    <div id="sign-live-badge-right" class="hidden absolute top-space-md right-space-md bg-inverse-surface/90 backdrop-blur-md px-3.5 py-1.5 rounded-full z-30 items-center gap-space-xs text-inverse-on-surface border border-outline/20 shadow-lg">
       <span class="text-xs text-tertiary-fixed-dim">Confidence:</span>
-      <span class="font-label-md text-secondary-fixed font-bold">98.4%</span>
+      <span class="font-label-md text-secondary-fixed font-bold" id="sign-confidence-score">98.4%</span>
     </div>
 
     <!-- Bottom Overlay: Current Recognized Gesture Banner -->
-    <div class="absolute bottom-space-md left-space-md right-space-md bg-inverse-surface/90 backdrop-blur-xl p-space-md rounded-2xl flex items-center justify-between border border-outline/30 shadow-2xl">
+    <div class="absolute bottom-space-md left-space-md right-space-md bg-inverse-surface/90 backdrop-blur-xl p-space-md rounded-2xl flex items-center justify-between border border-outline/30 shadow-2xl z-30">
       <div class="flex flex-col">
         <span class="font-label-sm text-tertiary-fixed-dim uppercase tracking-wider text-[11px] font-bold">Gesture Recognized</span>
-        <span class="font-headline-lg text-inverse-on-surface tracking-tight" id="recognized-text">HELLO</span>
+        <span class="font-headline-lg text-inverse-on-surface tracking-tight" id="recognized-text">READY</span>
       </div>
       <div class="flex items-center gap-space-sm">
         <button class="bg-gradient-to-r from-primary to-primary-container text-on-primary px-space-lg py-space-sm rounded-xl font-label-md flex items-center gap-space-xs btn-bounce shadow-lg cursor-pointer" onclick="speakCurrent()">
