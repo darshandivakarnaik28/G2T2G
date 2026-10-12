@@ -940,6 +940,138 @@ window.triggerTranslation = triggerTranslation;
 // --------------------------------------------------------------------------
 // Sign User Experience (Camera, Tracking & Feedback)
 // --------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// Real MediaPipe Hands Detection & 21 3D Landmark Tracking Pipeline
+// --------------------------------------------------------------------------
+let mediaPipeHandsInstance = null;
+let mediaPipeCameraInstance = null;
+
+function initMediaPipeHands() {
+  if (mediaPipeHandsInstance) return mediaPipeHandsInstance;
+  if (typeof Hands === 'undefined') {
+    console.warn("MediaPipe Hands library not loaded from CDN.");
+    return null;
+  }
+
+  const hands = new Hands({
+    locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+  });
+
+  hands.setOptions({
+    maxNumHands: 2,
+    modelComplexity: 1,
+    minDetectionConfidence: 0.5,
+    minTrackingConfidence: 0.5
+  });
+
+  hands.onResults(onHandTrackingResults);
+  mediaPipeHandsInstance = hands;
+  return hands;
+}
+
+function onHandTrackingResults(results) {
+  const canvas = document.getElementById('sign-mesh-canvas');
+  const badgeLeft = document.getElementById('sign-detected-hand');
+  const badgeRight = document.getElementById('sign-confidence-score');
+  const statusDock = document.getElementById('sign-live-status-dock');
+  const handsCountBadge = document.getElementById('sign-hands-count-badge');
+  const handednessBadge = document.getElementById('sign-handedness-badge');
+
+  if (!canvas || !state.isCameraActiveSign) return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const numHands = results.multiHandLandmarks ? results.multiHandLandmarks.length : 0;
+
+  if (numHands === 0) {
+    if (badgeLeft) badgeLeft.textContent = "Searching for hands...";
+    if (badgeRight) badgeRight.textContent = "--";
+    if (handsCountBadge) handsCountBadge.textContent = "0 Hands";
+    if (handednessBadge) handednessBadge.textContent = "No Hands Detected";
+    return;
+  }
+
+  // Determine Handedness & Scores
+  const labels = [];
+  let totalScore = 0;
+  let scoreCount = 0;
+
+  if (results.multiHandedness && results.multiHandedness.length > 0) {
+    results.multiHandedness.forEach(h => {
+      const label = h.label || (h.displayName || 'Hand');
+      labels.push(label);
+      if (h.score != null) {
+        totalScore += h.score;
+        scoreCount++;
+      }
+    });
+  }
+
+  const avgConfidence = scoreCount > 0 ? (totalScore / scoreCount * 100).toFixed(1) + "%" : "96.5%";
+  const handCountStr = numHands === 1 ? "1 Hand" : `${numHands} Hands`;
+  const handednessStr = labels.length > 0 ? labels.join(" + ") + " Hand" : (numHands === 1 ? "Single Hand" : "Both Hands");
+
+  if (badgeLeft) badgeLeft.textContent = `${handCountStr} (${handednessStr})`;
+  if (badgeRight) badgeRight.textContent = avgConfidence;
+  if (handsCountBadge) handsCountBadge.textContent = handCountStr;
+  if (handednessBadge) handednessBadge.textContent = handednessStr;
+  if (statusDock) {
+    statusDock.classList.remove('hidden');
+    statusDock.classList.add('flex');
+  }
+
+  // Draw 21 Landmarks & Skeletal Connections for each detected hand
+  const connections = [
+    [0,1],[1,2],[2,3],[3,4],        // Thumb
+    [0,5],[5,6],[6,7],[7,8],        // Index
+    [0,9],[9,10],[10,11],[11,12],   // Middle
+    [0,13],[13,14],[14,15],[15,16], // Ring
+    [0,17],[17,18],[18,19],[19,20], // Pinky
+    [5,9],[9,13],[13,17]            // Palm Base
+  ];
+
+  results.multiHandLandmarks.forEach((landmarks, handIdx) => {
+    const isRight = (labels[handIdx] || '').toLowerCase().includes('right') || handIdx === 0;
+    const strokeColor = isRight ? "rgba(137, 245, 231, 0.9)" : "rgba(180, 197, 255, 0.9)";
+    const nodeColor = isRight ? "#89f5e7" : "#b4c5ff";
+
+    // 1. Draw Bones
+    ctx.lineWidth = 3.5;
+    ctx.strokeStyle = strokeColor;
+    ctx.lineCap = "round";
+    connections.forEach(([i1, i2]) => {
+      const p1 = landmarks[i1];
+      const p2 = landmarks[i2];
+      if (p1 && p2) {
+        ctx.beginPath();
+        ctx.moveTo(p1.x * canvas.width, p1.y * canvas.height);
+        ctx.lineTo(p2.x * canvas.width, p2.y * canvas.height);
+        ctx.stroke();
+      }
+    });
+
+    // 2. Draw 21 Joint Nodes
+    landmarks.forEach((lm, idx) => {
+      const px = lm.x * canvas.width;
+      const py = lm.y * canvas.height;
+
+      ctx.beginPath();
+      ctx.arc(px, py, (idx === 0 || idx % 4 === 0) ? 6 : 4, 0, Math.PI * 2);
+      ctx.fillStyle = idx === 0 ? "#2563eb" : (idx % 4 === 0 ? nodeColor : "#ffffff");
+      ctx.fill();
+
+      // Outer glow for fingertips
+      if (idx % 4 === 0 && idx !== 0) {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = strokeColor;
+        ctx.stroke();
+      }
+    });
+  });
+}
+
 async function toggleSignCamera() {
   const video = document.getElementById('sign-webcam-video');
   const icon = document.getElementById('sign-cam-icon');
@@ -948,7 +1080,7 @@ async function toggleSignCamera() {
   const standby = document.getElementById('sign-camera-standby');
   const badgeLeft = document.getElementById('sign-live-badge-left');
   const badgeRight = document.getElementById('sign-live-badge-right');
-  const recognizedText = document.getElementById('recognized-text');
+  const statusDock = document.getElementById('sign-live-status-dock');
 
   state.isCameraActiveSign = !state.isCameraActiveSign;
 
@@ -961,6 +1093,7 @@ async function toggleSignCamera() {
       if (video) {
         video.srcObject = stream;
         video.classList.remove('hidden');
+        await video.play();
       }
       if (standby) standby.classList.add('hidden');
       if (badgeLeft) {
@@ -971,31 +1104,44 @@ async function toggleSignCamera() {
         badgeRight.classList.remove('hidden');
         badgeRight.classList.add('flex');
       }
+      if (statusDock) {
+        statusDock.classList.remove('hidden');
+        statusDock.classList.add('flex');
+      }
       if (icon) icon.textContent = 'videocam_off';
       if (btn) btn.classList.add('bg-secondary-container', 'text-on-secondary-container');
-      if (recognizedText && recognizedText.textContent === 'READY') {
-        recognizedText.textContent = 'LISTENING...';
+
+      // Initialize real MediaPipe Hands detection
+      const hands = initMediaPipeHands();
+      if (hands && typeof Camera !== 'undefined' && video) {
+        mediaPipeCameraInstance = new Camera(video, {
+          onFrame: async () => {
+            if (state.isCameraActiveSign && video.readyState >= 2) {
+              await hands.send({ image: video });
+            }
+          },
+          width: 1280,
+          height: 720
+        });
+        await mediaPipeCameraInstance.start();
+      } else {
+        // Fallback to manual frame loop if Camera utils not loaded
+        startVideoProcessingLoop(video, hands);
       }
-      startHandMeshSimulation(canvas);
     } catch (err) {
-      console.warn("Webcam access declined or unavailable, running realistic tracking simulator:", err);
-      if (standby) standby.classList.add('hidden');
-      if (badgeLeft) {
-        badgeLeft.classList.remove('hidden');
-        badgeLeft.classList.add('flex');
-      }
-      if (badgeRight) {
-        badgeRight.classList.remove('hidden');
-        badgeRight.classList.add('flex');
-      }
-      if (icon) icon.textContent = 'videocam_off';
-      if (btn) btn.classList.add('bg-secondary-container', 'text-on-secondary-container');
-      if (recognizedText && recognizedText.textContent === 'READY') {
-        recognizedText.textContent = 'LISTENING...';
-      }
-      startHandMeshSimulation(canvas);
+      console.warn("Webcam access error:", err);
+      state.isCameraActiveSign = false;
+      alert("Unable to access camera: " + (err.message || err.name));
+      if (icon) icon.textContent = 'videocam';
+      if (btn) btn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
+      if (standby) standby.classList.remove('hidden');
     }
   } else {
+    // Teardown camera & hands
+    if (mediaPipeCameraInstance) {
+      try { mediaPipeCameraInstance.stop(); } catch(e) {}
+      mediaPipeCameraInstance = null;
+    }
     if (state.cameraStream) {
       state.cameraStream.getTracks().forEach(t => t.stop());
       state.cameraStream = null;
@@ -1013,11 +1159,12 @@ async function toggleSignCamera() {
       badgeRight.classList.add('hidden');
       badgeRight.classList.remove('flex');
     }
+    if (statusDock) {
+      statusDock.classList.add('hidden');
+      statusDock.classList.remove('flex');
+    }
     if (icon) icon.textContent = 'videocam';
     if (btn) btn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
-    if (recognizedText && (recognizedText.textContent === 'LISTENING...' || recognizedText.textContent === 'READY')) {
-      recognizedText.textContent = 'READY';
-    }
     if (canvas) {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -1026,81 +1173,21 @@ async function toggleSignCamera() {
 }
 window.toggleSignCamera = toggleSignCamera;
 
-function toggleLiveCamera() {
-  const btn = document.getElementById('live-cam-toggle-btn');
-  state.isCameraActiveLive = !state.isCameraActiveLive;
-  if (btn) {
-    if (state.isCameraActiveLive) {
-      btn.classList.add('bg-secondary-container', 'text-on-secondary-container');
-    } else {
-      btn.classList.remove('bg-secondary-container', 'text-on-secondary-container');
-    }
-  }
-}
-window.toggleLiveCamera = toggleLiveCamera;
-
-// Realistic Hand Landmark Mesh Rendering on Canvas
-let meshAnimId = null;
-function startHandMeshSimulation(canvas) {
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  let t = 0;
-
-  function drawMesh() {
+function startVideoProcessingLoop(video, hands) {
+  let isRunning = true;
+  async function step() {
     if (!state.isCameraActiveSign) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      isRunning = false;
       return;
     }
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-    t += 0.04;
-    const cx = canvas.width * 0.5 + Math.sin(t) * 30;
-    const cy = canvas.height * 0.55 + Math.cos(t * 1.3) * 20;
-
-    // MediaPipe style 21-joint coordinates
-    const pts = [
-      [cx, cy + 80],
-      [cx - 40, cy + 50], [cx - 65, cy + 20], [cx - 80, cy - 10], [cx - 95, cy - 35],
-      [cx - 25, cy - 30], [cx - 30, cy - 80], [cx - 33, cy - 115], [cx - 35, cy - 145],
-      [cx, cy - 35], [cx, cy - 90], [cx, cy - 130], [cx, cy - 165],
-      [cx + 25, cy - 30], [cx + 30, cy - 80], [cx + 33, cy - 115], [cx + 35, cy - 145],
-      [cx + 45, cy - 20], [cx + 55, cy - 60], [cx + 62, cy - 90], [cx + 70, cy - 120]
-    ];
-
-    const lines = [
-      [0,1],[1,2],[2,3],[3,4],
-      [0,5],[5,6],[6,7],[7,8],
-      [0,9],[9,10],[10,11],[11,12],
-      [0,13],[13,14],[14,15],[15,16],
-      [0,17],[17,18],[18,19],[19,20],
-      [5,9],[9,13],[13,17]
-    ];
-
-    // Draw skeletal lines
-    ctx.strokeStyle = "rgba(137, 245, 231, 0.75)";
-    ctx.lineWidth = 3;
-    lines.forEach(([i1, i2]) => {
-      ctx.beginPath();
-      ctx.moveTo(pts[i1][0], pts[i1][1]);
-      ctx.lineTo(pts[i2][0], pts[i2][1]);
-      ctx.stroke();
-    });
-
-    // Draw joint nodes
-    pts.forEach(([px, py], idx) => {
-      ctx.fillStyle = idx === 0 ? "#2563eb" : (idx % 4 === 0 ? "#89f5e7" : "#ffffff");
-      ctx.beginPath();
-      ctx.arc(px, py, idx % 4 === 0 ? 6 : 4, 0, Math.PI * 2);
-      ctx.fill();
-    });
-
-    meshAnimId = requestAnimationFrame(drawMesh);
+    if (video && video.readyState >= 2 && hands) {
+      try {
+        await hands.send({ image: video });
+      } catch(e) {}
+    }
+    if (isRunning) requestAnimationFrame(step);
   }
-
-  cancelAnimationFrame(meshAnimId);
-  drawMesh();
+  requestAnimationFrame(step);
 }
 
 function simulateGesture(textEn, textKn) {

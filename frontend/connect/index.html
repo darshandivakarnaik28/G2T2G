@@ -6,6 +6,10 @@
   <meta content="web_standard" name="shell-type"/>
   <title>ISL Connect - G2T2G Indian Sign Language Platform</title>
   <link rel="icon" type="image/svg+xml" href="assets/logo.svg"/>
+
+  <!-- Official MediaPipe Hands & Camera Utils for Real-time 21 3D Landmark Tracking -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
   <script>
     // Instant Dark Mode initialization to prevent flash
     (function() {
@@ -1088,32 +1092,27 @@
       </div>
     </div>
 
-    <!-- Active Camera Live HUD: Top-Left Hand Detection Badge -->
+    <!-- Active Camera Live HUD: Hand Landmark & Handedness Badge (One/Two Hand, Left/Right) -->
     <div id="sign-live-badge-left" class="hidden absolute top-space-md left-space-md bg-inverse-surface/90 backdrop-blur-md px-3.5 py-1.5 rounded-full z-30 items-center gap-space-xs text-secondary-fixed border border-secondary/30 shadow-lg">
       <span class="material-symbols-outlined text-[16px]" style="font-variation-settings: 'FILL' 1;">hand_gesture</span>
-      <span class="font-label-sm text-inverse-on-surface font-semibold" id="sign-detected-hand">Hand Detected (21 Joints)</span>
+      <span class="font-label-sm text-inverse-on-surface font-semibold" id="sign-detected-hand">Waiting for hand...</span>
     </div>
 
-    <!-- Active Camera Live HUD: Top-Right Confidence Score -->
+    <!-- Active Camera Live HUD: Real Detection Confidence Badge -->
     <div id="sign-live-badge-right" class="hidden absolute top-space-md right-space-md bg-inverse-surface/90 backdrop-blur-md px-3.5 py-1.5 rounded-full z-30 items-center gap-space-xs text-inverse-on-surface border border-outline/20 shadow-lg">
-      <span class="text-xs text-tertiary-fixed-dim">Confidence:</span>
-      <span class="font-label-md text-secondary-fixed font-bold" id="sign-confidence-score">98.4%</span>
+      <span class="text-xs text-tertiary-fixed-dim">Tracking Confidence:</span>
+      <span class="font-label-md text-secondary-fixed font-bold" id="sign-confidence-score">--</span>
     </div>
 
-    <!-- Bottom Overlay: Current Recognized Gesture Banner -->
-    <div class="absolute bottom-space-md left-space-md right-space-md bg-inverse-surface/90 backdrop-blur-xl p-space-md rounded-2xl flex items-center justify-between border border-outline/30 shadow-2xl z-30">
-      <div class="flex flex-col">
-        <span class="font-label-sm text-tertiary-fixed-dim uppercase tracking-wider text-[11px] font-bold">Gesture Recognized</span>
-        <span class="font-headline-lg text-inverse-on-surface tracking-tight" id="recognized-text">READY</span>
+    <!-- Real-Time Hand Status Live Dock (Transparent bottom pill showing landmark count and active tracking details) -->
+    <div id="sign-live-status-dock" class="hidden absolute bottom-space-md inset-x-space-md z-30 flex items-center justify-between bg-inverse-surface/85 backdrop-blur-xl px-space-md py-2 rounded-2xl border border-secondary/20 shadow-xl">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse"></span>
+        <span id="sign-landmark-status" class="text-xs text-inverse-on-surface font-medium">Tracking 21 3D Landmarks per Hand</span>
       </div>
-      <div class="flex items-center gap-space-sm">
-        <button class="bg-gradient-to-r from-primary to-primary-container text-on-primary px-space-lg py-space-sm rounded-xl font-label-md flex items-center gap-space-xs btn-bounce shadow-lg cursor-pointer" onclick="speakCurrent()">
-          <span class="material-symbols-outlined text-[20px]">volume_up</span>
-          <span>Speak Out</span>
-        </button>
-        <button class="bg-surface-container/30 hover:bg-surface-container/50 text-inverse-on-surface px-space-md py-space-sm rounded-xl font-label-md transition-colors cursor-pointer border border-outline/20" onclick="clearGesture()">
-          Clear
-        </button>
+      <div class="flex items-center gap-2">
+        <span id="sign-hands-count-badge" class="px-2 py-0.5 rounded-md bg-secondary/20 text-secondary-fixed text-[11px] font-bold">0 Hands</span>
+        <span id="sign-handedness-badge" class="px-2 py-0.5 rounded-md bg-primary/20 text-primary-fixed text-[11px] font-bold">No Hands</span>
       </div>
     </div>
   </div>
