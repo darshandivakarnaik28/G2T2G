@@ -1167,6 +1167,39 @@ function sendLiveMessage() {
 window.sendLiveMessage = sendLiveMessage;
 
 // --------------------------------------------------------------------------
+// Interactive "How It Works" Architecture Pipeline Switcher
+// --------------------------------------------------------------------------
+function switchHiwMode(mode) {
+  const tabs = {
+    'both': document.getElementById('hiw-tab-both'),
+    'sign': document.getElementById('hiw-tab-sign'),
+    'voice': document.getElementById('hiw-tab-voice'),
+  };
+
+  Object.entries(tabs).forEach(([k, btn]) => {
+    if (!btn) return;
+    if (k === mode) {
+      btn.className = "px-4 py-2 rounded-xl text-label-md font-bold transition-all bg-primary text-on-primary shadow-sm cursor-pointer";
+    } else {
+      btn.className = "px-4 py-2 rounded-xl text-label-md font-medium text-on-surface-variant hover:text-on-surface transition-all cursor-pointer";
+    }
+  });
+
+  const steps = document.querySelectorAll('.hiw-step');
+  steps.forEach(step => {
+    const pipelines = (step.getAttribute('data-pipeline') || '').split(',');
+    if (mode === 'both' || pipelines.includes(mode)) {
+      step.classList.remove('opacity-30', 'grayscale', 'scale-95');
+      step.classList.add('opacity-100', 'scale-100');
+    } else {
+      step.classList.add('opacity-30', 'grayscale', 'scale-95');
+      step.classList.remove('opacity-100', 'scale-100');
+    }
+  });
+}
+window.switchHiwMode = switchHiwMode;
+
+// --------------------------------------------------------------------------
 // Initialization on DOM Ready
 // --------------------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', () => {

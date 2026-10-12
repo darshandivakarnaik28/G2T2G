@@ -532,56 +532,160 @@
 
 </section>
 
-<!-- How It Works Preview Section -->
+<!-- How It Works Section - Interactive & Efficient Architecture Pipeline -->
+<section class="w-full py-space-xl bg-gradient-to-b from-surface to-surface-container-low relative overflow-hidden" id="how-it-works">
+  <div class="absolute -top-32 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
 
-<section class="w-full py-space-xl bg-surface" id="how-it-works">
+  <div class="max-w-7xl mx-auto px-gutter flex flex-col gap-space-xl relative z-10">
 
-<div class="max-w-7xl mx-auto px-gutter flex flex-col gap-space-xl">
+    <!-- Section Header -->
+    <div class="text-center max-w-3xl mx-auto flex flex-col gap-space-sm">
+      <div class="inline-flex items-center gap-space-xs bg-primary/10 text-primary px-space-md py-1 rounded-full text-label-sm font-bold uppercase tracking-wider mx-auto">
+        <span class="material-symbols-outlined text-[16px]">account_tree</span>
+        <span>End-to-End Bidirectional Pipeline</span>
+      </div>
+      <h2 class="font-headline-lg text-on-surface">How ISL Connect Works</h2>
+      <p class="text-body-md text-on-surface-variant">
+        Our hybrid neural architecture seamlessly translates Indian Sign Language and Spoken/Written Language in sub-second real-time with dual visual confirmation.
+      </p>
 
-<div class="text-center max-w-2xl mx-auto flex flex-col gap-space-sm">
+      <!-- Interactive Mode Filter Switcher -->
+      <div class="flex items-center justify-center gap-2 p-1 bg-surface-container rounded-2xl w-fit mx-auto mt-2 border border-outline-variant/30 shadow-inner">
+        <button id="hiw-tab-both" onclick="switchHiwMode('both')" class="px-4 py-2 rounded-xl text-label-md font-bold transition-all bg-primary text-on-primary shadow-sm cursor-pointer">
+          Complete Pipeline
+        </button>
+        <button id="hiw-tab-sign" onclick="switchHiwMode('sign')" class="px-4 py-2 rounded-xl text-label-md font-medium text-on-surface-variant hover:text-on-surface transition-all cursor-pointer">
+          Sign &rarr; Voice/Text
+        </button>
+        <button id="hiw-tab-voice" onclick="switchHiwMode('voice')" class="px-4 py-2 rounded-xl text-label-md font-medium text-on-surface-variant hover:text-on-surface transition-all cursor-pointer">
+          Voice/Text &rarr; 3D ISL
+        </button>
+      </div>
+    </div>
 
-<h2 class="font-headline-lg text-on-surface">How ISL Connect Works</h2>
+    <!-- 4-Step Pipeline Flow Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md relative">
+      
+      <!-- Step 1: Capture & Tracking -->
+      <div class="hiw-step group bg-surface/90 backdrop-blur-md p-6 rounded-2xl md:rounded-3xl border border-outline-variant/30 hover:border-primary/50 shadow-sm hover:shadow-xl transition-all duration-300 card-interactive flex flex-col justify-between relative overflow-hidden" data-pipeline="sign,both">
+        <div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full pointer-events-none group-hover:scale-125 transition-transform"></div>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div class="w-12 h-12 rounded-2xl bg-primary text-on-primary font-headline-md flex items-center justify-center shadow-md group-hover:scale-110 group-hover:rotate-3 transition-transform">
+              <span class="material-symbols-outlined text-[24px]">videocam</span>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">Step 01</span>
+          </div>
+          <div>
+            <h3 class="font-headline-sm text-on-surface group-hover:text-primary transition-colors">AI Vision Tracking</h3>
+            <p class="text-body-sm text-on-surface-variant mt-1.5 leading-relaxed">
+              Real-time camera tracks <strong class="text-on-surface font-semibold">21 3D hand landmarks</strong> per hand at 60 FPS without gloves or specialized hardware.
+            </p>
+          </div>
+        </div>
+        <div class="pt-4 border-t border-outline-variant/20 mt-4 flex items-center justify-between text-xs text-on-surface-variant">
+          <span class="flex items-center gap-1 font-medium"><span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 21 Keypoints</span>
+          <span class="font-bold text-primary">&lt;15ms Latency</span>
+        </div>
+      </div>
 
-<p class="text-body-md text-on-surface-variant">A seamless three-step architecture designed for crystal clear cross-modal communication.</p>
+      <!-- Step 2: Temporal Model & Translation -->
+      <div class="hiw-step group bg-surface/90 backdrop-blur-md p-6 rounded-2xl md:rounded-3xl border border-outline-variant/30 hover:border-secondary/50 shadow-sm hover:shadow-xl transition-all duration-300 card-interactive flex flex-col justify-between relative overflow-hidden" data-pipeline="sign,both">
+        <div class="absolute top-0 right-0 w-24 h-24 bg-secondary/5 rounded-bl-full pointer-events-none group-hover:scale-125 transition-transform"></div>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div class="w-12 h-12 rounded-2xl bg-secondary text-on-secondary font-headline-md flex items-center justify-center shadow-md group-hover:scale-110 group-hover:-rotate-3 transition-transform">
+              <span class="material-symbols-outlined text-[24px]">psychology</span>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-secondary/10 text-secondary border border-secondary/20">Step 02</span>
+          </div>
+          <div>
+            <h3 class="font-headline-sm text-on-surface group-hover:text-secondary transition-colors">Neural Classifier</h3>
+            <p class="text-body-sm text-on-surface-variant mt-1.5 leading-relaxed">
+              Temporal LSTM &amp; Transformer architecture analyzes normalized 3D vectors to classify continuous gestures and fingerspelling.
+            </p>
+          </div>
+        </div>
+        <div class="pt-4 border-t border-outline-variant/20 mt-4 flex items-center justify-between text-xs text-on-surface-variant">
+          <span class="flex items-center gap-1 font-medium"><span class="material-symbols-outlined text-secondary text-[14px]">auto_awesome</span> 99.2% Conf</span>
+          <span class="font-bold text-secondary">Spatial Norm</span>
+        </div>
+      </div>
 
-</div>
+      <!-- Step 3: Dual Output (Voice & Regional) -->
+      <div class="hiw-step group bg-surface/90 backdrop-blur-md p-6 rounded-2xl md:rounded-3xl border border-outline-variant/30 hover:border-primary/50 shadow-sm hover:shadow-xl transition-all duration-300 card-interactive flex flex-col justify-between relative overflow-hidden" data-pipeline="both,voice">
+        <div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full pointer-events-none group-hover:scale-125 transition-transform"></div>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div class="w-12 h-12 rounded-2xl bg-primary-container text-on-primary-container font-headline-md flex items-center justify-center shadow-md group-hover:scale-110 group-hover:rotate-3 transition-transform">
+              <span class="material-symbols-outlined text-[24px]">volume_up</span>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-primary/10 text-primary border border-primary/20">Step 03</span>
+          </div>
+          <div>
+            <h3 class="font-headline-sm text-on-surface group-hover:text-primary transition-colors">Instant Voice Synthesis</h3>
+            <p class="text-body-sm text-on-surface-variant mt-1.5 leading-relaxed">
+              Recognized gestures instantly generate crystal clear speech and multilingual text (English &amp; ಕನ್ನಡ) for hearing participants.
+            </p>
+          </div>
+        </div>
+        <div class="pt-4 border-t border-outline-variant/20 mt-4 flex items-center justify-between text-xs text-on-surface-variant">
+          <span class="flex items-center gap-1 font-medium"><span class="material-symbols-outlined text-primary text-[14px]">translate</span> Multilingual</span>
+          <span class="font-bold text-primary">Web Speech TTS</span>
+        </div>
+      </div>
 
-<div class="grid grid-cols-1 md:grid-cols-3 gap-space-lg">
+      <!-- Step 4: 3D Hand Landmark Skeleton & Master Visual -->
+      <div class="hiw-step group bg-surface/90 backdrop-blur-md p-6 rounded-2xl md:rounded-3xl border border-outline-variant/30 hover:border-secondary/50 shadow-sm hover:shadow-xl transition-all duration-300 card-interactive flex flex-col justify-between relative overflow-hidden" data-pipeline="both,voice">
+        <div class="absolute top-0 right-0 w-24 h-24 bg-secondary/5 rounded-bl-full pointer-events-none group-hover:scale-125 transition-transform"></div>
+        <div class="flex flex-col gap-4">
+          <div class="flex items-center justify-between">
+            <div class="w-12 h-12 rounded-2xl bg-secondary-container text-on-secondary-container font-headline-md flex items-center justify-center shadow-md group-hover:scale-110 group-hover:-rotate-3 transition-transform">
+              <span class="material-symbols-outlined text-[24px]">view_in_ar</span>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-secondary/10 text-secondary border border-secondary/20">Step 04</span>
+          </div>
+          <div>
+            <h3 class="font-headline-sm text-on-surface group-hover:text-secondary transition-colors">Dual Frame 3D Render</h3>
+            <p class="text-body-sm text-on-surface-variant mt-1.5 leading-relaxed">
+              Normal user voice/text maps to authentic master gesture frames and live Three.js 3D 21-landmark skeletal hand animations.
+            </p>
+          </div>
+        </div>
+        <div class="pt-4 border-t border-outline-variant/20 mt-4 flex items-center justify-between text-xs text-on-surface-variant">
+          <span class="flex items-center gap-1 font-medium"><span class="material-symbols-outlined text-secondary text-[14px]">hand_gesture</span> Three.js Canvas</span>
+          <span class="font-bold text-secondary">Dual Studio</span>
+        </div>
+      </div>
 
-<div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-space-md">
+    </div>
 
-<div class="w-12 h-12 rounded-lg bg-primary text-on-primary flex items-center justify-center font-headline-md">1</div>
+    <!-- Live Interactive Pipeline Simulation Banner -->
+    <div class="bg-gradient-to-r from-surface-container-low via-surface-container to-surface-container-low p-6 md:p-8 rounded-2xl md:rounded-3xl border border-outline-variant/30 shadow-md flex flex-col lg:flex-row items-center justify-between gap-6">
+      <div class="flex items-center gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-md shrink-0">
+          <span class="material-symbols-outlined text-[28px]">speed</span>
+        </div>
+        <div>
+          <h4 class="font-headline-sm text-on-surface">Experience the Sub-Second Latency</h4>
+          <p class="text-body-sm text-on-surface-variant mt-0.5">
+            Test how spoken sentences, typed phrases, and gestures cross-translate immediately in our dedicated workspace.
+          </p>
+        </div>
+      </div>
+      <div class="flex flex-wrap items-center gap-3 shrink-0">
+        <button onclick="navigateTo('normal')" class="h-11 px-6 bg-secondary text-on-secondary font-label-md font-bold rounded-xl flex items-center gap-2 btn-bounce shadow-sm hover:bg-secondary/90 transition-all cursor-pointer">
+          <span class="material-symbols-outlined text-[18px]">record_voice_over</span>
+          <span>Try Hearing User Mode</span>
+        </button>
+        <button onclick="navigateTo('sign')" class="h-11 px-6 bg-primary text-on-primary font-label-md font-bold rounded-xl flex items-center gap-2 btn-bounce shadow-sm hover:bg-primary/90 transition-all cursor-pointer">
+          <span class="material-symbols-outlined text-[18px]">sign_language</span>
+          <span>Try Sign User Mode</span>
+        </button>
+      </div>
+    </div>
 
-<h3 class="font-headline-sm text-on-surface">Connect &amp; Select</h3>
-
-<p class="text-body-sm text-on-surface-variant">Both participants open the session and choose their communication profile—Sign User or Hearing User.</p>
-
-</div>
-
-<div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-space-md">
-
-<div class="w-12 h-12 rounded-lg bg-primary text-on-primary flex items-center justify-center font-headline-md">2</div>
-
-<h3 class="font-headline-sm text-on-surface">Real-Time Translation</h3>
-
-<p class="text-body-sm text-on-surface-variant">Our deep-learning engine translates sign gestures into spoken audio and text, while speech/text converts into fluid ISL animations.</p>
-
-</div>
-
-<div class="bg-surface-container-low p-space-lg rounded-xl flex flex-col gap-space-md">
-
-<div class="w-12 h-12 rounded-lg bg-primary text-on-primary flex items-center justify-center font-headline-md">3</div>
-
-<h3 class="font-headline-sm text-on-surface">Natural Dialogue</h3>
-
-<p class="text-body-sm text-on-surface-variant">Enjoy smooth, bidirectional conversations in professional, medical, educational, or casual environments.</p>
-
-</div>
-
-</div>
-
-</div>
-
+  </div>
 </section>
 
 
