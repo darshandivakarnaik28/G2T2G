@@ -407,7 +407,8 @@ async def create_image_sample(
 async def create_webcam_video_sample(
     gesture_id: str = Form(...),
     signer_id: str = Form(...),
-    landmarks_sequence_json: str = Form(...),
+    landmarks_sequence_json: Optional[str] = Form(None),
+    landmarks_file: Optional[UploadFile] = File(None),
     video: Optional[UploadFile] = File(None),
     handedness: Optional[str] = Form(None),
     fps: float = Form(30.0),
@@ -452,8 +453,16 @@ async def create_webcam_video_sample(
             stored_path = save_video_bytes(clean_gid, vid_bytes, ext=ext, signer_id=clean_sid)
             orig_filename = video.filename or f"recording_{sample_id}.{ext}"
 
+    # Parse landmarks from either form string or uploaded file
+    if not landmarks_sequence_json and landmarks_file:
+        try:
+            file_bytes = await landmarks_file.read()
+            landmarks_sequence_json = file_bytes.decode("utf-8", errors="replace")
+        except Exception as e:
+            print(f"Notice reading landmarks_file: {e}")
+
     try:
-        frames_list = json.loads(landmarks_sequence_json)
+        frames_list = json.loads(landmarks_sequence_json) if landmarks_sequence_json else []
         if not isinstance(frames_list, list):
             frames_list = [frames_list]
     except Exception:

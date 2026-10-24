@@ -14,6 +14,16 @@ from .models import Gesture, ThreeDModel, Signer, CollectionAssignment, DatasetS
 from .services.storage_service import init_storage, STORAGE_DIR, BASE_DIR
 from .routers import gestures, samples, models, dashboard, training_readiness, export, signers, assignments
 
+# Increase Starlette MultiPartParser part size limit from 1MB to 50MB for dynamic sequence payloads
+try:
+    from starlette.formparsers import MultiPartParser
+    if hasattr(MultiPartParser, "__init__") and hasattr(MultiPartParser.__init__, "__kwdefaults__"):
+        if MultiPartParser.__init__.__kwdefaults__ is not None:
+            MultiPartParser.__init__.__kwdefaults__["max_part_size"] = 50 * 1024 * 1024  # 50MB
+            MultiPartParser.__init__.__kwdefaults__["max_fields"] = 5000
+except Exception as e:
+    print(f"Notice: MultiPartParser limit patch: {e}")
+
 # Ensure storage directories exist at import time
 init_storage()
 

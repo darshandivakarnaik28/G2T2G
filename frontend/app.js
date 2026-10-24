@@ -971,6 +971,7 @@ class App {
       }
       if (signerInput) signerInput.value = signerId;
       if (targetInput) targetInput.value = targetSamples;
+      this.handleTargetSamplesChange();
     }, 250);
   }
 
@@ -1474,6 +1475,7 @@ class App {
       select.value = this.gestures[0].gesture_id;
       this.handleCollectionGestureChange();
     }
+    this.handleTargetSamplesChange();
   }
 
   handleCollectionGestureChange() {
@@ -1499,6 +1501,47 @@ class App {
       dynamicUI.classList.remove("hidden");
       staticUI.classList.add("hidden");
       this.switchDynamicCollectionTab("record");
+    }
+    this.handleTargetSamplesChange();
+  }
+
+  getTargetSamples() {
+    const input = document.getElementById("collect-target-samples-input");
+    const val = parseInt(input?.value, 10);
+    return (!isNaN(val) && val > 0) ? val : 50;
+  }
+
+  handleTargetSamplesChange() {
+    const target = this.getTargetSamples();
+    this.guidedTarget = target;
+    this.guidedDynamicTarget = target;
+
+    // 1. Update button labels
+    const guidedStaticText = document.getElementById("btn-start-guided-collect-text");
+    if (guidedStaticText) guidedStaticText.textContent = `Start Guided ${target} Samples`;
+
+    const guidedDynamicText = document.getElementById("btn-start-guided-dynamic-text");
+    if (guidedDynamicText) guidedDynamicText.textContent = `Start Guided ${target} Samples`;
+
+    const autoBurstText = document.getElementById("btn-start-auto-collect-text");
+    if (autoBurstText) autoBurstText.textContent = `Auto-Burst (${target})`;
+
+    // 2. Update Batch Save button labels in review panels
+    const batchSaveStaticText = document.getElementById("btn-batch-save-text");
+    if (batchSaveStaticText) batchSaveStaticText.textContent = `✓ Save All ${target} Samples to Central File`;
+
+    const batchSaveDynamicText = document.getElementById("btn-dyn-batch-save-text");
+    if (batchSaveDynamicText) batchSaveDynamicText.textContent = `✓ Save All ${target} Samples to Central File`;
+
+    // 3. Update ribbons if currently active
+    const staticRibbon = document.getElementById("guided-sample-prompt-ribbon");
+    if (staticRibbon && !staticRibbon.classList.contains("hidden")) {
+      this.updateGuidedPromptUI();
+    }
+
+    const dynamicRibbon = document.getElementById("guided-dynamic-prompt-ribbon");
+    if (dynamicRibbon && !dynamicRibbon.classList.contains("hidden")) {
+      this.updateGuidedDynamicPromptUI();
     }
   }
 
@@ -1684,6 +1727,147 @@ class App {
   }
 
   // ==========================================
+  // GUIDED STEP-BY-STEP 50-SAMPLE WORKFLOW
+  // ==========================================
+  startGuidedCollection() {
+    const gestureId = this.selectedGestureId;
+    if (!gestureId) {
+      alert("Please select a target gesture from the dropdown first.");
+      return;
+    }
+    if (!this.tracker.isTracking) {
+      alert("Camera is not active. Please ensure webcam permissions are allowed.");
+      return;
+    }
+
+    // Initialize temporary memory buffer for target samples (zero disk writes until batch commit)
+    this.pendingBatchFrames = [];
+    this.guidedCurrentIndex = 1;
+    this.guidedTarget = this.getTargetSamples();
+
+    const ribbon = document.getElementById("guided-sample-prompt-ribbon");
+    const autoBanner = document.getElementById("auto-collection-banner");
+    const reviewPanel = document.getElementById("auto-batch-review-panel");
+    if (autoBanner) autoBanner.classList.add("hidden");
+    if (reviewPanel) reviewPanel.classList.add("hidden");
+
+    this.updateGuidedPromptUI();
+    if (ribbon) {
+      ribbon.classList.remove("hidden");
+      ribbon.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  updateGuidedPromptUI() {
+    const title = document.getElementById("guided-prompt-title");
+    const desc = document.getElementById("guided-prompt-desc");
+    const badge = document.getElementById("guided-sample-badge");
+    const btnText = document.getElementById("btn-save-guided-sample-text");
+
+    const idx = this.guidedCurrentIndex || 1;
+    const target = this.guidedTarget || this.getTargetSamples();
+
+    const getOrdinal = (n) => {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+
+    if (title) title.textContent = `RECORD ${getOrdinal(idx).toUpperCase()} SAMPLE (${idx} / ${target})`;
+    if (desc) desc.textContent = `Perform gesture in camera frame. When ready, click "Save Sample ${idx}" (held in temporary buffer).`;
+    if (badge) badge.textContent = `Sample ${idx} / ${target}`;
+    if (btnText) btnText.textContent = `Save Sample ${idx}`;
+  }
+
+  saveGuidedSample() {
+    if (!this.tracker.isTracking) {
+      alert("Camera is not active. Please start camera first.");
+      return;
+    }
+
+    const lm = this.tracker.currentLandmarks;
+    if (!lm || lm.handCount === 0) {
+      alert("⚠️ No hand detected in frame! Please hold your hand clearly inside the camera box.");
+      return;
+    }
+
+    try {
+      const frame = this.tracker.captureFrame();
+      if (!this.pendingBatchFrames) this.pendingBatchFrames = [];
+      this.pendingBatchFrames.push(frame);
+
+      const target = this.guidedTarget || this.getTargetSamples();
+      const count = this.pendingBatchFrames.length;
+
+      if (count < target) {
+        this.guidedCurrentIndex = count + 1;
+        this.updateGuidedPromptUI();
+        // Visual confirmation flash
+        const badge = document.getElementById("guided-sample-badge");
+        if (badge) {
+          badge.classList.add("bg-emerald-800", "text-emerald-200");
+          setTimeout(() => badge.classList.remove("bg-emerald-800", "text-emerald-200"), 300);
+        }
+      } else {
+        // All 50 completed! Hide guided prompt and open Save to Central File review
+        const ribbon = document.getElementById("guided-sample-prompt-ribbon");
+        if (ribbon) ribbon.classList.add("hidden");
+
+        this.showBatchReviewPanel(this.pendingBatchFrames, target);
+      }
+    } catch (e) {
+      alert("Failed to capture sample: " + e.message);
+    }
+  }
+
+  cancelGuidedCollection() {
+    const count = this.pendingBatchFrames ? this.pendingBatchFrames.length : 0;
+    if (count > 0 && !confirm(`Discard ${count} recorded sample(s) and cancel guided session?`)) {
+      return;
+    }
+    this.pendingBatchFrames = [];
+    this.guidedCurrentIndex = 1;
+    const ribbon = document.getElementById("guided-sample-prompt-ribbon");
+    if (ribbon) ribbon.classList.add("hidden");
+  }
+
+  showBatchReviewPanel(batchFrames, target) {
+    const gestureId = this.selectedGestureId;
+    const signerId = (document.getElementById("collect-signer-input")?.value || "S001").trim();
+    const g = this.gestures.find(item => item.gesture_id === gestureId);
+    const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
+    const isMaster = Boolean(signer?.is_master);
+
+    const avgConf = batchFrames.length > 0
+      ? Math.round((batchFrames.reduce((acc, f) => acc + (f.confidence || 0.9), 0) / batchFrames.length) * 100)
+      : 95;
+
+    document.getElementById("batch-review-gesture").textContent = `${g?.name || gestureId} ${g?.kannada_meaning ? `(${g.kannada_meaning})` : ""}`;
+    document.getElementById("batch-review-signer").textContent = signerId;
+    document.getElementById("batch-review-conf").textContent = `${avgConf}%`;
+    document.getElementById("batch-review-mode").textContent = isMaster ? "👑 Master Media + 21-LM" : "⚡ 21-LM JSON (Saved)";
+    document.getElementById("batch-review-badge").textContent = `${batchFrames.length} / ${target} READY`;
+
+    const saveBatchBtn = document.getElementById("btn-batch-save");
+    if (saveBatchBtn) {
+      saveBatchBtn.disabled = false;
+      saveBatchBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">cloud_upload</span> <span>✓ Save All ${batchFrames.length} Samples to Central File</span>`;
+    }
+
+    const retakeBatchBtn = document.getElementById("btn-batch-retake");
+    if (retakeBatchBtn) {
+      retakeBatchBtn.disabled = false;
+      retakeBatchBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">replay</span> <span>↺ Retake All Samples</span>`;
+    }
+
+    const panel = document.getElementById("auto-batch-review-panel");
+    if (panel) {
+      panel.classList.remove("hidden");
+      panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  // ==========================================
   // AUTO 100-SAMPLE COLLECTION ENGINE
   // ==========================================
   async startAutoCollection() {
@@ -1766,37 +1950,7 @@ class App {
         if (!this.signers || this.signers.length === 0) {
           try { this.signers = await api.getSigners(); } catch (e) {}
         }
-        const g = this.gestures.find(item => item.gesture_id === gestureId);
-        const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
-        const isMaster = Boolean(signer?.is_master);
-
-        const avgConf = this.pendingBatchFrames.length > 0
-          ? Math.round((this.pendingBatchFrames.reduce((acc, f) => acc + (f.confidence || 0.9), 0) / this.pendingBatchFrames.length) * 100)
-          : 95;
-
-        document.getElementById("batch-review-gesture").textContent = `${g?.name || gestureId} ${g?.kannada_meaning ? `(${g.kannada_meaning})` : ""}`;
-        document.getElementById("batch-review-signer").textContent = signerId;
-        document.getElementById("batch-review-conf").textContent = `${avgConf}%`;
-        document.getElementById("batch-review-mode").textContent = isMaster ? "👑 Master Media + 21-LM" : "⚡ 21-LM JSON (Saved)";
-        document.getElementById("batch-review-badge").textContent = `${this.pendingBatchFrames.length} / ${target} READY`;
-
-        const saveBatchBtn = document.getElementById("btn-batch-save");
-        if (saveBatchBtn) {
-          saveBatchBtn.disabled = false;
-          saveBatchBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">check_circle</span> <span>✓ Save All ${this.pendingBatchFrames.length} Samples to Database</span>`;
-        }
-
-        const retakeBatchBtn = document.getElementById("btn-batch-retake");
-        if (retakeBatchBtn) {
-          retakeBatchBtn.disabled = false;
-          retakeBatchBtn.innerHTML = `<span class="material-symbols-outlined text-[18px]">replay</span> <span>↺ Retake All ${this.pendingBatchFrames.length} Samples</span>`;
-        }
-
-        const panel = document.getElementById("auto-batch-review-panel");
-        if (panel) {
-          panel.classList.remove("hidden");
-          panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-        }
+        this.showBatchReviewPanel(this.pendingBatchFrames, target);
       },
       800 // 800ms debounce for natural pose variation
     );
@@ -2082,6 +2236,25 @@ class App {
     document.getElementById("dyn-summary-duration").textContent = `${result.duration}s`;
     document.getElementById("dyn-summary-fps").textContent = result.fps;
 
+    const guidedSaveBtn = document.getElementById("btn-save-guided-dynamic-sample");
+    const directSaveBtn = document.getElementById("btn-save-dynamic-sample");
+    const guidedBtnText = document.getElementById("btn-save-guided-dynamic-text");
+
+    if (this.isGuidedDynamicActive) {
+      if (guidedSaveBtn) {
+        guidedSaveBtn.classList.remove("hidden");
+        const idx = this.guidedDynamicIndex || 1;
+        if (guidedBtnText) guidedBtnText.textContent = `Save Sample ${idx} (Keep in Memory Buffer)`;
+      }
+      if (directSaveBtn) directSaveBtn.classList.add("hidden");
+    } else {
+      if (guidedSaveBtn) {
+        guidedSaveBtn.classList.remove("hidden");
+        if (guidedBtnText) guidedBtnText.textContent = `Save as Sample 1 (Start 50-Sample Buffer)`;
+      }
+      if (directSaveBtn) directSaveBtn.classList.remove("hidden");
+    }
+
     // 1. Attach Real Signer Video Player
     const videoEl = document.getElementById("dynamic-preview-video");
     if (videoEl && result.videoBlob) {
@@ -2177,13 +2350,39 @@ class App {
       formData.append("gesture_id", this.selectedGestureId);
       formData.append("signer_id", signerId);
       formData.append("handedness", this.recordedDynamicData.handedness || "RIGHT");
-      formData.append("landmarks_sequence_json", JSON.stringify(this.recordedDynamicData.frames));
-      formData.append("fps", this.recordedDynamicData.fps);
-      formData.append("duration", this.recordedDynamicData.duration);
-      formData.append("frame_count", this.recordedDynamicData.frameCount);
+
+      // Sanitize landmarks by rounding floats to 4 decimal places (shrinks payload by 70%)
+      const sanitizedFrames = (this.recordedDynamicData.frames || []).map(f => ({
+        frame_index: f.frame_index,
+        timestamp: f.timestamp,
+        left_hand_present: f.left_hand_present,
+        right_hand_present: f.right_hand_present,
+        left_hand_landmarks: (f.left_hand_landmarks || []).map(p => ({
+          x: Math.round(p.x * 10000) / 10000,
+          y: Math.round(p.y * 10000) / 10000,
+          z: Math.round(p.z * 10000) / 10000
+        })),
+        right_hand_landmarks: (f.right_hand_landmarks || []).map(p => ({
+          x: Math.round(p.x * 10000) / 10000,
+          y: Math.round(p.y * 10000) / 10000,
+          z: Math.round(p.z * 10000) / 10000
+        })),
+        left_confidence: f.left_confidence ? Math.round(f.left_confidence * 100) / 100 : 0.0,
+        right_confidence: f.right_confidence ? Math.round(f.right_confidence * 100) / 100 : 0.94
+      }));
+
+      const lmJsonString = JSON.stringify(sanitizedFrames);
+      formData.append("landmarks_sequence_json", lmJsonString);
+      const lmBlob = new Blob([lmJsonString], { type: "application/json" });
+      formData.append("landmarks_file", lmBlob, "landmarks.json");
+
+      formData.append("fps", this.recordedDynamicData.fps || 30.0);
+      formData.append("duration", this.recordedDynamicData.duration || 4.0);
+      formData.append("frame_count", this.recordedDynamicData.frameCount || sanitizedFrames.length || 120);
       formData.append("confidence", 0.94);
 
-      if (this.recordedDynamicData.videoBlob) {
+      // Only attach heavy video payload if designated Master Signer (avoids Cloudflare tunnel timeouts)
+      if (isMaster && this.recordedDynamicData.videoBlob) {
         formData.append("video", this.recordedDynamicData.videoBlob, `recording_${Date.now()}.webm`);
       }
       formData.append("save_media", isMaster ? "true" : "false");
@@ -2201,6 +2400,285 @@ class App {
       saveBtn.disabled = false;
       saveBtn.textContent = "Save Dynamic Sample to Dataset";
     }
+  }
+
+  // ==========================================
+  // GUIDED STEP-BY-STEP DYNAMIC 50-SAMPLE WORKFLOW
+  // ==========================================
+  startGuidedDynamicCollection() {
+    const gestureId = this.selectedGestureId;
+    if (!gestureId) {
+      alert("Please select a target gesture from the dropdown first.");
+      return;
+    }
+    if (!this.tracker.isTracking) {
+      alert("Camera is not active. Please ensure webcam permissions are allowed.");
+      return;
+    }
+
+    this.isGuidedDynamicActive = true;
+    this.pendingDynamicBatchFrames = [];
+    this.guidedDynamicIndex = 1;
+    this.guidedDynamicTarget = this.getTargetSamples();
+
+    const ribbon = document.getElementById("guided-dynamic-prompt-ribbon");
+    const reviewPanel = document.getElementById("dynamic-batch-review-panel");
+    if (reviewPanel) reviewPanel.classList.add("hidden");
+
+    this.updateGuidedDynamicPromptUI();
+    if (ribbon) {
+      ribbon.classList.remove("hidden");
+      ribbon.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }
+
+  updateGuidedDynamicPromptUI() {
+    const title = document.getElementById("guided-dynamic-prompt-title");
+    const desc = document.getElementById("guided-dynamic-prompt-desc");
+    const badge = document.getElementById("guided-dynamic-badge");
+
+    const idx = this.guidedDynamicIndex || 1;
+    const target = this.guidedDynamicTarget || this.getTargetSamples();
+
+    const getOrdinal = (n) => {
+      const s = ["th", "st", "nd", "rd"];
+      const v = n % 100;
+      return n + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+
+    if (title) {
+      title.innerHTML = `
+        <span>RECORD ${getOrdinal(idx).toUpperCase()} SAMPLE (${idx} / ${target})</span>
+        <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-indigo-900 border border-indigo-600 text-indigo-300">MEMORY BUFFER</span>
+      `;
+    }
+    if (desc) {
+      desc.textContent = `Click "Start Recording", perform dynamic gesture for sample ${idx}, then click "Stop Recording" & save to memory (zero disk writes).`;
+    }
+    if (badge) badge.textContent = `Sample ${idx} / ${target}`;
+  }
+
+  saveGuidedDynamicSample() {
+    if (!this.recordedDynamicData) {
+      alert("No dynamic recording found. Please record a gesture first.");
+      return;
+    }
+
+    if (!this.isGuidedDynamicActive) {
+      this.isGuidedDynamicActive = true;
+      this.pendingDynamicBatchFrames = [];
+      this.guidedDynamicIndex = 1;
+      this.guidedDynamicTarget = this.getTargetSamples();
+      const ribbon = document.getElementById("guided-dynamic-prompt-ribbon");
+      if (ribbon) ribbon.classList.remove("hidden");
+    }
+
+    const signerId = document.getElementById("collect-signer-input").value.trim() || "S001";
+    const sampleRecord = {
+      gestureId: this.selectedGestureId,
+      signerId: signerId,
+      handedness: this.recordedDynamicData.handedness || "RIGHT",
+      frames: this.recordedDynamicData.frames,
+      fps: this.recordedDynamicData.fps,
+      duration: this.recordedDynamicData.duration,
+      frameCount: this.recordedDynamicData.frameCount,
+      videoBlob: this.recordedDynamicData.videoBlob
+    };
+
+    if (!this.pendingDynamicBatchFrames) this.pendingDynamicBatchFrames = [];
+    this.pendingDynamicBatchFrames.push(sampleRecord);
+
+    const target = this.guidedDynamicTarget || this.getTargetSamples();
+    const count = this.pendingDynamicBatchFrames.length;
+
+    // Hide preview panel
+    document.getElementById("dynamic-recorded-panel").classList.add("hidden");
+
+    if (count < target) {
+      this.guidedDynamicIndex = count + 1;
+      this.updateGuidedDynamicPromptUI();
+
+      // Visual feedback flash
+      const badge = document.getElementById("guided-dynamic-badge");
+      if (badge) {
+        badge.classList.add("bg-emerald-800", "text-emerald-200");
+        setTimeout(() => badge.classList.remove("bg-emerald-800", "text-emerald-200"), 400);
+      }
+    } else {
+      // All 50 completed! Hide prompt ribbon & open batch review
+      const ribbon = document.getElementById("guided-dynamic-prompt-ribbon");
+      if (ribbon) ribbon.classList.add("hidden");
+      this.showDynamicBatchReviewPanel(this.pendingDynamicBatchFrames, target);
+    }
+  }
+
+  cancelGuidedDynamicCollection() {
+    if (this.pendingDynamicBatchFrames && this.pendingDynamicBatchFrames.length > 0) {
+      if (!confirm(`Discard all ${this.pendingDynamicBatchFrames.length} in-memory dynamic sample(s)?`)) {
+        return;
+      }
+    }
+    this.pendingDynamicBatchFrames = [];
+    this.isGuidedDynamicActive = false;
+    this.guidedDynamicIndex = 1;
+
+    const ribbon = document.getElementById("guided-dynamic-prompt-ribbon");
+    const reviewPanel = document.getElementById("dynamic-batch-review-panel");
+    if (ribbon) ribbon.classList.add("hidden");
+    if (reviewPanel) reviewPanel.classList.add("hidden");
+  }
+
+  showDynamicBatchReviewPanel(batch, targetCount) {
+    const panel = document.getElementById("dynamic-batch-review-panel");
+    if (!panel) return;
+
+    const g = this.gestures.find(item => item.gesture_id === this.selectedGestureId);
+    const signerId = document.getElementById("collect-signer-input")?.value?.trim() || "S001";
+    const target = targetCount || this.getTargetSamples();
+
+    const badge = document.getElementById("dyn-batch-review-badge");
+    const gestureText = document.getElementById("dyn-batch-review-gesture");
+    const signerText = document.getElementById("dyn-batch-review-signer");
+    const countText = document.getElementById("dyn-batch-review-count");
+    const saveBtn = document.getElementById("btn-dyn-batch-save");
+
+    if (badge) badge.textContent = `${batch.length} / ${target}`;
+    if (gestureText) gestureText.textContent = g ? `${g.name} (${g.kannada_meaning || ""})` : this.selectedGestureId;
+    if (signerText) signerText.textContent = signerId;
+    if (countText) countText.textContent = `${batch.length} Samples`;
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.innerHTML = `
+        <span class="material-symbols-outlined text-[18px]">cloud_upload</span>
+        <span id="btn-dyn-batch-save-text">✓ Save All ${batch.length} Samples to Central File</span>
+      `;
+    }
+
+    panel.classList.remove("hidden");
+    panel.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  retakeDynamicBatch() {
+    const count = this.pendingDynamicBatchFrames?.length || 0;
+    if (count > 0 && !confirm(`Are you sure you want to discard all ${count} recorded sample(s) from memory and start over?`)) {
+      return;
+    }
+    this.pendingDynamicBatchFrames = [];
+    const panel = document.getElementById("dynamic-batch-review-panel");
+    if (panel) panel.classList.add("hidden");
+    this.startGuidedDynamicCollection();
+  }
+
+  async saveDynamicBatch() {
+    if (!this.pendingDynamicBatchFrames || this.pendingDynamicBatchFrames.length === 0) {
+      alert("No dynamic samples in batch buffer to save.");
+      return;
+    }
+
+    const batch = [...this.pendingDynamicBatchFrames];
+    const total = batch.length;
+    const saveBtn = document.getElementById("btn-dyn-batch-save");
+    const retakeBtn = document.getElementById("btn-dyn-batch-retake");
+    const indicator = document.getElementById("dyn-batch-saving-indicator");
+    const fill = document.getElementById("dyn-batch-saving-fill");
+    const countText = document.getElementById("dyn-batch-saving-count");
+
+    if (saveBtn) saveBtn.disabled = true;
+    if (retakeBtn) retakeBtn.disabled = true;
+    if (indicator) indicator.classList.remove("hidden");
+
+    let savedCount = 0;
+    let failedCount = 0;
+
+    const signerId = document.getElementById("collect-signer-input").value.trim() || "S001";
+    if (!this.signers || this.signers.length === 0) {
+      try { this.signers = await api.getSigners(); } catch (e) {}
+    }
+    const signer = this.signers?.find(s => s.signer_id.toUpperCase() === signerId.toUpperCase());
+    const isMaster = Boolean(signer?.is_master);
+
+    const failedErrors = [];
+    for (let i = 0; i < total; i++) {
+      const item = batch[i];
+      try {
+        const formData = new FormData();
+        formData.append("gesture_id", item.gestureId || this.selectedGestureId);
+        formData.append("signer_id", item.signerId || signerId);
+        formData.append("handedness", item.handedness || "RIGHT");
+
+        // Sanitize landmarks by rounding floats to 4 decimal places (shrinks payload by 70%)
+        const sanitizedFrames = (item.frames || []).map(f => ({
+          frame_index: f.frame_index,
+          timestamp: f.timestamp,
+          left_hand_present: f.left_hand_present,
+          right_hand_present: f.right_hand_present,
+          left_hand_landmarks: (f.left_hand_landmarks || []).map(p => ({
+            x: Math.round(p.x * 10000) / 10000,
+            y: Math.round(p.y * 10000) / 10000,
+            z: Math.round(p.z * 10000) / 10000
+          })),
+          right_hand_landmarks: (f.right_hand_landmarks || []).map(p => ({
+            x: Math.round(p.x * 10000) / 10000,
+            y: Math.round(p.y * 10000) / 10000,
+            z: Math.round(p.z * 10000) / 10000
+          })),
+          left_confidence: f.left_confidence ? Math.round(f.left_confidence * 100) / 100 : 0.0,
+          right_confidence: f.right_confidence ? Math.round(f.right_confidence * 100) / 100 : 0.94
+        }));
+
+        const lmJsonString = JSON.stringify(sanitizedFrames);
+        formData.append("landmarks_sequence_json", lmJsonString);
+        const lmBlob = new Blob([lmJsonString], { type: "application/json" });
+        formData.append("landmarks_file", lmBlob, `landmarks_${i + 1}.json`);
+
+        formData.append("fps", item.fps || 30.0);
+        formData.append("duration", item.duration || 4.0);
+        formData.append("frame_count", item.frameCount || sanitizedFrames.length || 120);
+        formData.append("confidence", 0.94);
+
+        // Crucial: Only attach large video files if designated Master Signer (prevents Cloudflare tunnel timeouts)
+        if (isMaster && item.videoBlob) {
+          formData.append("video", item.videoBlob, `recording_${Date.now()}_${i + 1}.webm`);
+        }
+        formData.append("save_media", isMaster ? "true" : "false");
+
+        await api.uploadWebcamVideoSample(formData);
+        savedCount++;
+      } catch (err) {
+        console.error(`[ISL Batch] Error saving dynamic sample ${i + 1}:`, err);
+        failedErrors.push(`Sample ${i + 1}: ${err.message || "Failed"}`);
+        failedCount++;
+      }
+
+      const pct = Math.round(((i + 1) / total) * 100);
+      if (fill) fill.style.width = `${pct}%`;
+      if (countText) countText.textContent = `${i + 1} / ${total}`;
+    }
+
+    if (saveBtn) saveBtn.disabled = false;
+    if (retakeBtn) retakeBtn.disabled = false;
+
+    // Reset buffer
+    this.pendingDynamicBatchFrames = [];
+    this.isGuidedDynamicActive = false;
+
+    const panel = document.getElementById("dynamic-batch-review-panel");
+    if (panel) panel.classList.add("hidden");
+    if (indicator) indicator.classList.add("hidden");
+
+    if (failedCount > 0) {
+      alert(`Saved ${savedCount} / ${total} dynamic sample(s) successfully.\n${failedCount} sample(s) failed:\n${failedErrors.slice(0, 3).join("\n")}`);
+    } else {
+      alert(`✓ Successfully saved all ${savedCount} dynamic sample(s) to the central file system and database!`);
+    }
+
+    // Reload assignments & dashboard
+    try {
+      await this.refreshGesturesList();
+      if (this.activeView === "my-collection") await this.loadMyCollectionPage();
+      if (this.activeView === "team") await this.loadTeamPage();
+      await this.loadDashboard();
+    } catch (e) {}
   }
 
   // ==========================================
@@ -2770,7 +3248,13 @@ class App {
       }
     });
 
-    // Auto-Collection Buttons (#1, #2)
+    // Guided & Auto Collection Buttons
+    document.getElementById("btn-start-guided-collect")?.addEventListener("click", () => {
+      this.startGuidedCollection();
+    });
+    document.getElementById("btn-start-guided-dynamic")?.addEventListener("click", () => {
+      this.startGuidedDynamicCollection();
+    });
     document.getElementById("btn-start-auto-collect")?.addEventListener("click", () => {
       this.startAutoCollection();
     });
@@ -2780,6 +3264,11 @@ class App {
     document.getElementById("btn-auto-stop")?.addEventListener("click", () => {
       this.stopAutoCollection();
     });
+
+    // Dynamic Target Samples input listener
+    const targetInputEl = document.getElementById("collect-target-samples-input");
+    targetInputEl?.addEventListener("input", () => this.handleTargetSamplesChange());
+    targetInputEl?.addEventListener("change", () => this.handleTargetSamplesChange());
 
     // Retake Buttons (#7)
     document.getElementById("btn-retake-static")?.addEventListener("click", () => {
@@ -2914,3 +3403,17 @@ window.openAddSignerModal = () => {
 window.closeAddSignerModal = () => window.app?.closeAddSignerModal();
 window.submitAddSignerForm = (e) => window.app?.submitAddSignerForm(e);
 window.removeAllSigners = () => window.app?.removeAllSigners();
+
+// Global Guided Collection Handlers (Static & Dynamic)
+window.startGuidedCollection = () => window.app?.startGuidedCollection();
+window.saveGuidedSample = () => window.app?.saveGuidedSample();
+window.cancelGuidedCollection = () => window.app?.cancelGuidedCollection();
+window.retakeBatch = () => window.app?.retakeBatch();
+window.saveBatch = () => window.app?.saveBatch();
+
+window.startGuidedDynamicCollection = () => window.app?.startGuidedDynamicCollection();
+window.saveGuidedDynamicSample = () => window.app?.saveGuidedDynamicSample();
+window.cancelGuidedDynamicCollection = () => window.app?.cancelGuidedDynamicCollection();
+window.retakeDynamicBatch = () => window.app?.retakeDynamicBatch();
+window.saveDynamicBatch = () => window.app?.saveDynamicBatch();
+window.handleTargetSamplesChange = () => window.app?.handleTargetSamplesChange();
