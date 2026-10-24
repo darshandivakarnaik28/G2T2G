@@ -68,17 +68,35 @@ const DICTIONARY = {
   DICTIONARY[letter] = { en: `Letter ${letter}`, kn: `ಅಕ್ಷರ ${letter}` };
 });
 
+function cleanKannadaOnly(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/\([^)]*\)/g, '')
+    .replace(/^ಕನ್ನಡ ಅನುವಾದ:\s*/i, '')
+    .split('/')[0]
+    .trim();
+}
+
 // Helper: translate text or find matching Kannada phrase
 function getKannadaTranslation(text) {
   if (!text) return "";
-  const upper = text.trim().toUpperCase();
-  for (const [key, val] of Object.entries(DICTIONARY)) {
+  const cleaned = text.trim();
+  const upper = cleaned.toUpperCase();
+  if (DICTIONARY[upper]) {
+    return cleanKannadaOnly(DICTIONARY[upper].kn);
+  }
+  const multiCharKeys = Object.keys(DICTIONARY)
+    .filter(k => k.length > 1)
+    .sort((a, b) => b.length - a.length);
+  for (const key of multiCharKeys) {
     if (upper.includes(key)) {
-      return val.kn;
+      return cleanKannadaOnly(DICTIONARY[key].kn);
     }
   }
-  // Generic translation fallback
-  return `ಕನ್ನಡ ಅನುವಾದ: ${text}`;
+  if (DICTIONARY[upper]) {
+    return cleanKannadaOnly(DICTIONARY[upper].kn);
+  }
+  return cleanKannadaOnly(cleaned);
 }
 
 // --------------------------------------------------------------------------
@@ -244,25 +262,51 @@ window.toggleGlobalLang = toggleGlobalLang;
 function switchLang(lang) {
   state.currentLang = lang;
   const headerLabel = document.getElementById('header-lang-label');
+  const headerBtn = document.getElementById('header-lang-btn');
   if (headerLabel) {
-    headerLabel.textContent = lang === 'en' ? 'EN | ಕನ್ನಡ' : 'ಕನ್ನಡ | EN';
+    headerLabel.textContent = lang === 'en' ? 'English (EN)' : 'ಕನ್ನಡ (KN)';
+  }
+  if (headerBtn) {
+    if (lang === 'kn') {
+      headerBtn.classList.remove('bg-surface-container', 'text-primary');
+      headerBtn.classList.add('bg-primary', 'text-on-primary', 'shadow-sm');
+    } else {
+      headerBtn.classList.remove('bg-primary', 'text-on-primary', 'shadow-sm');
+      headerBtn.classList.add('bg-surface-container', 'text-primary');
+    }
   }
 
   const liveLangLabel = document.getElementById('live-lang-label');
   if (liveLangLabel) {
-    liveLangLabel.textContent = lang === 'en' ? 'English / ಕನ್ನಡ' : 'ಕನ್ನಡ (Kannada)';
+    liveLangLabel.textContent = lang === 'en' ? 'English' : 'ಕನ್ನಡ (Kannada)';
   }
 
-  const btnEn = document.getElementById('btn-en');
-  const btnKn = document.getElementById('btn-kn');
-  if (btnEn && btnKn) {
-    if (lang === 'en') {
-      btnEn.className = "px-space-md py-1 rounded-full font-label-sm transition-all bg-primary text-on-primary";
-      btnKn.className = "px-space-md py-1 rounded-full font-label-sm transition-all text-on-surface-variant hover:text-on-surface";
-    } else {
-      btnKn.className = "px-space-md py-1 rounded-full font-label-sm transition-all bg-primary text-on-primary";
-      btnEn.className = "px-space-md py-1 rounded-full font-label-sm transition-all text-on-surface-variant hover:text-on-surface";
-    }
+  // Update input placeholders to match active system language
+  const normalInput = document.getElementById('normal-text-input');
+  if (normalInput && !state.isRecordingNormal) {
+    normalInput.placeholder = lang === 'kn'
+      ? 'ಕನ್ನಡದಲ್ಲಿ ಸಂದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಮಾತನಾಡಿ...'
+      : 'Type your message here (e.g., Hello, Water, Thank You)...';
+  }
+  const manualInput = document.getElementById('manual-text-input');
+  if (manualInput && !state.isRecordingSign) {
+    manualInput.placeholder = lang === 'kn'
+      ? 'ಕನ್ನಡದಲ್ಲಿ ಸಂದೇಶ ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಮಾತನಾಡಿ...'
+      : 'Type or translate sign message...';
+  }
+  const liveInput = document.getElementById('live-chat-input');
+  if (liveInput && !state.isRecordingLive) {
+    liveInput.placeholder = lang === 'kn'
+      ? 'ಕನ್ನಡದಲ್ಲಿ ಸಂದೇಶ ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಕ್ಯಾಮೆರಾದಲ್ಲಿ ಸೈನ್ ಮಾಡಿ...'
+      : 'Type message or sign on camera...';
+  }
+
+  // If speech recognition is currently active, switch its recognition language live
+  if (state.speechRecognition) {
+    state.speechRecognition.lang = lang === 'kn' ? 'kn-IN' : 'en-IN';
+    try {
+      state.speechRecognition.stop();
+    } catch (e) {}
   }
 }
 window.switchLang = switchLang;
@@ -1132,16 +1176,25 @@ function resolveTrainedGesture(text) {
 
   if (SYNONYM_MAP[upper] && DICTIONARY[SYNONYM_MAP[upper]]) {
     const k = SYNONYM_MAP[upper];
-    return { cleanId: k.toLowerCase(), signKey: DICTIONARY[k].en, knMeaning: DICTIONARY[k].kn };
+    return { cleanId: k.toLowerCase(), signKey: DICTIONARY[k].en, knMeaning: cleanKannadaOnly(DICTIONARY[k].kn) };
+  }
+
+  // 0. Check if input matches a Kannada word/phrase in DICTIONARY
+  for (const [key, val] of Object.entries(DICTIONARY)) {
+    const pureKn = cleanKannadaOnly(val.kn);
+    if (pureKn && (cleaned === pureKn || cleaned.includes(pureKn))) {
+      const cid = key.toLowerCase().replace(/\s+/g, '_');
+      return { cleanId: cid, signKey: val.en || key, knMeaning: pureKn };
+    }
   }
 
   // 1. Exact match in DICTIONARY
   if (DICTIONARY[upper]) {
     const cid = upper.toLowerCase().replace(/\s+/g, '_');
-    return { cleanId: cid, signKey: upper, knMeaning: DICTIONARY[upper].kn };
+    return { cleanId: cid, signKey: upper, knMeaning: cleanKannadaOnly(DICTIONARY[upper].kn) };
   }
   if (DICTIONARY[underscored]) {
-    return { cleanId: underscored.toLowerCase(), signKey: DICTIONARY[underscored].en, knMeaning: DICTIONARY[underscored].kn };
+    return { cleanId: underscored.toLowerCase(), signKey: DICTIONARY[underscored].en, knMeaning: cleanKannadaOnly(DICTIONARY[underscored].kn) };
   }
 
   // 2. Multi-character word/phrase match (sorted longest-first so single letters A-Z don't falsely match)
@@ -1153,7 +1206,7 @@ function resolveTrainedGesture(text) {
   for (const key of multiCharKeys) {
     if (upper.includes(key) || words.includes(key)) {
       const cid = key.toLowerCase().replace(/\s+/g, '_');
-      return { cleanId: cid, signKey: key.replace(/_/g, ' '), knMeaning: DICTIONARY[key].kn };
+      return { cleanId: cid, signKey: key.replace(/_/g, ' '), knMeaning: cleanKannadaOnly(DICTIONARY[key].kn) };
     }
   }
 
@@ -1161,11 +1214,11 @@ function resolveTrainedGesture(text) {
   const letterMatch = upper.match(/^LETTER\s+([A-Z])$/) || upper.match(/^([A-Z])$/);
   if (letterMatch) {
     const ltr = letterMatch[1];
-    return { cleanId: ltr.toLowerCase(), signKey: ltr, knMeaning: DICTIONARY[ltr] ? DICTIONARY[ltr].kn : ltr };
+    return { cleanId: ltr.toLowerCase(), signKey: ltr, knMeaning: DICTIONARY[ltr] ? cleanKannadaOnly(DICTIONARY[ltr].kn) : ltr };
   }
 
   // Default fallback to HELLO
-  return { cleanId: 'hello', signKey: 'HELLO', knMeaning: DICTIONARY['HELLO'].kn };
+  return { cleanId: 'hello', signKey: 'HELLO', knMeaning: cleanKannadaOnly(DICTIONARY['HELLO'].kn) };
 }
 
 async function showMasterGestureAnd3D(text) {
@@ -1191,9 +1244,10 @@ async function showMasterGestureAnd3D(text) {
   const modelStandbyBanner = document.getElementById('model-standby-banner');
 
   const { cleanId, signKey, knMeaning } = resolveTrainedGesture(text);
+  const activeDisplayTitle = state.currentLang === 'kn' ? knMeaning : signKey;
 
   if (masterTitle) {
-    masterTitle.textContent = `${signKey} (${knMeaning})`;
+    masterTitle.textContent = activeDisplayTitle;
   }
 
   try {
@@ -1224,16 +1278,16 @@ async function showMasterGestureAnd3D(text) {
           masterImg.classList.remove('hidden');
         }
       } else {
-        showFallbackMaster(signKey, knMeaning);
+        showFallbackMaster(activeDisplayTitle);
       }
     } else {
-      showFallbackMaster(signKey, knMeaning);
+      showFallbackMaster(activeDisplayTitle);
     }
   } catch (e) {
-    showFallbackMaster(signKey, knMeaning);
+    showFallbackMaster(activeDisplayTitle);
   }
 
-  function showFallbackMaster(sName, sKn) {
+  function showFallbackMaster(titleStr) {
     if (masterImg) masterImg.classList.add('hidden');
     if (masterVideo) {
       masterVideo.pause();
@@ -1242,7 +1296,7 @@ async function showMasterGestureAnd3D(text) {
     if (masterFallback) {
       masterFallback.classList.remove('hidden');
       if (masterFallbackTitle) {
-        masterFallbackTitle.textContent = `Master Gesture: ${sName} (${sKn})`;
+        masterFallbackTitle.textContent = `Master Gesture: ${titleStr}`;
       }
     }
   }
@@ -1254,7 +1308,7 @@ async function showMasterGestureAnd3D(text) {
     modelStandbyBanner.innerHTML = `
       <span class="flex items-center gap-1.5 text-secondary-fixed font-medium">
         <span class="material-symbols-outlined text-[15px] text-emerald-400">check_circle</span>
-        <span>Streaming 21-Landmark Trajectory: ${signKey}</span>
+        <span>Streaming 21-Landmark Trajectory: ${activeDisplayTitle}</span>
       </span>
       <span class="text-[10px] text-secondary-fixed font-mono bg-secondary/20 px-1.5 py-0.5 rounded">Live 3D</span>
     `;
@@ -1270,11 +1324,12 @@ window.showMasterGestureAnd3D = showMasterGestureAnd3D;
 
 function setInputValue(text) {
   const textarea = document.getElementById('normal-text-input');
-  if (textarea) textarea.value = text;
-  // Speak the selected phrase aloud
-  if (!state.isAudioMuted && text) {
-    const { knMeaning } = resolveTrainedGesture(text);
-    speakText(state.currentLang === 'kn' ? knMeaning : text);
+  const { signKey, knMeaning } = resolveTrainedGesture(text);
+  const activeText = state.currentLang === 'kn' ? knMeaning : signKey;
+  if (textarea) textarea.value = activeText;
+  // Speak the selected phrase aloud in the active language only
+  if (!state.isAudioMuted && activeText) {
+    speakText(activeText);
   }
   // Automatically activate Upper Master Gesture & Below 3D Landmarks preview
   showMasterGestureAnd3D(text);
@@ -1286,13 +1341,14 @@ function triggerTranslation() {
   if (!textarea || !textarea.value.trim()) return;
 
   const text = textarea.value.trim();
-  const { knMeaning } = resolveTrainedGesture(text);
+  const { signKey, knMeaning } = resolveTrainedGesture(text);
+  const activeMsg = state.currentLang === 'kn' ? knMeaning : text;
   const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const feed = document.getElementById('normal-chat-feed');
 
-  // Generate voice output (TTS) for Normal User entered text
+  // Generate voice output (TTS) strictly in the active language
   if (!state.isAudioMuted) {
-    speakText(state.currentLang === 'kn' ? knMeaning : text);
+    speakText(activeMsg);
   }
 
   if (feed) {
@@ -1305,12 +1361,11 @@ function triggerTranslation() {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-space-xs">
           <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
-          <span class="text-label-md font-bold text-on-surface">You (Hearing User)</span>
+          <span class="text-label-md font-bold text-on-surface">You (Normal User)</span>
         </div>
         <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
       </div>
-      <p class="text-body-md text-on-surface pl-7 font-medium">${text}</p>
-      <p class="text-xs text-on-surface-variant pl-7 font-medium">ಕನ್ನಡ: ${knMeaning}</p>
+      <p class="text-body-md text-on-surface pl-7 font-bold">${activeMsg}</p>
       <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
         <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
           <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D 21-Landmark Output
@@ -1535,19 +1590,18 @@ function onHandTrackingResults(results) {
         if (!pred || !pred.gesture_id) return;
         const confPct = (pred.confidence * 100).toFixed(1) + '%';
         const displayName = (pred.name || pred.gesture_id).toUpperCase();
-        const knText = pred.kannada_meaning || getKannadaTranslation(displayName);
+        const knText = cleanKannadaOnly(pred.kannada_meaning || getKannadaTranslation(displayName));
+        const activeLabel = state.currentLang === 'kn' ? knText : displayName;
         const typeTag = pred.gesture_type === 'DYNAMIC' ? 'DYNAMIC' : 'STATIC';
 
         if (badgeRight) {
-          badgeRight.textContent = `${displayName} (${confPct})`;
+          badgeRight.textContent = `${activeLabel} (${confPct})`;
         }
 
         if (!isLiveChat) {
           const recognizedEl = document.getElementById('recognized-text');
           if (recognizedEl && pred.confidence >= 0.45) {
-            recognizedEl.innerText = knText
-              ? `${displayName} — ${knText} [${typeTag} ${confPct}]`
-              : `${displayName} [${typeTag} ${confPct}]`;
+            recognizedEl.innerText = `${activeLabel} [${typeTag} ${confPct}]`;
           }
         }
 
@@ -1700,15 +1754,18 @@ function startVideoProcessingLoop(video, hands) {
 }
 
 function simulateGesture(textEn, textKn) {
-  const recognizedEl = document.getElementById('recognized-text');
-  if (recognizedEl) recognizedEl.innerText = textEn;
+  const cleanKn = cleanKannadaOnly(textKn || getKannadaTranslation(textEn));
+  const activeMsg = state.currentLang === 'kn' ? cleanKn : textEn;
 
-  // Speak aloud if sound enabled
+  const recognizedEl = document.getElementById('recognized-text');
+  if (recognizedEl) recognizedEl.innerText = activeMsg;
+
+  // Speak aloud strictly in the active system language
   if (!state.isAudioMuted) {
-    speakText(state.currentLang === 'kn' ? textKn : textEn);
+    speakText(activeMsg);
   }
 
-  // Append to conversation feed
+  // Append to conversation feed in the active language only
   const feed = document.getElementById('chat-feed');
   if (feed) {
     const emptyState = document.getElementById('sign-chat-empty');
@@ -1724,8 +1781,7 @@ function simulateGesture(textEn, textKn) {
         <div class="w-6 h-6 rounded-full bg-primary text-on-primary flex items-center justify-center text-[10px] font-bold shadow-xs">IS</div>
       </div>
       <div class="bg-gradient-to-br from-primary to-primary-container text-on-primary p-4 rounded-2xl rounded-tr-sm text-body-md shadow-md border border-primary-fixed/20 flex flex-col gap-space-xs hover:shadow-lg transition-shadow">
-        <span class="font-bold tracking-wide">${textEn}</span>
-        <span class="text-xs text-primary-fixed-dim border-t border-primary-fixed/20 pt-1 font-medium">ಕನ್ನಡ: ${textKn}</span>
+        <span class="font-bold tracking-wide">${activeMsg}</span>
       </div>
     `;
     feed.appendChild(msgDiv);
@@ -1738,8 +1794,10 @@ function sendManualMessage() {
   const input = document.getElementById('manual-text-input');
   if (!input || !input.value.trim()) return;
   const val = input.value.trim();
-  const kn = getKannadaTranslation(val);
-  simulateGesture(val.toUpperCase(), kn);
+  const { signKey, knMeaning } = resolveTrainedGesture(val);
+  const enMsg = signKey || val.toUpperCase();
+  const knMsg = knMeaning || cleanKannadaOnly(val);
+  simulateGesture(state.currentLang === 'kn' ? enMsg : val.toUpperCase(), state.currentLang === 'kn' ? knMsg : knMeaning);
   input.value = '';
 }
 window.sendManualMessage = sendManualMessage;
@@ -1911,13 +1969,14 @@ function startLiveVideoProcessingLoop(video, hands) {
 
 function sendSignUserLiveReply(textEn, textKn, confPct) {
   if (!textEn) return;
-  const kn = textKn || getKannadaTranslation(textEn);
+  const kn = cleanKannadaOnly(textKn || getKannadaTranslation(textEn));
+  const activeMsg = state.currentLang === 'kn' ? kn : textEn;
   const feed = document.getElementById('live-chat-feed');
   const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Speak reply aloud so Normal User hears the Sign User's message
+  // Speak reply aloud strictly in the active system language
   if (!state.isAudioMuted) {
-    speakText(state.currentLang === 'kn' ? kn : textEn);
+    speakText(activeMsg);
   }
 
   if (feed) {
@@ -1934,8 +1993,7 @@ function sendSignUserLiveReply(textEn, textKn, confPct) {
         </div>
         <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
       </div>
-      <p class="text-body-md text-on-surface pl-7 font-bold tracking-wide">${textEn}</p>
-      <p class="text-xs text-on-surface-variant pl-7 font-medium">ಕನ್ನಡ: ${kn}</p>
+      <p class="text-body-md text-on-surface pl-7 font-bold tracking-wide">${activeMsg}</p>
       <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
         <span class="px-2 py-0.5 rounded-full bg-secondary/20 text-secondary font-semibold text-label-sm flex items-center gap-1 border border-secondary/30">
           <span class="material-symbols-outlined text-[14px]">videocam</span> ISL Camera Recognized ${confPct ? `(${confPct})` : ''}
@@ -1962,6 +2020,7 @@ async function showChatMasterGestureAnd3D(text) {
   }
 
   const { cleanId, signKey, knMeaning } = resolveTrainedGesture(text);
+  const activeTitle = state.currentLang === 'kn' ? knMeaning : signKey;
 
   const standby = document.getElementById('chat-camera-standby');
   const upperLabel = document.getElementById('chat-upper-frame-label');
@@ -1974,7 +2033,7 @@ async function showChatMasterGestureAnd3D(text) {
   if (standby) standby.classList.add('hidden');
   if (upperLabel) upperLabel.textContent = 'Upper: Master Signer Gesture';
   if (chatMasterTitle) {
-    chatMasterTitle.textContent = `${signKey} (${knMeaning})`;
+    chatMasterTitle.textContent = activeTitle;
   }
 
   try {
@@ -2025,10 +2084,11 @@ function sendLiveMessage() {
   if (!input || !input.value.trim()) return;
   const text = input.value.trim();
   const { knMeaning } = resolveTrainedGesture(text);
+  const activeMsg = state.currentLang === 'kn' ? knMeaning : text;
 
-  // Generate voice output (TTS) when Normal User enters text in Live Chat
+  // Generate voice output (TTS) strictly in the active system language
   if (!state.isAudioMuted) {
-    speakText(state.currentLang === 'kn' ? knMeaning : text);
+    speakText(activeMsg);
   }
 
   const feed = document.getElementById('live-chat-feed');
@@ -2048,8 +2108,7 @@ function sendLiveMessage() {
         </div>
         <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
       </div>
-      <p class="text-body-md text-on-surface pl-7 font-medium">"${text}"</p>
-      <p class="text-xs text-on-surface-variant pl-7 font-medium">ಕನ್ನಡ: ${knMeaning}</p>
+      <p class="text-body-md text-on-surface pl-7 font-bold">${activeMsg}</p>
       <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
         <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
           <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D ISL Avatar Output
