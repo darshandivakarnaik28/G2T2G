@@ -1173,9 +1173,9 @@
   </div>
 
   <!-- Input / Voice Output Bar at Bottom of Feed -->
-  <div class="pt-space-md mt-space-md border-t border-outline-variant/30 flex flex-col gap-space-sm">
+  <div class="pt-space-md mt-space-md border-t border-outline-variant/30 flex flex-col gap-space-sm"><div id="sign-mic-status" class="hidden items-center gap-2 text-error text-xs font-semibold px-1 pb-1"><span class="w-2 h-2 rounded-full bg-error animate-ping"></span><span>Listening... Speak now</span></div>
     <div class="flex items-center gap-space-xs">
-      <input class="flex-1 bg-surface border border-outline-variant/40 rounded-xl px-space-md py-space-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-sm transition-all shadow-inner" id="manual-text-input" placeholder="Type or translate sign message..." type="text">
+      <input class="flex-1 bg-surface border border-outline-variant/40 rounded-xl px-space-md py-space-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-sm transition-all shadow-inner" id="manual-text-input" placeholder="Type or translate sign message..." type="text" onkeydown="if(event.key==='Enter'){ event.preventDefault(); sendManualMessage(); }"><button class="p-2.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-sm border border-outline-variant/20 flex items-center justify-center" id="sign-mic-btn" title="Voice Input (Mic)" onclick="toggleSignVoiceRecording()"><span class="material-symbols-outlined text-[20px]">mic</span></button>
       <button class="bg-primary text-on-primary px-space-md py-space-sm rounded-xl font-label-md btn-bounce shadow-md cursor-pointer" onclick="sendManualMessage()">
         Send
       </button>
@@ -1356,6 +1356,6 @@
   </footer>
 
   <!-- Application Logic -->
-  <script src="app.js?v=20261024_live_both_fix"></script>
+  <script src="app.js?v=20261024_sign_mic"></script>
 </body>
 </html>

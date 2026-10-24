@@ -289,11 +289,28 @@ window.toggleAudio = toggleAudio;
 function speakText(text) {
   if (state.isAudioMuted || !text) return;
   if ('speechSynthesis' in window) {
+    // Strip parenthetical transliterations e.g. "ನಮಸ್ಕಾರ (Namaskara)" -> "ನಮಸ್ಕಾರ"
+    // and bracketed confidence tags e.g. "[DYNAMIC 98%]" so TTS speaks strictly once
+    let cleanSpeech = String(text)
+      .replace(/\[.*?\]/g, '')
+      .replace(/\([^)]*\)/g, '')
+      .replace(/^ಕನ್ನಡ ಅನುವಾದ:\s*/i, '')
+      .split('/')[0]
+      .trim();
+    if (!cleanSpeech) cleanSpeech = String(text).trim();
+
+    // Prevent back-to-back duplicate utterance of the same word
+    const now = Date.now();
+    if (state.lastSpokenText === cleanSpeech && (now - (state.lastSpokenTime || 0)) < 2500) {
+      return;
+    }
+    state.lastSpokenText = cleanSpeech;
+    state.lastSpokenTime = now;
+
     window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+    const utterance = new SpeechSynthesisUtterance(cleanSpeech);
     utterance.rate = 0.95;
     utterance.pitch = 1.0;
-    // Set language
     utterance.lang = state.currentLang === 'kn' ? 'kn-IN' : 'en-IN';
     window.speechSynthesis.speak(utterance);
   }
@@ -618,6 +635,141 @@ function toggleLiveVoiceRecording() {
   }
 }
 window.toggleLiveVoiceRecording = toggleLiveVoiceRecording;
+
+function setSignMicUI(isRecording, statusMsg) {
+  const micBtn = document.getElementById('sign-mic-btn');
+  const signMicStatus = document.getElementById('sign-mic-status');
+  const input = document.getElementById('manual-text-input');
+
+  if (micBtn) {
+    if (isRecording) {
+      micBtn.classList.remove('bg-surface-container', 'text-on-surface');
+      micBtn.classList.add('bg-error', 'text-on-error', 'animate-pulse');
+      micBtn.innerHTML = '<span class="material-symbols-outlined text-[20px]">mic_off</span>';
+      micBtn.title = 'Stop Voice Input';
+    } else {
+      micBtn.classList.remove('bg-error', 'text-on-error', 'animate-pulse');
+      micBtn.classList.add('bg-surface-container', 'text-on-surface');
+      micBtn.innerHTML = '<span class="material-symbols-outlined text-[20px]">mic</span>';
+      micBtn.title = 'Voice Input (Mic)';
+    }
+  }
+  if (input) {
+    input.placeholder = isRecording
+      ? (statusMsg || 'Listening... Speak now...')
+      : 'Type or translate sign message...';
+  }
+  if (signMicStatus) {
+    if (isRecording) {
+      signMicStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-error animate-ping"></span> <span>${statusMsg || 'Listening... Speak now'}</span>`;
+      signMicStatus.classList.remove('hidden');
+      signMicStatus.classList.add('flex');
+    } else {
+      signMicStatus.classList.add('hidden');
+      signMicStatus.classList.remove('flex');
+    }
+  }
+}
+
+function toggleSignVoiceRecording() {
+  const input = document.getElementById('manual-text-input');
+
+  if (state.isRecordingNormal) {
+    state.isRecordingNormal = false;
+    setNormalMicUI(false);
+    stopAllSpeechRecognition();
+  }
+  if (state.isRecordingLive) {
+    state.isRecordingLive = false;
+    setLiveMicUI(false);
+    stopAllSpeechRecognition();
+  }
+
+  if (!state.isRecordingSign) {
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRec) {
+      alert("Speech Recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
+      return;
+    }
+
+    stopAllSpeechRecognition();
+    state.isRecordingSign = true;
+    setSignMicUI(true, 'Listening... Speak now');
+
+    const recognizer = new SpeechRec();
+    recognizer.continuous = true;
+    recognizer.interimResults = true;
+    recognizer.maxAlternatives = 1;
+    recognizer.lang = state.currentLang === 'kn' ? 'kn-IN' : 'en-IN';
+
+    let finalTranscript = input ? input.value.trim() : '';
+
+    recognizer.onstart = () => {
+      setSignMicUI(true, 'Listening... Speak now');
+      if (input) input.focus();
+    };
+
+    recognizer.onresult = (event) => {
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const piece = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript = (finalTranscript ? finalTranscript + ' ' : '') + piece.trim();
+        } else {
+          interimTranscript += piece;
+        }
+      }
+      const combined = (finalTranscript + (interimTranscript ? ' ' + interimTranscript.trim() : '')).trim();
+      if (input && combined) {
+        input.value = combined;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        setSignMicUI(true, 'Transcribing voice...');
+      }
+    };
+
+    recognizer.onerror = (event) => {
+      console.warn("Sign User speech recognition notice:", event.error);
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        alert("Microphone access was blocked. Please allow microphone permission in your browser address bar.");
+        state.isRecordingSign = false;
+        setSignMicUI(false);
+        stopAllSpeechRecognition();
+      } else if (event.error === 'audio-capture') {
+        alert("No microphone was detected. Please check your microphone connection.");
+        state.isRecordingSign = false;
+        setSignMicUI(false);
+        stopAllSpeechRecognition();
+      }
+    };
+
+    recognizer.onend = () => {
+      if (state.isRecordingSign) {
+        try {
+          recognizer.start();
+        } catch (err) {
+          state.isRecordingSign = false;
+          setSignMicUI(false);
+        }
+      } else {
+        setSignMicUI(false);
+      }
+    };
+
+    state.speechRecognition = recognizer;
+    try {
+      recognizer.start();
+    } catch (e) {
+      console.error("Sign recognizer start error:", e);
+      state.isRecordingSign = false;
+      setSignMicUI(false);
+    }
+  } else {
+    state.isRecordingSign = false;
+    setSignMicUI(false);
+    stopAllSpeechRecognition();
+  }
+}
+window.toggleSignVoiceRecording = toggleSignVoiceRecording;
 
 // --------------------------------------------------------------------------
 // 3D ISL Articulated Hand Avatar (Three.js WebGL Engine)
@@ -1119,6 +1271,11 @@ window.showMasterGestureAnd3D = showMasterGestureAnd3D;
 function setInputValue(text) {
   const textarea = document.getElementById('normal-text-input');
   if (textarea) textarea.value = text;
+  // Speak the selected phrase aloud
+  if (!state.isAudioMuted && text) {
+    const { knMeaning } = resolveTrainedGesture(text);
+    speakText(state.currentLang === 'kn' ? knMeaning : text);
+  }
   // Automatically activate Upper Master Gesture & Below 3D Landmarks preview
   showMasterGestureAnd3D(text);
 }
@@ -1129,8 +1286,14 @@ function triggerTranslation() {
   if (!textarea || !textarea.value.trim()) return;
 
   const text = textarea.value.trim();
+  const { knMeaning } = resolveTrainedGesture(text);
   const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const feed = document.getElementById('normal-chat-feed');
+
+  // Generate voice output (TTS) for Normal User entered text
+  if (!state.isAudioMuted) {
+    speakText(state.currentLang === 'kn' ? knMeaning : text);
+  }
 
   if (feed) {
     const emptyState = document.getElementById('normal-chat-empty');
@@ -1146,7 +1309,8 @@ function triggerTranslation() {
         </div>
         <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
       </div>
-      <p class="text-body-md text-on-surface pl-7">${text}</p>
+      <p class="text-body-md text-on-surface pl-7 font-medium">${text}</p>
+      <p class="text-xs text-on-surface-variant pl-7 font-medium">ಕನ್ನಡ: ${knMeaning}</p>
       <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
         <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
           <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D 21-Landmark Output
@@ -1217,6 +1381,9 @@ function onHandTrackingResults(results) {
   const numHands = results.multiHandLandmarks ? results.multiHandLandmarks.length : 0;
 
   if (numHands === 0) {
+    state.lastPredictedGesture = null;
+    state.consecutiveMatchCount = 0;
+    state.lastCommittedGesture = null;
     if (badgeLeft) badgeLeft.textContent = "Searching for hands...";
     if (badgeRight) badgeRight.textContent = isLiveChat ? "Perform Sign to Reply" : "--";
     if (!isLiveChat) {
@@ -1393,10 +1560,9 @@ function onHandTrackingResults(results) {
             state.consecutiveMatchCount = 1;
           }
 
-          const cooldownElapsed = (Date.now() - state.lastCommittedTime) > 3500;
           if (
             state.consecutiveMatchCount >= 2 &&
-            (state.lastCommittedGesture !== pred.gesture_id || cooldownElapsed)
+            state.lastCommittedGesture !== pred.gesture_id
           ) {
             state.lastCommittedGesture = pred.gesture_id;
             state.lastCommittedTime = Date.now();
@@ -1858,6 +2024,12 @@ function sendLiveMessage() {
   const input = document.getElementById('live-chat-input');
   if (!input || !input.value.trim()) return;
   const text = input.value.trim();
+  const { knMeaning } = resolveTrainedGesture(text);
+
+  // Generate voice output (TTS) when Normal User enters text in Live Chat
+  if (!state.isAudioMuted) {
+    speakText(state.currentLang === 'kn' ? knMeaning : text);
+  }
 
   const feed = document.getElementById('live-chat-feed');
   const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -1877,6 +2049,7 @@ function sendLiveMessage() {
         <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
       </div>
       <p class="text-body-md text-on-surface pl-7 font-medium">"${text}"</p>
+      <p class="text-xs text-on-surface-variant pl-7 font-medium">ಕನ್ನಡ: ${knMeaning}</p>
       <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
         <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
           <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D ISL Avatar Output
@@ -1968,6 +2141,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();
         triggerTranslation();
+      }
+    });
+  }
+
+  // Enter key shortcut on Sign User manual text input to trigger Send
+  const manualInput = document.getElementById('manual-text-input');
+  if (manualInput) {
+    manualInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendManualMessage();
       }
     });
   }
