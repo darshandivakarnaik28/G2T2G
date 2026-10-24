@@ -1,0 +1,1145 @@
+{
+  "generated_at": "2026-10-24T16:12:34Z",
+  "total_training_pipeline_sec": 159.25,
+  "data_audit": {
+    "static_total_rows": 4774,
+    "static_excluded_rows": 11,
+    "static_invalid_rows": 0,
+    "static_valid_rows": 4763,
+    "dynamic_total_rows": 2702,
+    "dynamic_excluded_rows": 0,
+    "dynamic_empty_dropped_rows": 6,
+    "dynamic_dropped_samples": [
+      [
+        "hello",
+        "smp_vid_61d0de6d",
+        "S001"
+      ],
+      [
+        "hello",
+        "smp_vid_d703fe92",
+        "1GG23CS026"
+      ],
+      [
+        "food",
+        "smp_vid_54bff39a",
+        "1GG23CS021"
+      ],
+      [
+        "what_time",
+        "smp_vid_57251124",
+        "1GG23CS021"
+      ],
+      [
+        "what_time",
+        "smp_vid_1757c3cd",
+        "1GG23CS021"
+      ],
+      [
+        "morning",
+        "smp_vid_ce3d513b",
+        "1GG23CS021"
+      ]
+    ],
+    "dynamic_valid_rows": 2696
+  },
+  "static_evaluation": {
+    "task_name": "Static Gestures",
+    "num_classes": 27,
+    "classes": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e",
+      "f",
+      "g",
+      "h",
+      "i",
+      "j",
+      "k",
+      "l",
+      "m",
+      "n",
+      "o",
+      "p",
+      "q",
+      "r",
+      "s",
+      "super",
+      "t",
+      "u",
+      "v",
+      "w",
+      "x",
+      "y",
+      "z"
+    ],
+    "feature_dim": 124,
+    "split_sizes": {
+      "train": 3334,
+      "val": 714,
+      "test": 715
+    },
+    "champion_model": "Logistic Regression (L2)",
+    "final_test_accuracy": 0.9916,
+    "final_test_macro_f1": 0.9933,
+    "model_comparison": [
+      {
+        "model_name": "Naive Baseline (Majority)",
+        "use_scaled": false,
+        "train_accuracy": 0.0576,
+        "val_accuracy": 0.0574,
+        "val_macro_f1": 0.004,
+        "test_accuracy": 0.0573,
+        "test_macro_f1": 0.004,
+        "test_macro_precision": 0.0021,
+        "test_macro_recall": 0.037,
+        "test_accuracy_95_ci": [
+          0.0573,
+          0.0573
+        ],
+        "test_macro_f1_95_ci": [
+          0.004,
+          0.004
+        ],
+        "train_time_sec": 0.0,
+        "inference_latency_ms": 0.008
+      },
+      {
+        "model_name": "Logistic Regression (L2)",
+        "use_scaled": true,
+        "train_accuracy": 0.9928,
+        "val_accuracy": 0.9874,
+        "val_macro_f1": 0.9887,
+        "test_accuracy": 0.9916,
+        "test_macro_f1": 0.9933,
+        "test_macro_precision": 0.9934,
+        "test_macro_recall": 0.9936,
+        "test_accuracy_95_ci": [
+          0.9839,
+          0.9986
+        ],
+        "test_macro_f1_95_ci": [
+          0.9874,
+          0.9985
+        ],
+        "train_time_sec": 0.62,
+        "inference_latency_ms": 0.006
+      },
+      {
+        "model_name": "Random Forest (200 trees)",
+        "use_scaled": false,
+        "train_accuracy": 0.9943,
+        "val_accuracy": 0.9818,
+        "val_macro_f1": 0.9845,
+        "test_accuracy": 0.9902,
+        "test_macro_f1": 0.9921,
+        "test_macro_precision": 0.9921,
+        "test_macro_recall": 0.9924,
+        "test_accuracy_95_ci": [
+          0.9818,
+          0.9972
+        ],
+        "test_macro_f1_95_ci": [
+          0.9857,
+          0.9975
+        ],
+        "train_time_sec": 4.51,
+        "inference_latency_ms": 0.141
+      },
+      {
+        "model_name": "Extra Trees (250 trees)",
+        "use_scaled": false,
+        "train_accuracy": 0.9943,
+        "val_accuracy": 0.9846,
+        "val_macro_f1": 0.9869,
+        "test_accuracy": 0.9902,
+        "test_macro_f1": 0.9921,
+        "test_macro_precision": 0.9921,
+        "test_macro_recall": 0.9924,
+        "test_accuracy_95_ci": [
+          0.9818,
+          0.9972
+        ],
+        "test_macro_f1_95_ci": [
+          0.9857,
+          0.9975
+        ],
+        "train_time_sec": 1.04,
+        "inference_latency_ms": 0.178
+      },
+      {
+        "model_name": "MLP Neural Network (256x128)",
+        "use_scaled": true,
+        "train_accuracy": 0.9898,
+        "val_accuracy": 0.9832,
+        "val_macro_f1": 0.9841,
+        "test_accuracy": 0.9888,
+        "test_macro_f1": 0.9909,
+        "test_macro_precision": 0.9912,
+        "test_macro_recall": 0.9914,
+        "test_accuracy_95_ci": [
+          0.9804,
+          0.9958
+        ],
+        "test_macro_f1_95_ci": [
+          0.9838,
+          0.9966
+        ],
+        "train_time_sec": 2.48,
+        "inference_latency_ms": 0.008
+      },
+      {
+        "model_name": "Soft-Voting Ensemble (ET+RF+MLP)",
+        "use_scaled": true,
+        "train_accuracy": 0.9943,
+        "val_accuracy": 0.9818,
+        "val_macro_f1": 0.9837,
+        "test_accuracy": 0.9888,
+        "test_macro_f1": 0.991,
+        "test_macro_precision": 0.9911,
+        "test_macro_recall": 0.9914,
+        "test_accuracy_95_ci": [
+          0.9804,
+          0.9958
+        ],
+        "test_macro_f1_95_ci": [
+          0.9842,
+          0.9965
+        ],
+        "train_time_sec": 7.55,
+        "inference_latency_ms": 0.353
+      }
+    ],
+    "signer_slice_analysis": {
+      "1GG23CS007": {
+        "test_samples": 239,
+        "accuracy": 1.0,
+        "macro_f1": 1.0
+      },
+      "1GG23CS016": {
+        "test_samples": 22,
+        "accuracy": 1.0,
+        "macro_f1": 1.0
+      },
+      "1GG23CS021": {
+        "test_samples": 240,
+        "accuracy": 0.975,
+        "macro_f1": 0.9815
+      },
+      "1GG23CS026": {
+        "test_samples": 214,
+        "accuracy": 1.0,
+        "macro_f1": 1.0
+      }
+    },
+    "per_class_test_metrics": {
+      "a": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 30,
+        "kannada_meaning": "ಎ",
+        "hand_count": "ONE_HAND"
+      },
+      "b": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 30,
+        "kannada_meaning": "ಬಿ",
+        "hand_count": "ONE_HAND"
+      },
+      "c": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 41,
+        "kannada_meaning": "ಸಿ",
+        "hand_count": "ONE_HAND"
+      },
+      "d": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 30,
+        "kannada_meaning": "ಡಿ",
+        "hand_count": "ONE_HAND"
+      },
+      "e": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ಇ",
+        "hand_count": "ONE_HAND"
+      },
+      "f": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "f",
+        "hand_count": "ONE_HAND"
+      },
+      "g": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ಜಿ",
+        "hand_count": "ONE_HAND"
+      },
+      "h": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 31,
+        "kannada_meaning": "h",
+        "hand_count": "ONE_HAND"
+      },
+      "i": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 25,
+        "kannada_meaning": "i",
+        "hand_count": "ONE_HAND"
+      },
+      "j": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "j",
+        "hand_count": "ONE_HAND"
+      },
+      "k": {
+        "precision": 0.9688,
+        "recall": 0.8611,
+        "f1_score": 0.9118,
+        "support": 36,
+        "kannada_meaning": "ಕೆ",
+        "hand_count": "ONE_HAND"
+      },
+      "l": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 32,
+        "kannada_meaning": "ಎಲ್",
+        "hand_count": "ONE_HAND"
+      },
+      "m": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 24,
+        "kannada_meaning": "m",
+        "hand_count": "ONE_HAND"
+      },
+      "n": {
+        "precision": 0.8529,
+        "recall": 0.9667,
+        "f1_score": 0.9062,
+        "support": 30,
+        "kannada_meaning": "ಎನ್",
+        "hand_count": "ONE_HAND"
+      },
+      "o": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "o",
+        "hand_count": "ONE_HAND"
+      },
+      "p": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "p",
+        "hand_count": "ONE_HAND"
+      },
+      "q": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 26,
+        "kannada_meaning": "q",
+        "hand_count": "ONE_HAND"
+      },
+      "r": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 29,
+        "kannada_meaning": "ಆರ್",
+        "hand_count": "ONE_HAND"
+      },
+      "s": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 30,
+        "kannada_meaning": "s",
+        "hand_count": "ONE_HAND"
+      },
+      "super": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 30,
+        "kannada_meaning": "ಸೂಪರ್",
+        "hand_count": "ONE_HAND"
+      },
+      "t": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ಟಿ",
+        "hand_count": "ONE_HAND"
+      },
+      "u": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ಯು",
+        "hand_count": "ONE_HAND"
+      },
+      "v": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "v",
+        "hand_count": "ONE_HAND"
+      },
+      "w": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ಡಬ್ಲ್ಯೂ",
+        "hand_count": "ONE_HAND"
+      },
+      "x": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 24,
+        "kannada_meaning": "x",
+        "hand_count": "ONE_HAND"
+      },
+      "y": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "y",
+        "hand_count": "ONE_HAND"
+      },
+      "z": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "z",
+        "hand_count": "ONE_HAND"
+      }
+    },
+    "confusion_matrix_path": "storage/models/ml_trained/static_confusion_matrix.png"
+  },
+  "dynamic_evaluation": {
+    "task_name": "Dynamic Gestures",
+    "num_classes": 18,
+    "classes": [
+      "food",
+      "hello",
+      "her",
+      "morning",
+      "my",
+      "thank_you",
+      "they",
+      "this",
+      "water",
+      "we",
+      "what",
+      "what_time",
+      "when",
+      "where",
+      "who",
+      "why",
+      "you",
+      "your"
+    ],
+    "feature_dim": 1350,
+    "split_sizes": {
+      "train": 1887,
+      "val": 404,
+      "test": 405
+    },
+    "champion_model": "Logistic Regression (L2)",
+    "final_test_accuracy": 1.0,
+    "final_test_macro_f1": 1.0,
+    "model_comparison": [
+      {
+        "model_name": "Naive Baseline (Majority)",
+        "use_scaled": false,
+        "train_accuracy": 0.0562,
+        "val_accuracy": 0.0545,
+        "val_macro_f1": 0.0057,
+        "test_accuracy": 0.0568,
+        "test_macro_f1": 0.006,
+        "test_macro_precision": 0.0032,
+        "test_macro_recall": 0.0556,
+        "test_accuracy_95_ci": [
+          0.0568,
+          0.0568
+        ],
+        "test_macro_f1_95_ci": [
+          0.006,
+          0.006
+        ],
+        "train_time_sec": 0.0,
+        "inference_latency_ms": 0.0
+      },
+      {
+        "model_name": "Logistic Regression (L2)",
+        "use_scaled": true,
+        "train_accuracy": 1.0,
+        "val_accuracy": 1.0,
+        "val_macro_f1": 1.0,
+        "test_accuracy": 1.0,
+        "test_macro_f1": 1.0,
+        "test_macro_precision": 1.0,
+        "test_macro_recall": 1.0,
+        "test_accuracy_95_ci": [
+          1.0,
+          1.0
+        ],
+        "test_macro_f1_95_ci": [
+          1.0,
+          1.0
+        ],
+        "train_time_sec": 0.35,
+        "inference_latency_ms": 0.01
+      },
+      {
+        "model_name": "Random Forest (200 trees)",
+        "use_scaled": false,
+        "train_accuracy": 1.0,
+        "val_accuracy": 1.0,
+        "val_macro_f1": 1.0,
+        "test_accuracy": 1.0,
+        "test_macro_f1": 1.0,
+        "test_macro_precision": 1.0,
+        "test_macro_recall": 1.0,
+        "test_accuracy_95_ci": [
+          1.0,
+          1.0
+        ],
+        "test_macro_f1_95_ci": [
+          1.0,
+          1.0
+        ],
+        "train_time_sec": 4.76,
+        "inference_latency_ms": 0.33
+      },
+      {
+        "model_name": "Extra Trees (250 trees)",
+        "use_scaled": false,
+        "train_accuracy": 1.0,
+        "val_accuracy": 1.0,
+        "val_macro_f1": 1.0,
+        "test_accuracy": 1.0,
+        "test_macro_f1": 1.0,
+        "test_macro_precision": 1.0,
+        "test_macro_recall": 1.0,
+        "test_accuracy_95_ci": [
+          1.0,
+          1.0
+        ],
+        "test_macro_f1_95_ci": [
+          1.0,
+          1.0
+        ],
+        "train_time_sec": 2.18,
+        "inference_latency_ms": 0.32
+      },
+      {
+        "model_name": "MLP Neural Network (256x128)",
+        "use_scaled": true,
+        "train_accuracy": 0.9979,
+        "val_accuracy": 0.995,
+        "val_macro_f1": 0.995,
+        "test_accuracy": 0.9951,
+        "test_macro_f1": 0.9951,
+        "test_macro_precision": 0.9953,
+        "test_macro_recall": 0.9951,
+        "test_accuracy_95_ci": [
+          0.9877,
+          1.0
+        ],
+        "test_macro_f1_95_ci": [
+          0.9879,
+          1.0
+        ],
+        "train_time_sec": 7.21,
+        "inference_latency_ms": 0.031
+      },
+      {
+        "model_name": "Soft-Voting Ensemble (ET+RF+MLP)",
+        "use_scaled": true,
+        "train_accuracy": 1.0,
+        "val_accuracy": 1.0,
+        "val_macro_f1": 1.0,
+        "test_accuracy": 1.0,
+        "test_macro_f1": 1.0,
+        "test_macro_precision": 1.0,
+        "test_macro_recall": 1.0,
+        "test_accuracy_95_ci": [
+          1.0,
+          1.0
+        ],
+        "test_macro_f1_95_ci": [
+          1.0,
+          1.0
+        ],
+        "train_time_sec": 9.15,
+        "inference_latency_ms": 0.776
+      }
+    ],
+    "signer_slice_analysis": {
+      "1GG23CS007": {
+        "test_samples": 149,
+        "accuracy": 1.0,
+        "macro_f1": 1.0
+      },
+      "1GG23CS021": {
+        "test_samples": 120,
+        "accuracy": 1.0,
+        "macro_f1": 1.0
+      },
+      "1GG23CS026": {
+        "test_samples": 136,
+        "accuracy": 1.0,
+        "macro_f1": 1.0
+      }
+    },
+    "per_class_test_metrics": {
+      "food": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ಆಹಾರ",
+        "hand_count": "ONE_HAND"
+      },
+      "hello": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ನಮಸ್ಕಾರ",
+        "hand_count": "ONE_HAND"
+      },
+      "her": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ಅವಳ",
+        "hand_count": "ONE_HAND"
+      },
+      "morning": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ಬೆಳಿಗ್ಗೆ",
+        "hand_count": "ONE_HAND"
+      },
+      "my": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ನನ್ನ",
+        "hand_count": "ONE_HAND"
+      },
+      "thank_you": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ಧನ್ಯವಾದಗಳು",
+        "hand_count": "TWO_HANDS"
+      },
+      "they": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ಅವರು",
+        "hand_count": "ONE_HAND"
+      },
+      "this": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ಇದು",
+        "hand_count": "ONE_HAND"
+      },
+      "water": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ನೀರು",
+        "hand_count": "ONE_HAND"
+      },
+      "we": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ನಾವು",
+        "hand_count": "ONE_HAND"
+      },
+      "what": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ಏನು",
+        "hand_count": "ONE_HAND"
+      },
+      "what_time": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ಯಾವ ಸಮಯ",
+        "hand_count": "TWO_HANDS"
+      },
+      "when": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ಯಾವಾಗ",
+        "hand_count": "ONE_HAND"
+      },
+      "where": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ಎಲ್ಲಿ",
+        "hand_count": "TWO_HANDS"
+      },
+      "who": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ಯಾರು",
+        "hand_count": "ONE_HAND"
+      },
+      "why": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ಯಾಕೆ",
+        "hand_count": "ONE_HAND"
+      },
+      "you": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 22,
+        "kannada_meaning": "ನೀವು",
+        "hand_count": "ONE_HAND"
+      },
+      "your": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1_score": 1.0,
+        "support": 23,
+        "kannada_meaning": "ನಿಮ್ಮ",
+        "hand_count": "ONE_HAND"
+      }
+    },
+    "confusion_matrix_path": "storage/models/ml_trained/dynamic_confusion_matrix.png"
+  },
+  "comparison_chart_path": "storage/models/ml_trained/model_comparison.png",
+  "supported_gestures": {
+    "food": {
+      "gesture_id": "food",
+      "name": "food",
+      "english_meaning": "food",
+      "kannada_meaning": "ಆಹಾರ",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "hello": {
+      "gesture_id": "hello",
+      "name": "hello",
+      "english_meaning": "hello",
+      "kannada_meaning": "ನಮಸ್ಕಾರ",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "her": {
+      "gesture_id": "her",
+      "name": "her",
+      "english_meaning": "her",
+      "kannada_meaning": "ಅವಳ",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "morning": {
+      "gesture_id": "morning",
+      "name": "morning",
+      "english_meaning": "morning",
+      "kannada_meaning": "ಬೆಳಿಗ್ಗೆ",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "my": {
+      "gesture_id": "my",
+      "name": "my",
+      "english_meaning": "my",
+      "kannada_meaning": "ನನ್ನ",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "thank_you": {
+      "gesture_id": "thank_you",
+      "name": "thank you",
+      "english_meaning": "thank you",
+      "kannada_meaning": "ಧನ್ಯವಾದಗಳು",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "TWO_HANDS"
+    },
+    "they": {
+      "gesture_id": "they",
+      "name": "they",
+      "english_meaning": "they",
+      "kannada_meaning": "ಅವರು",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "this": {
+      "gesture_id": "this",
+      "name": "this",
+      "english_meaning": "this",
+      "kannada_meaning": "ಇದು",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "water": {
+      "gesture_id": "water",
+      "name": "water",
+      "english_meaning": "water",
+      "kannada_meaning": "ನೀರು",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "we": {
+      "gesture_id": "we",
+      "name": "we",
+      "english_meaning": "we",
+      "kannada_meaning": "ನಾವು",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "what": {
+      "gesture_id": "what",
+      "name": "what",
+      "english_meaning": "what",
+      "kannada_meaning": "ಏನು",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "what_time": {
+      "gesture_id": "what_time",
+      "name": "what time",
+      "english_meaning": "what time",
+      "kannada_meaning": "ಯಾವ ಸಮಯ",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "TWO_HANDS"
+    },
+    "when": {
+      "gesture_id": "when",
+      "name": "when",
+      "english_meaning": "when",
+      "kannada_meaning": "ಯಾವಾಗ",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "where": {
+      "gesture_id": "where",
+      "name": "where",
+      "english_meaning": "where",
+      "kannada_meaning": "ಎಲ್ಲಿ",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "TWO_HANDS"
+    },
+    "who": {
+      "gesture_id": "who",
+      "name": "who",
+      "english_meaning": "who",
+      "kannada_meaning": "ಯಾರು",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "why": {
+      "gesture_id": "why",
+      "name": "why",
+      "english_meaning": "why",
+      "kannada_meaning": "ಯಾಕೆ",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "you": {
+      "gesture_id": "you",
+      "name": "you",
+      "english_meaning": "you",
+      "kannada_meaning": "ನೀವು",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "your": {
+      "gesture_id": "your",
+      "name": "your",
+      "english_meaning": "your",
+      "kannada_meaning": "ನಿಮ್ಮ",
+      "gesture_type": "DYNAMIC",
+      "hand_count": "ONE_HAND"
+    },
+    "a": {
+      "gesture_id": "a",
+      "name": "a",
+      "english_meaning": "a",
+      "kannada_meaning": "ಎ",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "b": {
+      "gesture_id": "b",
+      "name": "b",
+      "english_meaning": "b",
+      "kannada_meaning": "ಬಿ",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "c": {
+      "gesture_id": "c",
+      "name": "c",
+      "english_meaning": "c",
+      "kannada_meaning": "ಸಿ",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "d": {
+      "gesture_id": "d",
+      "name": "d",
+      "english_meaning": "d",
+      "kannada_meaning": "ಡಿ",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "e": {
+      "gesture_id": "e",
+      "name": "e",
+      "english_meaning": "e",
+      "kannada_meaning": "ಇ",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "f": {
+      "gesture_id": "f",
+      "name": "f",
+      "english_meaning": "f",
+      "kannada_meaning": "f",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "g": {
+      "gesture_id": "g",
+      "name": "g",
+      "english_meaning": "g",
+      "kannada_meaning": "ಜಿ",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "h": {
+      "gesture_id": "h",
+      "name": "h",
+      "english_meaning": "h",
+      "kannada_meaning": "h",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "i": {
+      "gesture_id": "i",
+      "name": "i",
+      "english_meaning": "i",
+      "kannada_meaning": "i",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "j": {
+      "gesture_id": "j",
+      "name": "j",
+      "english_meaning": "j",
+      "kannada_meaning": "j",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "k": {
+      "gesture_id": "k",
+      "name": "k",
+      "english_meaning": "k",
+      "kannada_meaning": "ಕೆ",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "l": {
+      "gesture_id": "l",
+      "name": "l",
+      "english_meaning": "l",
+      "kannada_meaning": "ಎಲ್",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "m": {
+      "gesture_id": "m",
+      "name": "m",
+      "english_meaning": "m",
+      "kannada_meaning": "m",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "n": {
+      "gesture_id": "n",
+      "name": "n",
+      "english_meaning": "n",
+      "kannada_meaning": "ಎನ್",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "o": {
+      "gesture_id": "o",
+      "name": "o",
+      "english_meaning": "o",
+      "kannada_meaning": "o",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "p": {
+      "gesture_id": "p",
+      "name": "p",
+      "english_meaning": "p",
+      "kannada_meaning": "p",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "q": {
+      "gesture_id": "q",
+      "name": "q",
+      "english_meaning": "q",
+      "kannada_meaning": "q",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "r": {
+      "gesture_id": "r",
+      "name": "r",
+      "english_meaning": "r",
+      "kannada_meaning": "ಆರ್",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "s": {
+      "gesture_id": "s",
+      "name": "s",
+      "english_meaning": "s",
+      "kannada_meaning": "s",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "super": {
+      "gesture_id": "super",
+      "name": "super",
+      "english_meaning": "super",
+      "kannada_meaning": "ಸೂಪರ್",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "t": {
+      "gesture_id": "t",
+      "name": "t",
+      "english_meaning": "t",
+      "kannada_meaning": "ಟಿ",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "u": {
+      "gesture_id": "u",
+      "name": "u",
+      "english_meaning": "u",
+      "kannada_meaning": "ಯು",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "v": {
+      "gesture_id": "v",
+      "name": "v",
+      "english_meaning": "v",
+      "kannada_meaning": "v",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "w": {
+      "gesture_id": "w",
+      "name": "w",
+      "english_meaning": "w",
+      "kannada_meaning": "ಡಬ್ಲ್ಯೂ",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "x": {
+      "gesture_id": "x",
+      "name": "x",
+      "english_meaning": "x",
+      "kannada_meaning": "x",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "y": {
+      "gesture_id": "y",
+      "name": "y",
+      "english_meaning": "y",
+      "kannada_meaning": "y",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    },
+    "z": {
+      "gesture_id": "z",
+      "name": "z",
+      "english_meaning": "z",
+      "kannada_meaning": "z",
+      "gesture_type": "STATIC",
+      "hand_count": "ONE_HAND"
+    }
+  }
+}

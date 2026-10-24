@@ -22,7 +22,10 @@ isl_dataset.db
 test_remote_team.db
 
 # Storage directory (raw webcam recordings, images, local landmarks)
-storage/
+storage/*
+!storage/models/
+storage/models/*
+!storage/models/ml_trained/
 *.zip
 
 # Operating system files

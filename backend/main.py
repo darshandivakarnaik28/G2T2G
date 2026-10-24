@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from .database import engine, Base, SessionLocal
 from .models import Gesture, ThreeDModel, Signer, CollectionAssignment, DatasetSample
 from .services.storage_service import init_storage, STORAGE_DIR, BASE_DIR
-from .routers import gestures, samples, models, dashboard, training_readiness, export, signers, assignments
+from .routers import gestures, samples, models, dashboard, training_readiness, export, signers, assignments, ml_inference
 
 # Increase Starlette MultiPartParser part size limit from 1MB to 50MB for dynamic sequence payloads
 try:
@@ -189,6 +189,7 @@ app.include_router(models.router)
 app.include_router(dashboard.router)
 app.include_router(training_readiness.router)
 app.include_router(export.router)
+app.include_router(ml_inference.router)
 
 # Mount central storage folder for media serving
 app.mount("/storage", StaticFiles(directory=str(STORAGE_DIR)), name="storage")

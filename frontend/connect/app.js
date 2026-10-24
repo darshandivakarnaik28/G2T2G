@@ -23,27 +23,50 @@ const state = {
   normalViewer: null,
   chatViewer: null,
   playbackSpeed: 1.0,
-  isPlayingNormal: false
+  isPlayingNormal: false,
+  // Real-time ML Inference State
+  mlFrameBuffer: [],
+  lastMlPredictTime: 0,
+  mlPredictInFlight: false,
+  lastPredictedGesture: null,
+  consecutiveMatchCount: 0,
+  lastCommittedGesture: null,
+  lastCommittedTime: 0,
+  mlPredictionMode: 'auto' // 'auto' | 'static' | 'dynamic'
 };
 
-// Bilingual Dictionary for ISL Signs
+// Bilingual Dictionary for 45 Trained ISL Signs (27 Static + 18 Dynamic)
 const DICTIONARY = {
   "HELLO": { en: "HELLO", kn: "ನಮಸ್ಕಾರ (Namaskara)" },
   "THANK YOU": { en: "THANK YOU", kn: "ಧನ್ಯವಾದಗಳು (Dhanyavadagalu)" },
-  "NEED HELP": { en: "NEED HELP", kn: "ಸಹಾಯ ಬೇಕು (Sahaya Beku)" },
-  "ALL CLEAR": { en: "ALL CLEAR", kn: "ಎಲ್ಲವೂ ಸರಿ (Ellavu Sari)" },
+  "THANK_YOU": { en: "THANK YOU", kn: "ಧನ್ಯವಾದಗಳು (Dhanyavadagalu)" },
   "WATER": { en: "WATER", kn: "ನೀರು (Neeru)" },
   "FOOD": { en: "FOOD", kn: "ಊಟ (Oota)" },
-  "MY": { en: "MY", kn: "ನನ್ನ (Nanna)" },
-  "PAIN": { en: "PAIN", kn: "ನೋವು (Novu)" },
-  "HOW ARE YOU": { en: "HOW ARE YOU?", kn: "ನೀವು ಹೇಗಿದ್ದೀರಿ? (Neevu Hegiddeeri?)" },
+  "MORNING": { en: "MORNING", kn: "ಶುಭೋದಯ (Shubhodaya)" },
   "GOOD MORNING": { en: "GOOD MORNING", kn: "ಶುಭೋದಯ (Shubhodaya)" },
-  "YES": { en: "YES", kn: "ಹೌದು (Haudu)" },
-  "NO": { en: "NO", kn: "ಇಲ್ಲ (Illa)" },
-  "DOCTOR": { en: "DOCTOR", kn: "ವೈದ್ಯರು (Vaidyaru)" },
-  "MEDICINE": { en: "MEDICINE", kn: "ಔಷಧಿ (Aushadhi)" },
-  "EXAMINATION": { en: "EXAMINATION ROOM", kn: "ಪರೀಕ್ಷಾ ಕೊಠಡಿ (Pareeksha Kothadi)" }
+  "MY": { en: "MY", kn: "ನನ್ನ (Nanna)" },
+  "YOU": { en: "YOU", kn: "ನೀವು (Neevu)" },
+  "YOUR": { en: "YOUR", kn: "ನಿಮ್ಮ (Nimma)" },
+  "HER": { en: "HER", kn: "ಅವಳ (Avala)" },
+  "WE": { en: "WE", kn: "ನಾವು (Naavu)" },
+  "THEY": { en: "THEY", kn: "ಅವರು (Avaru)" },
+  "THIS": { en: "THIS", kn: "ಇದು (Idu)" },
+  "WHAT": { en: "WHAT", kn: "ಏನು (Eenu)" },
+  "WHAT TIME": { en: "WHAT TIME", kn: "ಎಷ್ಟು ಸಮಯ (Eshtu Samaya)" },
+  "WHAT_TIME": { en: "WHAT TIME", kn: "ಎಷ್ಟು ಸಮಯ (Eshtu Samaya)" },
+  "WHEN": { en: "WHEN", kn: "ಯಾವಾಗ (Yaavaaga)" },
+  "WHERE": { en: "WHERE", kn: "ಎಲ್ಲಿ (Elli)" },
+  "WHO": { en: "WHO", kn: "ಯಾರು (Yaaru)" },
+  "WHY": { en: "WHY", kn: "ಯಾಕೆ (Yaake)" },
+  "SUPER": { en: "SUPER", kn: "ಸೂಪರ್ / ಅತ್ಯುತ್ತಮ (Super)" },
+  "NEED HELP": { en: "NEED HELP", kn: "ಸಹಾಯ ಬೇಕು (Sahaya Beku)" },
+  "ALL CLEAR": { en: "ALL CLEAR", kn: "ಎಲ್ಲವೂ ಸರಿ (Ellavu Sari)" }
 };
+
+// Populate A-Z static alphabet signs in DICTIONARY
+"ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(letter => {
+  DICTIONARY[letter] = { en: `Letter ${letter}`, kn: `ಅಕ್ಷರ ${letter}` };
+});
 
 // Helper: translate text or find matching Kannada phrase
 function getKannadaTranslation(text) {
@@ -692,21 +715,43 @@ class ISL3DAvatarViewer {
     if (!landmarks || !landmarks.length) return;
     landmarks.forEach((pt, i) => {
       if (this.joints[i]) {
-        const x = pt.x !== undefined ? (pt.x - 0.5) * 12 : (pt[0] || 0);
-        const y = pt.y !== undefined ? (0.5 - pt.y) * 12 : (pt[1] || 0);
-        const z = pt.z !== undefined ? -pt.z * 12 : (pt[2] || 0);
+        const x = pt.x !== undefined ? (pt.x - 0.5) * 14 : ((pt[0] !== undefined ? pt[0] - 0.5 : 0) * 14);
+        const y = pt.y !== undefined ? (0.5 - pt.y) * 14 : ((pt[1] !== undefined ? 0.5 - pt[1] : 0) * 14);
+        const z = pt.z !== undefined ? -pt.z * 14 : (-(pt[2] || 0) * 14);
         this.joints[i].position.set(x, y, z);
       }
     });
     this.updateBones();
   }
 
-  playGesture(gestureName) {
-    // Procedural dummy motion removed as requested.
-    // Landmarks will be streamed directly from trained ML model.
-    this.currentGesture = (gestureName || '').toUpperCase();
+  async playGesture(gestureName) {
+    this.currentGesture = (gestureName || '').trim().toUpperCase();
+    if (!this.currentGesture) {
+      this.isPlaying = false;
+      this.resetToNeutralPose();
+      return;
+    }
+
+    try {
+      const cleanQuery = this.currentGesture.toLowerCase().replace(/\s+/g, '_');
+      const res = await fetch(`/api/ml/gesture-template/${encodeURIComponent(cleanQuery)}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data.frames && data.frames.length > 0) {
+          this.sequenceFrames = data.frames;
+          this.frameCursor = 0;
+          this.isPlaying = data.frames.length > 1;
+          const firstLm = data.frames[0].left_hand_landmarks && data.frames[0].left_hand_landmarks.length >= 21
+            ? data.frames[0].left_hand_landmarks
+            : data.frames[0].right_hand_landmarks;
+          if (firstLm) this.setLandmarks(firstLm);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('[ISL Connect] Template fetch notice:', e);
+    }
     this.isPlaying = false;
-    this.gestureProgress = 0;
     this.resetToNeutralPose();
   }
 
@@ -715,9 +760,22 @@ class ISL3DAvatarViewer {
 
     if (this.controls) this.controls.update();
 
-    // The dummy procedural gesture movement has been completely removed.
-    // The 3D 21-landmark model stays in a clean, neutral anatomical pose
-    // ready to receive streaming landmark coordinates from the trained model.
+    // Stream real recorded 21-landmark sequence when playing a dynamic gesture
+    if (this.isPlaying && this.sequenceFrames && this.sequenceFrames.length > 1) {
+      this.frameCursor = (this.frameCursor || 0) + 0.35 * (this.speed || 1.0);
+      if (this.frameCursor >= this.sequenceFrames.length) {
+        this.frameCursor = 0;
+      }
+      const idx = Math.floor(this.frameCursor) % this.sequenceFrames.length;
+      const frame = this.sequenceFrames[idx];
+      if (frame) {
+        const lm = (frame.left_hand_landmarks && frame.left_hand_landmarks.length >= 21)
+          ? frame.left_hand_landmarks
+          : frame.right_hand_landmarks;
+        if (lm) this.setLandmarks(lm);
+      }
+    }
+
     if (this.renderer && this.scene && this.camera) {
       this.renderer.render(this.scene, this.camera);
     }
@@ -762,8 +820,9 @@ function initChat3DViewer() {
 // Controls for Normal User 3D Viewer
 // Controls for Normal User 3D Viewer
 function togglePlay() {
-  // Dummy animation removed. When trained model is connected, this will toggle model streaming.
-  console.log('[ISL Connect] 3D Landmark viewer in standby. Awaiting trained model streaming.');
+  if (state.normalViewer && state.normalViewer.sequenceFrames && state.normalViewer.sequenceFrames.length > 1) {
+    state.normalViewer.isPlaying = !state.normalViewer.isPlaying;
+  }
 }
 window.togglePlay = togglePlay;
 
@@ -880,11 +939,10 @@ async function showMasterGestureAnd3D(text) {
     }
   }
 
-  // Below Frame: Initialize 3D 21-Landmark Hand Model in neutral resting pose
-  // (Dummy gesture animation removed per user request; awaiting trained model)
+  // Below Frame: Initialize 3D 21-Landmark Hand Model and stream real recorded gesture trajectory
   initNormal3DViewer();
   if (state.normalViewer) {
-    state.normalViewer.resetToNeutralPose();
+    state.normalViewer.playGesture(signKey);
   }
 }
 window.showMasterGestureAnd3D = showMasterGestureAnd3D;
@@ -1070,6 +1128,98 @@ function onHandTrackingResults(results) {
       }
     });
   });
+
+  // --------------------------------------------------------------------------
+  // Real-Time ML Model Gesture Prediction (Static A-Z/Super + Dynamic Words)
+  // --------------------------------------------------------------------------
+  let leftLandmarks = [];
+  let rightLandmarks = [];
+
+  results.multiHandLandmarks.forEach((landmarks, handIdx) => {
+    const cleanPts = landmarks.map(p => ({
+      x: Math.round(p.x * 10000) / 10000,
+      y: Math.round(p.y * 10000) / 10000,
+      z: Math.round(p.z * 10000) / 10000
+    }));
+    const hLabel = (labels[handIdx] || '').toLowerCase();
+    if (hLabel.includes('left')) {
+      leftLandmarks = cleanPts;
+    } else if (hLabel.includes('right')) {
+      rightLandmarks = cleanPts;
+    } else if (leftLandmarks.length === 0) {
+      leftLandmarks = cleanPts;
+    } else {
+      rightLandmarks = cleanPts;
+    }
+  });
+
+  state.mlFrameBuffer.push({
+    left_hand_landmarks: leftLandmarks,
+    right_hand_landmarks: rightLandmarks,
+    timestamp: Date.now()
+  });
+  if (state.mlFrameBuffer.length > 30) {
+    state.mlFrameBuffer.shift();
+  }
+
+  const now = Date.now();
+  if (!state.mlPredictInFlight && (now - state.lastMlPredictTime >= 420) && state.mlFrameBuffer.length >= 2) {
+    state.mlPredictInFlight = true;
+    state.lastMlPredictTime = now;
+    const framesSnapshot = state.mlFrameBuffer.slice();
+
+    fetch('/api/ml/predict-auto', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        frames: framesSnapshot,
+        mode: state.mlPredictionMode || 'auto'
+      })
+    })
+      .then(r => (r.ok ? r.json() : null))
+      .then(pred => {
+        if (!pred || !pred.gesture_id) return;
+        const confPct = (pred.confidence * 100).toFixed(1) + '%';
+        const displayName = (pred.name || pred.gesture_id).toUpperCase();
+        const knText = pred.kannada_meaning || getKannadaTranslation(displayName);
+        const typeTag = pred.gesture_type === 'DYNAMIC' ? 'DYNAMIC' : 'STATIC';
+
+        if (badgeRight) {
+          badgeRight.textContent = `${displayName} (${confPct})`;
+        }
+
+        const recognizedEl = document.getElementById('recognized-text');
+        if (recognizedEl && pred.confidence >= 0.45) {
+          recognizedEl.innerText = knText
+            ? `${displayName} — ${knText} [${typeTag} ${confPct}]`
+            : `${displayName} [${typeTag} ${confPct}]`;
+        }
+
+        // Auto-commit high-confidence stabilized predictions to conversation feed
+        if (pred.confidence >= 0.72) {
+          if (state.lastPredictedGesture === pred.gesture_id) {
+            state.consecutiveMatchCount += 1;
+          } else {
+            state.lastPredictedGesture = pred.gesture_id;
+            state.consecutiveMatchCount = 1;
+          }
+
+          const cooldownElapsed = (Date.now() - state.lastCommittedTime) > 3500;
+          if (
+            state.consecutiveMatchCount >= 2 &&
+            (state.lastCommittedGesture !== pred.gesture_id || cooldownElapsed)
+          ) {
+            state.lastCommittedGesture = pred.gesture_id;
+            state.lastCommittedTime = Date.now();
+            simulateGesture(displayName, knText);
+          }
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        state.mlPredictInFlight = false;
+      });
+  }
 }
 
 async function toggleSignCamera() {
