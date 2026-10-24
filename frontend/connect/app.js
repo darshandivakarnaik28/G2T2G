@@ -350,74 +350,160 @@ function initSpeechRecognition(onResultCallback, onEndCallback) {
   return recognizer;
 }
 
-async function toggleVoiceRecording() {
+function stopAllSpeechRecognition() {
+  if (state.speechRecognition) {
+    try {
+      state.speechRecognition.onend = null;
+      state.speechRecognition.onerror = null;
+      state.speechRecognition.onresult = null;
+      state.speechRecognition.stop();
+    } catch (e) {}
+    state.speechRecognition = null;
+  }
+}
+
+function setNormalMicUI(isRecording, statusMsg) {
   const btnText = document.getElementById('speak-btn-text');
   const micStatus = document.getElementById('mic-status');
   const speakBtn = document.getElementById('speak-btn');
+
+  if (btnText) {
+    btnText.textContent = isRecording ? 'Stop Recording' : 'Speak Message';
+  }
+  if (speakBtn) {
+    if (isRecording) {
+      speakBtn.classList.remove('from-primary', 'to-primary-container', 'bg-primary');
+      speakBtn.classList.add('bg-error', 'from-error', 'to-red-700', 'text-on-error');
+    } else {
+      speakBtn.classList.remove('bg-error', 'from-error', 'to-red-700', 'text-on-error');
+      speakBtn.classList.add('from-primary', 'to-primary-container', 'text-on-primary');
+    }
+  }
+  if (micStatus) {
+    if (isRecording) {
+      micStatus.innerHTML = `<span class="w-2.5 h-2.5 rounded-full bg-error animate-ping"></span> <span>${statusMsg || 'Listening... Speak now'}</span>`;
+      micStatus.classList.remove('hidden');
+      micStatus.classList.add('flex');
+    } else {
+      micStatus.classList.add('hidden');
+      micStatus.classList.remove('flex');
+    }
+  }
+}
+
+function setLiveMicUI(isRecording, statusMsg) {
+  const micBtn = document.getElementById('live-mic-btn');
+  const liveMicStatus = document.getElementById('live-mic-status');
+  const input = document.getElementById('live-chat-input');
+
+  if (micBtn) {
+    if (isRecording) {
+      micBtn.classList.remove('bg-surface-container', 'text-on-surface');
+      micBtn.classList.add('bg-error', 'text-on-error', 'animate-pulse');
+      micBtn.innerHTML = '<span class="material-symbols-outlined text-[20px]">mic_off</span>';
+      micBtn.title = 'Stop Voice Input';
+    } else {
+      micBtn.classList.remove('bg-error', 'text-on-error', 'animate-pulse');
+      micBtn.classList.add('bg-surface-container', 'text-on-surface');
+      micBtn.innerHTML = '<span class="material-symbols-outlined text-[20px]">mic</span>';
+      micBtn.title = 'Voice Input (Mic)';
+    }
+  }
+  if (input) {
+    input.placeholder = isRecording
+      ? (statusMsg || 'Listening... Speak now to convert voice to text...')
+      : 'Type message or sign on camera...';
+  }
+  if (liveMicStatus) {
+    if (isRecording) {
+      liveMicStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-error animate-ping"></span> <span>${statusMsg || 'Listening... Speak now'}</span>`;
+      liveMicStatus.classList.remove('hidden');
+      liveMicStatus.classList.add('flex');
+    } else {
+      liveMicStatus.classList.add('hidden');
+      liveMicStatus.classList.remove('flex');
+    }
+  }
+}
+
+function toggleVoiceRecording() {
   const textarea = document.getElementById('normal-text-input');
+
+  // If Live Chat mic was active, stop it first
+  if (state.isRecordingLive) {
+    state.isRecordingLive = false;
+    setLiveMicUI(false);
+    stopAllSpeechRecognition();
+  }
 
   if (!state.isRecordingNormal) {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
-      alert("Speech Recognition API is not supported by your browser. Please use Google Chrome, Microsoft Edge, or Safari.");
+      alert("Speech Recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
       return;
     }
 
-    // Prompt microphone permission
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-      } catch (err) {
-        console.warn("Microphone permission denied:", err);
-        alert("Microphone permission was denied. Please allow microphone access in your browser address bar.");
-        return;
-      }
-    }
-
+    stopAllSpeechRecognition();
     state.isRecordingNormal = true;
-    if (btnText) btnText.textContent = 'Stop Recording';
-    if (speakBtn) {
-      speakBtn.classList.remove('bg-primary', 'hover:bg-primary-container');
-      speakBtn.classList.add('bg-error', 'text-on-error');
-    }
-    if (micStatus) {
-      micStatus.classList.remove('hidden');
-      micStatus.classList.add('flex');
-    }
+    setNormalMicUI(true, 'Listening... Speak now');
 
     const recognizer = new SpeechRec();
     recognizer.continuous = true;
     recognizer.interimResults = true;
     recognizer.maxAlternatives = 1;
-    recognizer.lang = state.currentLang === 'kn' ? 'kn-IN' : 'en-US';
+    recognizer.lang = state.currentLang === 'kn' ? 'kn-IN' : 'en-IN';
 
-    let initialText = textarea ? textarea.value.trim() : '';
+    let finalTranscript = textarea ? textarea.value.trim() : '';
+
+    recognizer.onstart = () => {
+      setNormalMicUI(true, 'Listening... Speak now');
+      if (textarea) textarea.focus();
+    };
 
     recognizer.onresult = (event) => {
-      let speechText = '';
-      for (let i = 0; i < event.results.length; ++i) {
-        speechText += event.results[i][0].transcript + ' ';
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const piece = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript = (finalTranscript ? finalTranscript + ' ' : '') + piece.trim();
+        } else {
+          interimTranscript += piece;
+        }
       }
-      speechText = speechText.trim();
-      if (textarea && speechText) {
-        textarea.value = initialText ? `${initialText} ${speechText}` : speechText;
-        textarea.dispatchEvent(new Event('input'));
+      const combined = (finalTranscript + (interimTranscript ? ' ' + interimTranscript.trim() : '')).trim();
+      if (textarea && combined) {
+        textarea.value = combined;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        setNormalMicUI(true, 'Transcribing voice...');
+        showMasterGestureAnd3D(combined);
       }
     };
 
     recognizer.onerror = (event) => {
       console.warn("Speech recognition notice:", event.error);
       if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        alert("Microphone access was blocked. Please enable it in browser permissions.");
-        stopRecording();
+        alert("Microphone access was blocked. Please allow microphone permission in your browser address bar.");
+        state.isRecordingNormal = false;
+        setNormalMicUI(false);
+        stopAllSpeechRecognition();
+      } else if (event.error === 'audio-capture') {
+        alert("No microphone was detected. Please check your microphone connection.");
+        state.isRecordingNormal = false;
+        setNormalMicUI(false);
+        stopAllSpeechRecognition();
       }
-      // 'no-speech' is expected when pausing, keep recording active
     };
 
     recognizer.onend = () => {
       if (state.isRecordingNormal) {
-        try { recognizer.start(); } catch (e) {}
+        try {
+          recognizer.start();
+        } catch (e) {
+          state.isRecordingNormal = false;
+          setNormalMicUI(false);
+        }
+      } else {
+        setNormalMicUI(false);
       }
     };
 
@@ -426,94 +512,109 @@ async function toggleVoiceRecording() {
       recognizer.start();
     } catch (e) {
       console.error("Recognizer start error:", e);
+      state.isRecordingNormal = false;
+      setNormalMicUI(false);
     }
   } else {
-    stopRecording();
-  }
-
-  function stopRecording() {
     state.isRecordingNormal = false;
-    if (btnText) btnText.textContent = 'Speak Message';
-    if (speakBtn) {
-      speakBtn.classList.remove('bg-error', 'text-on-error');
-      speakBtn.classList.add('bg-primary', 'hover:bg-primary-container');
-    }
-    if (micStatus) {
-      micStatus.classList.add('hidden');
-      micStatus.classList.remove('flex');
-    }
-    if (state.speechRecognition) {
-      try { state.speechRecognition.stop(); } catch (e) {}
-      state.speechRecognition = null;
-    }
+    setNormalMicUI(false);
+    stopAllSpeechRecognition();
   }
 }
 window.toggleVoiceRecording = toggleVoiceRecording;
 
-async function toggleLiveVoiceRecording() {
+function toggleLiveVoiceRecording() {
   const input = document.getElementById('live-chat-input');
-  const micBtn = document.getElementById('live-mic-btn');
 
-  state.isRecordingLive = !state.isRecordingLive;
-  if (state.isRecordingLive) {
+  // If Normal User mic was active, stop it first
+  if (state.isRecordingNormal) {
+    state.isRecordingNormal = false;
+    setNormalMicUI(false);
+    stopAllSpeechRecognition();
+  }
+
+  if (!state.isRecordingLive) {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRec) {
-      alert("Speech recognition is not supported in this browser. Please use Chrome or Edge.");
-      state.isRecordingLive = false;
+      alert("Speech Recognition is not supported in this browser. Please use Google Chrome or Microsoft Edge.");
       return;
     }
 
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        stream.getTracks().forEach(t => t.stop());
-      } catch (err) {
-        alert("Microphone permission was denied.");
-        state.isRecordingLive = false;
-        return;
-      }
-    }
+    stopAllSpeechRecognition();
+    state.isRecordingLive = true;
+    setLiveMicUI(true, 'Listening... Speak now');
 
-    if (micBtn) micBtn.classList.add('bg-error', 'text-on-error');
     const recognizer = new SpeechRec();
     recognizer.continuous = true;
     recognizer.interimResults = true;
-    recognizer.lang = state.currentLang === 'kn' ? 'kn-IN' : 'en-US';
+    recognizer.maxAlternatives = 1;
+    recognizer.lang = state.currentLang === 'kn' ? 'kn-IN' : 'en-IN';
 
-    let initial = input ? input.value.trim() : '';
+    let finalTranscript = input ? input.value.trim() : '';
+
+    recognizer.onstart = () => {
+      setLiveMicUI(true, 'Listening... Speak now');
+      if (input) input.focus();
+    };
+
     recognizer.onresult = (event) => {
-      let speechText = '';
-      for (let i = 0; i < event.results.length; ++i) {
-        speechText += event.results[i][0].transcript + ' ';
+      let interimTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const piece = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript = (finalTranscript ? finalTranscript + ' ' : '') + piece.trim();
+        } else {
+          interimTranscript += piece;
+        }
       }
-      speechText = speechText.trim();
-      if (input && speechText) {
-        input.value = initial ? `${initial} ${speechText}` : speechText;
-        input.dispatchEvent(new Event('input'));
+      const combined = (finalTranscript + (interimTranscript ? ' ' + interimTranscript.trim() : '')).trim();
+      if (input && combined) {
+        input.value = combined;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        setLiveMicUI(true, 'Transcribing voice...');
       }
     };
 
-    recognizer.onerror = (e) => {
-      if (e.error === 'not-allowed') {
-        alert("Microphone permission blocked.");
-        toggleLiveVoiceRecording();
+    recognizer.onerror = (event) => {
+      console.warn("Live Chat speech recognition notice:", event.error);
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        alert("Microphone access was blocked. Please allow microphone permission in your browser address bar.");
+        state.isRecordingLive = false;
+        setLiveMicUI(false);
+        stopAllSpeechRecognition();
+      } else if (event.error === 'audio-capture') {
+        alert("No microphone was detected. Please check your microphone connection.");
+        state.isRecordingLive = false;
+        setLiveMicUI(false);
+        stopAllSpeechRecognition();
       }
     };
 
     recognizer.onend = () => {
       if (state.isRecordingLive) {
-        try { recognizer.start(); } catch (err) {}
+        try {
+          recognizer.start();
+        } catch (err) {
+          state.isRecordingLive = false;
+          setLiveMicUI(false);
+        }
+      } else {
+        setLiveMicUI(false);
       }
     };
 
     state.speechRecognition = recognizer;
-    try { recognizer.start(); } catch (e) {}
-  } else {
-    if (micBtn) micBtn.classList.remove('bg-error', 'text-on-error');
-    if (state.speechRecognition) {
-      try { state.speechRecognition.stop(); } catch (e) {}
-      state.speechRecognition = null;
+    try {
+      recognizer.start();
+    } catch (e) {
+      console.error("Live recognizer start error:", e);
+      state.isRecordingLive = false;
+      setLiveMicUI(false);
     }
+  } else {
+    state.isRecordingLive = false;
+    setLiveMicUI(false);
+    stopAllSpeechRecognition();
   }
 }
 window.toggleLiveVoiceRecording = toggleLiveVoiceRecording;
