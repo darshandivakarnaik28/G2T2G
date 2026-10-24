@@ -962,9 +962,62 @@ function resetCamera() {
 }
 window.resetCamera = resetCamera;
 
+function resolveTrainedGesture(text) {
+  const cleaned = (text || '').trim().replace(/[?!.,]/g, '');
+  const upper = cleaned.toUpperCase();
+  const underscored = upper.replace(/\s+/g, '_');
+
+  // Map synonyms to canonical trained gesture_ids
+  const SYNONYM_MAP = {
+    "GOOD MORNING": "MORNING",
+    "GOOD_MORNING": "MORNING",
+    "THANK YOU": "THANK_YOU",
+    "THANKS": "THANK_YOU",
+    "WHAT TIME": "WHAT_TIME",
+    "TIME": "WHAT_TIME",
+    "HOW ARE YOU": "HELLO"
+  };
+
+  if (SYNONYM_MAP[upper] && DICTIONARY[SYNONYM_MAP[upper]]) {
+    const k = SYNONYM_MAP[upper];
+    return { cleanId: k.toLowerCase(), signKey: DICTIONARY[k].en, knMeaning: DICTIONARY[k].kn };
+  }
+
+  // 1. Exact match in DICTIONARY
+  if (DICTIONARY[upper]) {
+    const cid = upper.toLowerCase().replace(/\s+/g, '_');
+    return { cleanId: cid, signKey: upper, knMeaning: DICTIONARY[upper].kn };
+  }
+  if (DICTIONARY[underscored]) {
+    return { cleanId: underscored.toLowerCase(), signKey: DICTIONARY[underscored].en, knMeaning: DICTIONARY[underscored].kn };
+  }
+
+  // 2. Multi-character word/phrase match (sorted longest-first so single letters A-Z don't falsely match)
+  const multiCharKeys = Object.keys(DICTIONARY)
+    .filter(k => k.length > 1)
+    .sort((a, b) => b.length - a.length);
+
+  const words = upper.split(/\s+/);
+  for (const key of multiCharKeys) {
+    if (upper.includes(key) || words.includes(key)) {
+      const cid = key.toLowerCase().replace(/\s+/g, '_');
+      return { cleanId: cid, signKey: key.replace(/_/g, ' '), knMeaning: DICTIONARY[key].kn };
+    }
+  }
+
+  // 3. Single letter A-Z fallback if user typed a single character or "letter X"
+  const letterMatch = upper.match(/^LETTER\s+([A-Z])$/) || upper.match(/^([A-Z])$/);
+  if (letterMatch) {
+    const ltr = letterMatch[1];
+    return { cleanId: ltr.toLowerCase(), signKey: ltr, knMeaning: DICTIONARY[ltr] ? DICTIONARY[ltr].kn : ltr };
+  }
+
+  // Default fallback to HELLO
+  return { cleanId: 'hello', signKey: 'HELLO', knMeaning: DICTIONARY['HELLO'].kn };
+}
+
 async function showMasterGestureAnd3D(text) {
   if (!text) return;
-  const upper = text.trim().toUpperCase();
 
   // Hide idle pet card, reveal dual frames (Upper Master Gesture + Below 3D Model)
   const petIdle = document.getElementById('normal-pet-idle');
@@ -979,59 +1032,61 @@ async function showMasterGestureAnd3D(text) {
   const masterTitle = document.getElementById('master-sign-title');
   const masterSignerId = document.getElementById('master-signer-id');
   const masterImg = document.getElementById('master-reference-img');
+  const masterVideo = document.getElementById('master-reference-video');
   const masterFallback = document.getElementById('master-reference-fallback');
   const masterFallbackTitle = document.getElementById('master-fallback-title');
+  const modelStatusBadge = document.getElementById('model-status-badge');
+  const modelStandbyBanner = document.getElementById('model-standby-banner');
 
-  // Match sign in dictionary or default
-  let signKey = 'WATER';
-  let knMeaning = 'ನೀರು';
-  for (const [key, val] of Object.entries(DICTIONARY)) {
-    if (upper.includes(key)) {
-      signKey = key;
-      knMeaning = val.kn;
-      break;
-    }
-  }
+  const { cleanId, signKey, knMeaning } = resolveTrainedGesture(text);
 
   if (masterTitle) {
     masterTitle.textContent = `${signKey} (${knMeaning})`;
   }
-  if (masterSignerId) {
-    masterSignerId.textContent = 'Signer: T001 (Master Reference)';
-  }
 
-  // Check for real master reference image
-  if (signKey === 'WATER') {
-    if (masterImg) {
-      masterImg.src = '/storage/images/water_T001_117c83e631.jpg';
-      masterImg.classList.remove('hidden');
-    }
-    if (masterFallback) masterFallback.classList.add('hidden');
-  } else {
-    try {
-      const cleanId = signKey.toLowerCase().replace(/\s+/g, '_');
-      const res = await fetch(`/api/gestures/${cleanId}/master-sample`);
-      if (res.ok) {
-        const sample = await res.json();
-        if (sample && sample.stored_file_path && sample.stored_file_path !== 'landmarks_only') {
-          if (masterImg) {
-            masterImg.src = `/${sample.stored_file_path}`;
-            masterImg.classList.remove('hidden');
+  try {
+    const res = await fetch(`/api/gestures/${encodeURIComponent(cleanId)}/master-sample`);
+    if (res.ok) {
+      const sample = await res.json();
+      if (masterSignerId && sample.signer_id) {
+        masterSignerId.textContent = `Signer: ${sample.signer_id} (Master Reference)`;
+      }
+      if (sample && sample.stored_file_path && sample.stored_file_path !== 'landmarks_only') {
+        const mediaUrl = `/${sample.stored_file_path.replace(/^\/+/, '')}`;
+        const isVideo = /\.(webm|mp4|mov|mkv)$/i.test(sample.stored_file_path);
+
+        if (masterFallback) masterFallback.classList.add('hidden');
+
+        if (isVideo && masterVideo) {
+          if (masterImg) masterImg.classList.add('hidden');
+          masterVideo.src = mediaUrl;
+          masterVideo.classList.remove('hidden');
+          masterVideo.load();
+          masterVideo.play().catch(() => {});
+        } else if (masterImg) {
+          if (masterVideo) {
+            masterVideo.pause();
+            masterVideo.classList.add('hidden');
           }
-          if (masterFallback) masterFallback.classList.add('hidden');
-        } else {
-          showFallbackMaster(signKey, knMeaning);
+          masterImg.src = mediaUrl;
+          masterImg.classList.remove('hidden');
         }
       } else {
         showFallbackMaster(signKey, knMeaning);
       }
-    } catch (e) {
+    } else {
       showFallbackMaster(signKey, knMeaning);
     }
+  } catch (e) {
+    showFallbackMaster(signKey, knMeaning);
   }
 
   function showFallbackMaster(sName, sKn) {
     if (masterImg) masterImg.classList.add('hidden');
+    if (masterVideo) {
+      masterVideo.pause();
+      masterVideo.classList.add('hidden');
+    }
     if (masterFallback) {
       masterFallback.classList.remove('hidden');
       if (masterFallbackTitle) {
@@ -1040,10 +1095,23 @@ async function showMasterGestureAnd3D(text) {
     }
   }
 
+  if (modelStatusBadge) {
+    modelStatusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Trained Model Active`;
+  }
+  if (modelStandbyBanner) {
+    modelStandbyBanner.innerHTML = `
+      <span class="flex items-center gap-1.5 text-secondary-fixed font-medium">
+        <span class="material-symbols-outlined text-[15px] text-emerald-400">check_circle</span>
+        <span>Streaming 21-Landmark Trajectory: ${signKey}</span>
+      </span>
+      <span class="text-[10px] text-secondary-fixed font-mono bg-secondary/20 px-1.5 py-0.5 rounded">Live 3D</span>
+    `;
+  }
+
   // Below Frame: Initialize 3D 21-Landmark Hand Model and stream real recorded gesture trajectory
   initNormal3DViewer();
   if (state.normalViewer) {
-    state.normalViewer.playGesture(signKey);
+    state.normalViewer.playGesture(cleanId);
   }
 }
 window.showMasterGestureAnd3D = showMasterGestureAnd3D;
@@ -1129,14 +1197,18 @@ function initMediaPipeHands() {
 }
 
 function onHandTrackingResults(results) {
-  const canvas = document.getElementById('sign-mesh-canvas');
-  const badgeLeft = document.getElementById('sign-detected-hand');
-  const badgeRight = document.getElementById('sign-confidence-score');
+  const isLiveChat = Boolean(state.isCameraActiveLive);
+  const isSignPanel = Boolean(state.isCameraActiveSign);
+  if (!isLiveChat && !isSignPanel) return;
+
+  const canvas = document.getElementById(isLiveChat ? 'chat-mesh-canvas' : 'sign-mesh-canvas');
+  const badgeLeft = document.getElementById(isLiveChat ? 'chat-live-hand-status' : 'sign-detected-hand');
+  const badgeRight = document.getElementById(isLiveChat ? 'chat-live-pred-badge' : 'sign-confidence-score');
   const statusDock = document.getElementById('sign-live-status-dock');
   const handsCountBadge = document.getElementById('sign-hands-count-badge');
   const handednessBadge = document.getElementById('sign-handedness-badge');
 
-  if (!canvas || !state.isCameraActiveSign) return;
+  if (!canvas) return;
   const ctx = canvas.getContext('2d');
   canvas.width = canvas.clientWidth;
   canvas.height = canvas.clientHeight;
@@ -1146,9 +1218,11 @@ function onHandTrackingResults(results) {
 
   if (numHands === 0) {
     if (badgeLeft) badgeLeft.textContent = "Searching for hands...";
-    if (badgeRight) badgeRight.textContent = "--";
-    if (handsCountBadge) handsCountBadge.textContent = "0 Hands";
-    if (handednessBadge) handednessBadge.textContent = "No Hands Detected";
+    if (badgeRight) badgeRight.textContent = isLiveChat ? "Perform Sign to Reply" : "--";
+    if (!isLiveChat) {
+      if (handsCountBadge) handsCountBadge.textContent = "0 Hands";
+      if (handednessBadge) handednessBadge.textContent = "No Hands Detected";
+    }
     return;
   }
 
@@ -1173,12 +1247,14 @@ function onHandTrackingResults(results) {
   const handednessStr = labels.length > 0 ? labels.join(" + ") + " Hand" : (numHands === 1 ? "Single Hand" : "Both Hands");
 
   if (badgeLeft) badgeLeft.textContent = `${handCountStr} (${handednessStr})`;
-  if (badgeRight) badgeRight.textContent = avgConfidence;
-  if (handsCountBadge) handsCountBadge.textContent = handCountStr;
-  if (handednessBadge) handednessBadge.textContent = handednessStr;
-  if (statusDock) {
-    statusDock.classList.remove('hidden');
-    statusDock.classList.add('flex');
+  if (!isLiveChat) {
+    if (badgeRight) badgeRight.textContent = avgConfidence;
+    if (handsCountBadge) handsCountBadge.textContent = handCountStr;
+    if (handednessBadge) handednessBadge.textContent = handednessStr;
+    if (statusDock) {
+      statusDock.classList.remove('hidden');
+      statusDock.classList.add('flex');
+    }
   }
 
   // Draw 21 Landmarks & Skeletal Connections for each detected hand
@@ -1254,6 +1330,16 @@ function onHandTrackingResults(results) {
     }
   });
 
+  // In Live Chat camera mode, also mirror live 21 hand landmarks onto the 3D Avatar below
+  if (isLiveChat) {
+    initChat3DViewer();
+    const activeLm = leftLandmarks.length >= 21 ? leftLandmarks : rightLandmarks;
+    if (state.chatViewer && activeLm && activeLm.length >= 21) {
+      state.chatViewer.isPlaying = false;
+      state.chatViewer.setLandmarks(activeLm);
+    }
+  }
+
   state.mlFrameBuffer.push({
     left_hand_landmarks: leftLandmarks,
     right_hand_landmarks: rightLandmarks,
@@ -1289,15 +1375,17 @@ function onHandTrackingResults(results) {
           badgeRight.textContent = `${displayName} (${confPct})`;
         }
 
-        const recognizedEl = document.getElementById('recognized-text');
-        if (recognizedEl && pred.confidence >= 0.45) {
-          recognizedEl.innerText = knText
-            ? `${displayName} — ${knText} [${typeTag} ${confPct}]`
-            : `${displayName} [${typeTag} ${confPct}]`;
+        if (!isLiveChat) {
+          const recognizedEl = document.getElementById('recognized-text');
+          if (recognizedEl && pred.confidence >= 0.45) {
+            recognizedEl.innerText = knText
+              ? `${displayName} — ${knText} [${typeTag} ${confPct}]`
+              : `${displayName} [${typeTag} ${confPct}]`;
+          }
         }
 
         // Auto-commit high-confidence stabilized predictions to conversation feed
-        if (pred.confidence >= 0.72) {
+        if (pred.confidence >= 0.70) {
           if (state.lastPredictedGesture === pred.gesture_id) {
             state.consecutiveMatchCount += 1;
           } else {
@@ -1312,7 +1400,11 @@ function onHandTrackingResults(results) {
           ) {
             state.lastCommittedGesture = pred.gesture_id;
             state.lastCommittedTime = Date.now();
-            simulateGesture(displayName, knText);
+            if (isLiveChat) {
+              sendSignUserLiveReply(displayName, knText, confPct);
+            } else {
+              simulateGesture(displayName, knText);
+            }
           }
         }
       })
@@ -1506,12 +1598,267 @@ function replayLast() {
 window.replayLast = replayLast;
 
 // --------------------------------------------------------------------------
-// Live Chat View
+// Live Chat View (Bidirectional Normal User <-> Sign User ISL Camera Reply)
 // --------------------------------------------------------------------------
+async function toggleLiveCamera() {
+  const video = document.getElementById('chat-webcam-video');
+  const canvas = document.getElementById('chat-mesh-canvas');
+  const recOverlay = document.getElementById('chat-live-rec-overlay');
+  const standby = document.getElementById('chat-camera-standby');
+  const btn = document.getElementById('live-cam-toggle-btn');
+  const upperLabel = document.getElementById('chat-upper-frame-label');
+  const chatMasterImg = document.getElementById('chat-master-img');
+  const chatMasterVideo = document.getElementById('chat-master-video');
+  const chatMasterCaption = document.getElementById('chat-master-caption');
+
+  // If Sign User tab camera was active, stop it cleanly first
+  if (state.isCameraActiveSign) {
+    await toggleSignCamera();
+  }
+
+  state.isCameraActiveLive = !state.isCameraActiveLive;
+
+  if (state.isCameraActiveLive) {
+    try {
+      // Hide Master Signer reference so Sign User sees live webcam & 21-landmark skeleton
+      if (chatMasterImg) chatMasterImg.classList.add('hidden');
+      if (chatMasterVideo) {
+        chatMasterVideo.pause();
+        chatMasterVideo.classList.add('hidden');
+      }
+      if (chatMasterCaption) {
+        chatMasterCaption.classList.add('hidden');
+        chatMasterCaption.classList.remove('flex');
+      }
+      if (standby) standby.classList.add('hidden');
+      if (upperLabel) upperLabel.textContent = 'Upper: Sign User Live Camera (ISL Reply)';
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { width: 1280, height: 720, facingMode: 'user' }
+      });
+      state.cameraStream = stream;
+
+      if (video) {
+        video.srcObject = stream;
+        video.classList.remove('hidden');
+        await video.play();
+      }
+      if (canvas) {
+        canvas.classList.remove('hidden');
+      }
+      if (recOverlay) {
+        recOverlay.classList.remove('hidden');
+        recOverlay.classList.add('flex');
+      }
+      if (btn) {
+        btn.classList.remove('bg-surface-container', 'text-on-surface');
+        btn.classList.add('bg-secondary', 'text-on-secondary', 'shadow-md');
+        btn.innerHTML = '<span id="live-cam-icon" class="material-symbols-outlined text-[20px]">videocam_off</span>';
+        btn.title = 'Stop Sign User Camera';
+      }
+
+      state.mlFrameBuffer = [];
+      state.lastPredictedGesture = null;
+      state.consecutiveMatchCount = 0;
+
+      const hands = initMediaPipeHands();
+      if (hands && typeof Camera !== 'undefined' && video) {
+        if (mediaPipeCameraInstance) {
+          try { mediaPipeCameraInstance.stop(); } catch (e) {}
+        }
+        mediaPipeCameraInstance = new Camera(video, {
+          onFrame: async () => {
+            if (state.isCameraActiveLive && video.readyState >= 2) {
+              await hands.send({ image: video });
+            }
+          },
+          width: 1280,
+          height: 720
+        });
+        await mediaPipeCameraInstance.start();
+      } else {
+        startLiveVideoProcessingLoop(video, hands);
+      }
+    } catch (err) {
+      console.warn('Live Chat webcam access error:', err);
+      state.isCameraActiveLive = false;
+      alert('Unable to access camera: ' + (err.message || err.name));
+      if (btn) {
+        btn.classList.remove('bg-secondary', 'text-on-secondary', 'shadow-md');
+        btn.classList.add('bg-surface-container', 'text-on-surface');
+        btn.innerHTML = '<span id="live-cam-icon" class="material-symbols-outlined text-[20px]">videocam</span>';
+      }
+      if (standby) standby.classList.remove('hidden');
+      if (upperLabel) upperLabel.textContent = 'Upper: Master Signer Gesture';
+    }
+  } else {
+    // Teardown Live Chat camera
+    if (mediaPipeCameraInstance) {
+      try { mediaPipeCameraInstance.stop(); } catch (e) {}
+      mediaPipeCameraInstance = null;
+    }
+    if (state.cameraStream) {
+      state.cameraStream.getTracks().forEach(t => t.stop());
+      state.cameraStream = null;
+    }
+    if (video) {
+      video.classList.add('hidden');
+      video.srcObject = null;
+    }
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      canvas.classList.add('hidden');
+    }
+    if (recOverlay) {
+      recOverlay.classList.add('hidden');
+      recOverlay.classList.remove('flex');
+    }
+    if (standby) standby.classList.remove('hidden');
+    if (upperLabel) upperLabel.textContent = 'Upper: Master Signer Gesture';
+    if (btn) {
+      btn.classList.remove('bg-secondary', 'text-on-secondary', 'shadow-md');
+      btn.classList.add('bg-surface-container', 'text-on-surface');
+      btn.innerHTML = '<span id="live-cam-icon" class="material-symbols-outlined text-[20px]">videocam</span>';
+      btn.title = 'Sign User Camera Reply (Click to toggle camera)';
+    }
+  }
+}
+window.toggleLiveCamera = toggleLiveCamera;
+
+function startLiveVideoProcessingLoop(video, hands) {
+  let isRunning = true;
+  async function step() {
+    if (!state.isCameraActiveLive) {
+      isRunning = false;
+      return;
+    }
+    if (video && video.readyState >= 2 && hands) {
+      try {
+        await hands.send({ image: video });
+      } catch (e) {}
+    }
+    if (isRunning) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+function sendSignUserLiveReply(textEn, textKn, confPct) {
+  if (!textEn) return;
+  const kn = textKn || getKannadaTranslation(textEn);
+  const feed = document.getElementById('live-chat-feed');
+  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Speak reply aloud so Normal User hears the Sign User's message
+  if (!state.isAudioMuted) {
+    speakText(state.currentLang === 'kn' ? kn : textEn);
+  }
+
+  if (feed) {
+    const emptyState = document.getElementById('live-chat-empty');
+    if (emptyState) emptyState.remove();
+
+    const msg = document.createElement('div');
+    msg.className = "flex flex-col gap-space-xs bg-secondary-container/30 backdrop-blur-sm p-4 rounded-2xl border border-secondary/40 shadow-sm hover:shadow-md transition-shadow animate-fade-in self-end w-full sm:w-[88%]";
+    msg.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-space-xs">
+          <div class="w-6 h-6 rounded-full bg-secondary flex items-center justify-center text-on-secondary text-[11px] font-bold shadow-xs">IS</div>
+          <span class="text-label-md font-bold text-on-surface">Sign User (ISL Reply)</span>
+        </div>
+        <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
+      </div>
+      <p class="text-body-md text-on-surface pl-7 font-bold tracking-wide">${textEn}</p>
+      <p class="text-xs text-on-surface-variant pl-7 font-medium">ಕನ್ನಡ: ${kn}</p>
+      <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
+        <span class="px-2 py-0.5 rounded-full bg-secondary/20 text-secondary font-semibold text-label-sm flex items-center gap-1 border border-secondary/30">
+          <span class="material-symbols-outlined text-[14px]">videocam</span> ISL Camera Recognized ${confPct ? `(${confPct})` : ''}
+        </span>
+      </div>
+    `;
+    feed.appendChild(msg);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  const input = document.getElementById('live-chat-input');
+  if (input && input.value.trim().toUpperCase() === textEn.trim().toUpperCase()) {
+    input.value = '';
+  }
+}
+window.sendSignUserLiveReply = sendSignUserLiveReply;
+
+async function showChatMasterGestureAnd3D(text) {
+  if (!text) return;
+
+  // If Live Camera was active, stop it first so the Master Signer gesture is visible in the upper frame
+  if (state.isCameraActiveLive) {
+    await toggleLiveCamera();
+  }
+
+  const { cleanId, signKey, knMeaning } = resolveTrainedGesture(text);
+
+  const standby = document.getElementById('chat-camera-standby');
+  const upperLabel = document.getElementById('chat-upper-frame-label');
+  const chatMasterImg = document.getElementById('chat-master-img');
+  const chatMasterVideo = document.getElementById('chat-master-video');
+  const chatMasterCaption = document.getElementById('chat-master-caption');
+  const chatMasterTitle = document.getElementById('chat-master-title');
+  const chatMasterSigner = document.getElementById('chat-master-signer');
+
+  if (standby) standby.classList.add('hidden');
+  if (upperLabel) upperLabel.textContent = 'Upper: Master Signer Gesture';
+  if (chatMasterTitle) {
+    chatMasterTitle.textContent = `${signKey} (${knMeaning})`;
+  }
+
+  try {
+    const res = await fetch(`/api/gestures/${encodeURIComponent(cleanId)}/master-sample`);
+    if (res.ok) {
+      const sample = await res.json();
+      if (chatMasterSigner && sample.signer_id) {
+        chatMasterSigner.textContent = `Signer: ${sample.signer_id} (Master)`;
+      }
+      if (sample && sample.stored_file_path && sample.stored_file_path !== 'landmarks_only') {
+        const mediaUrl = `/${sample.stored_file_path.replace(/^\/+/, '')}`;
+        const isVideo = /\.(webm|mp4|mov|mkv)$/i.test(sample.stored_file_path);
+
+        if (chatMasterCaption) {
+          chatMasterCaption.classList.remove('hidden');
+          chatMasterCaption.classList.add('flex');
+        }
+
+        if (isVideo && chatMasterVideo) {
+          if (chatMasterImg) chatMasterImg.classList.add('hidden');
+          chatMasterVideo.src = mediaUrl;
+          chatMasterVideo.classList.remove('hidden');
+          chatMasterVideo.load();
+          chatMasterVideo.play().catch(() => {});
+        } else if (chatMasterImg) {
+          if (chatMasterVideo) {
+            chatMasterVideo.pause();
+            chatMasterVideo.classList.add('hidden');
+          }
+          chatMasterImg.src = mediaUrl;
+          chatMasterImg.classList.remove('hidden');
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[Live Chat] Master sample fetch notice:', e);
+  }
+
+  initChat3DViewer();
+  if (state.chatViewer) {
+    state.chatViewer.playGesture(cleanId);
+  }
+}
+window.showChatMasterGestureAnd3D = showChatMasterGestureAnd3D;
+
 function sendLiveMessage() {
   const input = document.getElementById('live-chat-input');
   if (!input || !input.value.trim()) return;
   const text = input.value.trim();
+
   const feed = document.getElementById('live-chat-feed');
   const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -1525,14 +1872,14 @@ function sendLiveMessage() {
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-space-xs">
           <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
-          <span class="text-label-md font-bold text-on-surface">You</span>
+          <span class="text-label-md font-bold text-on-surface">Normal User</span>
         </div>
         <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
       </div>
       <p class="text-body-md text-on-surface pl-7 font-medium">"${text}"</p>
       <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
         <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
-          <span class="material-symbols-outlined text-[14px]">sign_language</span> Translated to 3D ISL Avatar
+          <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D ISL Avatar Output
         </span>
       </div>
     `;
@@ -1540,10 +1887,8 @@ function sendLiveMessage() {
     feed.scrollTop = feed.scrollHeight;
   }
 
-  // Trigger avatar animation
-  if (state.chatViewer) {
-    state.chatViewer.playGesture(text);
-  }
+  // Always show Upper Master Signer Gesture in the camera display + Below 3D ISL Avatar
+  showChatMasterGestureAnd3D(text);
 
   input.value = '';
 }
@@ -1612,6 +1957,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.normalViewer) {
         state.normalViewer.gestureProgress = parseFloat(e.target.value) / 100;
         state.normalViewer.animTime = state.normalViewer.gestureProgress * 4;
+      }
+    });
+  }
+
+  // Enter key shortcut on Normal User text input to trigger Generate ISL
+  const normalInput = document.getElementById('normal-text-input');
+  if (normalInput) {
+    normalInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        triggerTranslation();
       }
     });
   }

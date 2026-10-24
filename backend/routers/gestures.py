@@ -222,26 +222,39 @@ def get_gesture_master_sample(gesture_id: str, db: Session = Depends(get_db)):
     if not g:
         raise HTTPException(status_code=404, detail=f"Gesture '{gesture_id}' not found.")
 
-    # 1. Check for explicitly starred reference sample
+    # 1. Check for explicitly starred reference sample with media file
     ref_sample = db.query(DatasetSample).filter(
         DatasetSample.gesture_id == clean_id,
-        DatasetSample.is_master_reference == True
+        DatasetSample.is_master_reference == True,
+        DatasetSample.stored_file_path != "landmarks_only"
     ).first()
 
     if ref_sample:
         return _format_sample_out(ref_sample, g)
 
-    # 2. Check for sample from designated Master Signer
+    # 2. Check for sample with media file from designated Master Signer
     master_signer = db.query(Signer).filter(Signer.is_master == True).first()
     if master_signer:
-        master_sample = db.query(DatasetSample).filter(
+        master_media_sample = db.query(DatasetSample).filter(
             DatasetSample.gesture_id == clean_id,
-            DatasetSample.signer_id == master_signer.signer_id
+            DatasetSample.signer_id == master_signer.signer_id,
+            DatasetSample.stored_file_path != "landmarks_only",
+            DatasetSample.stored_file_path.isnot(None)
         ).order_by(DatasetSample.detection_confidence.desc()).first()
-        if master_sample:
-            return _format_sample_out(master_sample, g)
+        if master_media_sample:
+            return _format_sample_out(master_media_sample, g)
 
-    # 3. Fallback: Highest confidence sample from any team signer
+    # 3. Any sample with a real media file (.webm / .jpg) across signers
+    any_media_sample = db.query(DatasetSample).filter(
+        DatasetSample.gesture_id == clean_id,
+        DatasetSample.stored_file_path != "landmarks_only",
+        DatasetSample.stored_file_path.isnot(None)
+    ).order_by(DatasetSample.detection_confidence.desc()).first()
+
+    if any_media_sample:
+        return _format_sample_out(any_media_sample, g)
+
+    # 4. Fallback: Highest confidence sample from any team signer
     fallback_sample = db.query(DatasetSample).filter(
         DatasetSample.gesture_id == clean_id
     ).order_by(DatasetSample.detection_confidence.desc()).first()

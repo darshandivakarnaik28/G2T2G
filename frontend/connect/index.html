@@ -763,7 +763,7 @@
 
   <!-- Text Input & Voice Controls -->
   <div class="relative flex flex-col gap-space-sm">
-    <textarea id="normal-text-input" class="w-full bg-surface text-on-surface placeholder:text-outline p-space-md rounded-2xl outline-none border border-outline-variant/40 focus:border-primary focus:ring-2 focus:ring-primary/40 transition-all text-body-md resize-none shadow-inner" placeholder="Type your message here to translate into 3D ISL animation..." rows="3"></textarea>
+    <textarea id="normal-text-input" class="w-full bg-surface text-on-surface placeholder:text-outline p-space-md rounded-2xl outline-none border border-outline-variant/40 focus:border-primary focus:ring-2 focus:ring-primary/40 transition-all text-body-md resize-none shadow-inner" placeholder="Type your message here to translate into 3D ISL animation... (Press Enter to Generate ISL)" rows="3" onkeydown="if(event.key==='Enter' && !event.shiftKey){ event.preventDefault(); triggerTranslation(); }"></textarea>
 
     <div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-xs">
       <!-- Voice Input Button (Speak) -->
@@ -879,7 +879,8 @@
 
     <!-- Master Image / Gesture Display Container -->
     <div class="relative w-full h-[230px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
-      <img id="master-reference-img" class="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500" src="/storage/images/water_T001_117c83e631.jpg" alt="Master Reference Gesture"/>
+      <img id="master-reference-img" class="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500" src="/storage/images/a_1GG23CS007_fa0eb80e95.jpg" alt="Master Reference Gesture"/>
+      <video id="master-reference-video" autoplay loop muted playsinline class="hidden w-full h-full object-contain p-2"></video>
       <div id="master-reference-fallback" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center p-4">
         <span class="material-symbols-outlined text-secondary-fixed text-[44px] opacity-70 mb-1">person_celebrating</span>
         <p class="text-inverse-on-surface font-bold text-sm" id="master-fallback-title">Master Reference Gesture</p>
@@ -1245,14 +1246,14 @@
     <div class="absolute top-0 inset-x-0 z-10 p-space-md flex items-center justify-between bg-gradient-to-b from-inverse-surface/90 to-transparent">
       <div class="flex items-center gap-space-xs">
         <span class="material-symbols-outlined text-secondary-fixed text-[20px]">videocam</span>
-        <span class="text-label-md font-bold text-inverse-on-surface">Sign User Camera Stream</span>
+        <span class="text-label-md font-bold text-inverse-on-surface" id="chat-upper-frame-label">Upper: Master Signer Gesture</span>
       </div>
       <span class="px-2.5 py-0.5 rounded-full bg-secondary/80 text-on-secondary text-label-sm font-semibold animate-pulse shadow-sm">AI Tracking Active</span>
     </div>
 
-    <div id="chat-camera-container" class="relative w-full h-[260px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
+    <div id="chat-camera-container" class="relative w-full h-[260px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group"><video id="chat-webcam-video" autoplay playsinline muted class="hidden absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></video><canvas id="chat-mesh-canvas" class="hidden absolute inset-0 w-full h-full pointer-events-none -scale-x-100 z-20"></canvas><div id="chat-live-rec-overlay" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-secondary/40 shadow-lg z-30"><span id="chat-live-hand-status" class="font-bold text-secondary-fixed text-xs">Searching for hands...</span><span id="chat-live-pred-badge" class="text-inverse-on-surface font-mono font-bold text-xs bg-secondary/20 px-2.5 py-0.5 rounded-md border border-secondary/30">Ready to Sign</span></div><img id="chat-master-img" class="hidden absolute inset-0 w-full h-full object-contain p-2 pt-10 pb-12 bg-[#0d1322] z-20" alt="Master Signer Reference"/><video id="chat-master-video" autoplay loop muted playsinline class="hidden absolute inset-0 w-full h-full object-contain p-2 pt-10 pb-12 bg-[#0d1322] z-20"></video><div id="chat-master-caption" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-outline/30 shadow-lg z-30"><span id="chat-master-title" class="font-bold text-inverse-on-surface text-sm">HELLO</span><span id="chat-master-signer" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20">Signer: 1GG23CS007 (Master)</span></div>
       <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#89f5e7_1px,transparent_1px)] [background-size:16px_16px]"></div>
-      <div class="relative z-0 flex flex-col items-center justify-center text-center p-space-md">
+      <div id="chat-camera-standby" onclick="toggleLiveCamera()" class="relative z-0 flex flex-col items-center justify-center text-center p-space-md cursor-pointer">
         <div class="w-20 h-20 rounded-2xl bg-secondary/15 flex items-center justify-center mb-space-xs border border-secondary/30 shadow-[0_0_25px_rgba(137,245,231,0.2)] group-hover:scale-110 transition-transform duration-300">
           <span class="material-symbols-outlined text-secondary-fixed text-[40px]">back_hand</span>
         </div>
@@ -1274,7 +1275,7 @@
 
     <div id="chat-avatar-container" class="relative w-full h-[220px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
       <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#89f5e7_1px,transparent_1px)] [background-size:16px_16px]"></div>
-      <div class="relative z-0 flex flex-col items-center justify-center text-center p-space-md">
+      <div id="chat-camera-standby" onclick="toggleLiveCamera()" class="relative z-0 flex flex-col items-center justify-center text-center p-space-md cursor-pointer">
         <div class="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mb-space-xs border border-primary/30 shadow-[0_0_20px_rgba(59,130,246,0.2)] group-hover:scale-110 transition-transform duration-300">
           <span class="material-symbols-outlined text-primary-fixed text-[32px]">front_hand</span>
         </div>
@@ -1317,11 +1318,12 @@
         <div class="relative flex-1">
           <input id="live-chat-input" class="w-full bg-surface text-on-surface placeholder:text-outline px-space-md py-3 rounded-xl border border-outline-variant/40 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-body-md shadow-inner" placeholder="Type message or sign on camera..." type="text" onkeydown="if(event.key==='Enter') sendLiveMessage()">
         </div>
+        <button class="p-3 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-sm border border-outline-variant/20" id="live-cam-toggle-btn" title="Sign User Camera Reply (Click to toggle camera)" onclick="toggleLiveCamera()"><span id="live-cam-icon" class="material-symbols-outlined text-[20px]">videocam</span></button>
         <button class="p-3 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-sm border border-outline-variant/20" id="live-mic-btn" title="Voice Input (Mic)" onclick="toggleLiveVoiceRecording()">
           <span class="material-symbols-outlined text-[20px]">mic</span>
         </button>
-        <button class="p-3 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-sm border border-outline-variant/20" id="live-cam-toggle-btn" title="Camera Toggle" onclick="toggleLiveCamera()">
-          <span class="material-symbols-outlined text-[20px]">videocam</span>
+
+
         </button>
         <button id="live-send-btn" onclick="sendLiveMessage()" class="px-space-lg py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-medium text-label-md btn-bounce shadow-md flex items-center gap-space-xs cursor-pointer">
           <span>Send</span>
@@ -1354,6 +1356,6 @@
   </footer>
 
   <!-- Application Logic -->
-  <script src="app.js?v=20261024_voice_fix"></script>
+  <script src="app.js?v=20261024_live_both_fix"></script>
 </body>
 </html>
