@@ -794,11 +794,11 @@ function setNormalMicUI(isRecording, statusMsg) {
   }
   if (speakBtn) {
     if (isRecording) {
-      speakBtn.classList.remove('from-primary', 'to-primary-container', 'bg-primary');
-      speakBtn.classList.add('bg-error', 'from-error', 'to-red-700', 'text-on-error');
+      speakBtn.classList.remove('bg-primary', 'hover:bg-primary/95', 'text-on-primary');
+      speakBtn.classList.add('bg-error', 'hover:bg-error/95', 'text-on-error');
     } else {
-      speakBtn.classList.remove('bg-error', 'from-error', 'to-red-700', 'text-on-error');
-      speakBtn.classList.add('from-primary', 'to-primary-container', 'text-on-primary');
+      speakBtn.classList.remove('bg-error', 'hover:bg-error/95', 'text-on-error');
+      speakBtn.classList.add('bg-primary', 'hover:bg-primary/95', 'text-on-primary');
     }
   }
   if (micStatus) {
@@ -1961,7 +1961,7 @@ function triggerTranslation() {
             <span class="material-symbols-outlined text-[16px]">info</span>
             <span>${notFoundText}</span>
           </span>
-          <button onclick="confirmPerformMissingGesture('${safeAttr}')" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold shadow-xs hover:bg-primary/90 transition-colors cursor-pointer shrink-0 flex items-center gap-1">
+          <button onclick="confirmPerformMissingGesture('${safeAttr}')" class="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary/95 text-on-primary text-xs font-semibold shadow-xs btn-bounce transition-all cursor-pointer shrink-0 flex items-center gap-1">
             <span class="material-symbols-outlined text-[14px]">videocam</span>
             <span>${yesBtnText}</span>
           </button>
@@ -2836,7 +2836,7 @@ function sendLiveMessage() {
             <span class="material-symbols-outlined text-[16px]">info</span>
             <span>${notFoundText}</span>
           </span>
-          <button onclick="confirmPerformMissingGesture('${safeAttr}')" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold shadow-xs hover:bg-primary/90 transition-colors cursor-pointer shrink-0 flex items-center gap-1">
+          <button onclick="confirmPerformMissingGesture('${safeAttr}')" class="px-3.5 py-1.5 rounded-lg bg-primary hover:bg-primary/95 text-on-primary text-xs font-semibold shadow-xs btn-bounce transition-all cursor-pointer shrink-0 flex items-center gap-1">
             <span class="material-symbols-outlined text-[14px]">videocam</span>
             <span>${yesBtnText}</span>
           </button>

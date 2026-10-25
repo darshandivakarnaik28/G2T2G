@@ -75,6 +75,9 @@
       main > :first-child { margin-top: 0 !important; }
       main > :last-child { margin-bottom: 0 !important; }
     }
+    html {
+      scroll-behavior: smooth;
+    }
     ::-webkit-scrollbar { width: 6px; height: 6px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(var(--outline) / 0.25); border-radius: 9999px; }
@@ -85,7 +88,22 @@
     div.bg-surface, div.bg-surface-container, div.bg-surface-container-low,
     div.bg-surface-container-high, div.bg-surface-container-lowest,
     textarea, input, button {
-      transition: background-color 0.22s ease, border-color 0.22s ease, color 0.18s ease;
+      transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease;
+    }
+
+    /* Smooth View Panel Entrance Transition */
+    .view-panel:not(.hidden) {
+      animation: panelEnter 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    @keyframes panelEnter {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     /* Modern Interactive Micro-Interactions */
@@ -93,40 +111,43 @@
       transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.28s ease;
     }
     .card-interactive:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 16px 32px -8px rgba(0, 74, 198, 0.12), 0 2px 6px 0 rgba(0, 0, 0, 0.04);
+      transform: translateY(-3px);
+      box-shadow: 0 14px 28px -8px rgba(0, 74, 198, 0.12), 0 2px 6px 0 rgba(0, 0, 0, 0.04);
     }
     .card-interactive:active {
-      transform: translateY(-1px) scale(0.995);
+      transform: translateY(-1px) scale(0.997);
     }
 
     .chip-interactive {
-      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
     }
     .chip-interactive:hover {
-      transform: translateY(-1.5px) scale(1.04);
-      box-shadow: 0 4px 12px -2px rgba(0, 74, 198, 0.18);
+      transform: translateY(-1.5px) scale(1.03);
+      box-shadow: 0 4px 12px -2px rgba(0, 74, 198, 0.16);
     }
     .chip-interactive:active {
-      transform: scale(0.96);
+      transform: scale(0.97);
     }
 
     .btn-bounce {
-      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease, opacity 0.2s ease;
+      transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.18s ease, background-color 0.18s ease;
     }
     .btn-bounce:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 20px -4px rgba(0, 74, 198, 0.3);
+      transform: translateY(-1.5px);
+      box-shadow: 0 8px 18px -4px rgba(0, 74, 198, 0.24);
     }
     .btn-bounce:active {
-      transform: translateY(0.5px) scale(0.98);
+      transform: translateY(0px) scale(0.985);
     }
 
+    .nav-link {
+      transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+    }
     .nav-link.active {
       background-color: #2563eb !important;
-      color: #eeefff !important;
+      color: #ffffff !important;
       font-weight: 700 !important;
-      box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.35);
+      box-shadow: 0 4px 12px -2px rgba(37, 99, 235, 0.32);
     }
     .mobile-nav-btn.active {
       background-color: #2563eb !important;
@@ -272,8 +293,8 @@
       <!-- Action Controls -->
       <div class="flex items-center gap-space-sm sm:gap-space-md">
         <!-- Bilingual Quick Switcher -->
-        <button id="header-lang-btn" onclick="toggleGlobalLang()" class="px-space-md py-1.5 rounded-full text-xs font-bold bg-surface-container hover:bg-surface-container-high text-primary transition-colors flex items-center gap-1.5 border border-primary/20" title="Switch Language">
-          <span class="material-symbols-outlined text-[16px]">translate</span>
+        <button id="header-lang-btn" onclick="toggleGlobalLang()" class="group px-3.5 py-1.5 rounded-full text-xs font-bold bg-surface-container hover:bg-surface-container-high text-primary transition-all duration-300 flex items-center gap-1.5 border border-primary/25 hover:border-primary/60 shadow-xs hover:shadow-md hover:-translate-y-0.5 cursor-pointer" title="Switch Language">
+          <span class="material-symbols-outlined text-[16px] group-hover:rotate-12 group-hover:scale-110 transition-transform duration-300">translate</span>
           <span id="header-lang-label">EN | ಕನ್ನಡ</span>
         </button>
 
@@ -354,22 +375,28 @@
 
         </p>
 
-<div class="flex flex-wrap items-center gap-space-md pt-space-xs">
+<div class="flex flex-wrap items-center gap-space-md pt-space-sm">
 
-<a class="h-12 px-space-xl bg-primary text-on-primary font-label-md rounded-lg flex items-center justify-center gap-space-xs hover:bg-primary/90 transition-all shadow-sm" href="#user-selection">
-
-<span>Start Communication</span>
-
-<span class="material-symbols-outlined text-[18px]">arrow_forward</span>
-
+<a class="group relative overflow-hidden h-14 pl-3 pr-6 bg-gradient-to-r from-primary via-blue-600 to-indigo-600 text-on-primary font-label-md font-bold rounded-2xl flex items-center justify-center gap-3 shadow-[0_10px_28px_-6px_rgba(37,99,235,0.55)] hover:shadow-[0_16px_36px_-4px_rgba(37,99,235,0.75)] hover:-translate-y-1 hover:scale-[1.03] active:translate-y-0 active:scale-[0.98] transition-all duration-300 border border-white/20" href="#user-selection">
+  <!-- Animated Shimmer Sweep -->
+  <span class="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent group-hover:translate-x-full transition-transform duration-700 ease-out"></span>
+  <!-- 3D Graphic Icon Badge -->
+  <span class="relative z-10 w-9 h-9 rounded-xl bg-white/15 backdrop-blur-sm border border-white/25 flex items-center justify-center shadow-inner group-hover:rotate-12 group-hover:scale-110 group-hover:bg-white/25 transition-all duration-300">
+    <span class="material-symbols-outlined text-[20px] text-secondary-fixed">sign_language</span>
+  </span>
+  <span class="relative z-10 text-[15px] tracking-wide">Start Communication</span>
+  <span class="relative z-10 material-symbols-outlined text-[20px] group-hover:translate-x-1.5 transition-transform duration-300">arrow_forward</span>
 </a>
 
-<a class="h-12 px-space-xl bg-surface-container-high text-on-surface font-label-md rounded-lg flex items-center justify-center gap-space-xs hover:bg-surface-container-highest transition-all" href="#how-it-works">
-
-<span>How It Works</span>
-
-<span class="material-symbols-outlined text-[18px]">help</span>
-
+<a class="group relative overflow-hidden h-14 pl-3 pr-6 bg-surface-container-low/90 hover:bg-surface-container-high backdrop-blur-md text-on-surface font-label-md font-bold rounded-2xl flex items-center justify-center gap-3 border-2 border-primary/25 hover:border-secondary/60 shadow-md hover:shadow-[0_12px_28px_-6px_rgba(0,104,95,0.28)] hover:-translate-y-1 hover:scale-[1.03] active:translate-y-0 active:scale-[0.98] transition-all duration-300" href="#how-it-works" onclick="scrollToHowItWorks(); return false;">
+  <!-- Subtle Gradient Hover Aura -->
+  <span class="pointer-events-none absolute inset-0 bg-gradient-to-r from-primary/5 via-secondary/10 to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></span>
+  <!-- Graphic Pipeline Icon Badge -->
+  <span class="relative z-10 w-9 h-9 rounded-xl bg-gradient-to-br from-primary/15 to-secondary/20 text-primary border border-primary/20 flex items-center justify-center group-hover:from-secondary group-hover:to-primary group-hover:text-white group-hover:rotate-12 group-hover:scale-110 transition-all duration-300 shadow-xs">
+    <span class="material-symbols-outlined text-[20px]">hub</span>
+  </span>
+  <span class="relative z-10 text-[15px] tracking-wide">How It Works</span>
+  <span class="relative z-10 material-symbols-outlined text-[20px] text-primary group-hover:text-secondary group-hover:scale-125 group-hover:rotate-12 transition-all duration-300">play_circle</span>
 </a>
 
 </div>
@@ -489,9 +516,9 @@
     </div>
   </div>
   <div class="pt-space-xl relative z-10">
-    <button class="w-full h-12 bg-primary text-on-primary font-label-md rounded-xl flex items-center justify-center gap-space-xs btn-bounce shadow-md group-hover:bg-primary-container transition-all">
+    <button class="w-full h-12 px-5 bg-primary hover:bg-primary/95 text-on-primary font-label-md font-semibold rounded-xl flex items-center justify-center gap-2 btn-bounce shadow-sm transition-all cursor-pointer">
       <span>Start as Sign User</span>
-      <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1.5 transition-transform">arrow_forward</span>
+      <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
     </button>
   </div>
 </div>
@@ -523,9 +550,9 @@
     </div>
   </div>
   <div class="pt-space-xl relative z-10">
-    <button class="w-full h-12 bg-secondary text-on-secondary font-label-md rounded-xl flex items-center justify-center gap-space-xs btn-bounce shadow-md group-hover:bg-secondary-container group-hover:text-on-secondary-container transition-all">
+    <button class="w-full h-12 px-5 bg-secondary hover:bg-secondary/95 text-on-secondary font-label-md font-semibold rounded-xl flex items-center justify-center gap-2 btn-bounce shadow-sm transition-all cursor-pointer">
       <span>Start as Hearing User</span>
-      <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1.5 transition-transform">arrow_forward</span>
+      <span class="material-symbols-outlined text-[18px] group-hover:translate-x-1 transition-transform">arrow_forward</span>
     </button>
   </div>
 </div>
@@ -678,11 +705,11 @@
         </div>
       </div>
       <div class="flex flex-wrap items-center gap-3 shrink-0">
-        <button onclick="navigateTo('normal')" class="h-11 px-6 bg-secondary text-on-secondary font-label-md font-bold rounded-xl flex items-center gap-2 btn-bounce shadow-sm hover:bg-secondary/90 transition-all cursor-pointer">
+        <button onclick="navigateTo('normal')" class="group h-11 px-5 bg-secondary hover:bg-secondary/95 text-on-secondary font-label-md font-semibold rounded-xl flex items-center gap-2 btn-bounce shadow-sm transition-all cursor-pointer">
           <span class="material-symbols-outlined text-[18px]">record_voice_over</span>
           <span>Try Hearing User Mode</span>
         </button>
-        <button onclick="navigateTo('sign')" class="h-11 px-6 bg-primary text-on-primary font-label-md font-bold rounded-xl flex items-center gap-2 btn-bounce shadow-sm hover:bg-primary/90 transition-all cursor-pointer">
+        <button onclick="navigateTo('sign')" class="group h-11 px-5 bg-primary hover:bg-primary/95 text-on-primary font-label-md font-semibold rounded-xl flex items-center gap-2 btn-bounce shadow-sm transition-all cursor-pointer">
           <span class="material-symbols-outlined text-[18px]">sign_language</span>
           <span>Try Sign User Mode</span>
         </button>
@@ -729,14 +756,6 @@
 
       </span>
 
-<button class="px-space-md py-space-xs bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-lg text-label-md font-medium transition-colors flex items-center gap-space-xs">
-
-<span class="material-symbols-outlined text-[18px]">help</span>
-
-        Guide
-
-      </button>
-
 </div>
 
 </div>
@@ -768,8 +787,8 @@
     <div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-xs">
       <!-- Voice Input Button (Speak) -->
       <div class="flex items-center gap-space-sm">
-        <button class="flex items-center gap-space-xs px-space-lg py-space-sm bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-medium text-label-md btn-bounce shadow-md group" id="speak-btn" onclick="toggleVoiceRecording()">
-          <span class="material-symbols-outlined group-hover:scale-125 transition-transform">mic</span>
+        <button class="group h-11 px-5 bg-primary hover:bg-primary/95 text-on-primary rounded-xl font-semibold text-label-md btn-bounce shadow-sm flex items-center gap-2 cursor-pointer" id="speak-btn" onclick="toggleVoiceRecording()">
+          <span class="material-symbols-outlined text-[18px] group-hover:scale-110 transition-transform">mic</span>
           <span id="speak-btn-text">Speak Message</span>
         </button>
 
@@ -779,7 +798,7 @@
       </div>
 
       <!-- Translate Action -->
-      <button class="flex items-center gap-space-xs px-space-lg py-space-sm bg-gradient-to-r from-secondary to-teal-600 text-on-secondary rounded-xl font-medium text-label-md btn-bounce shadow-md group" onclick="triggerTranslation()">
+      <button class="group h-11 px-5 bg-secondary hover:bg-secondary/95 text-on-secondary rounded-xl font-semibold text-label-md btn-bounce shadow-sm flex items-center gap-2 cursor-pointer" onclick="triggerTranslation()">
         <span>Generate ISL</span>
         <span class="material-symbols-outlined text-[18px] group-hover:rotate-12 transition-transform">auto_awesome</span>
       </button>
@@ -791,11 +810,11 @@
     <span class="text-label-sm text-on-surface-variant font-medium flex items-center gap-1">
       <span class="material-symbols-outlined text-[15px] text-primary">bolt</span> Quick Phrases:
     </span>
-    <button class="px-3.5 py-1 rounded-full bg-surface-container hover:bg-primary hover:text-on-primary text-on-surface text-label-sm font-medium chip-interactive border border-outline-variant/20 shadow-sm cursor-pointer" onclick="setInputValue('Hello')">Hello</button>
-    <button class="px-3.5 py-1 rounded-full bg-surface-container hover:bg-primary hover:text-on-primary text-on-surface text-label-sm font-medium chip-interactive border border-outline-variant/20 shadow-sm cursor-pointer" onclick="setInputValue('Thank you')">Thank you</button>
-    <button class="px-3.5 py-1 rounded-full bg-surface-container hover:bg-primary hover:text-on-primary text-on-surface text-label-sm font-medium chip-interactive border border-outline-variant/20 shadow-sm cursor-pointer" onclick="setInputValue('How are you?')">How are you?</button>
-    <button class="px-3.5 py-1 rounded-full bg-surface-container hover:bg-primary hover:text-on-primary text-on-surface text-label-sm font-medium chip-interactive border border-outline-variant/20 shadow-sm cursor-pointer" onclick="setInputValue('Need help')">Need help</button>
-    <button class="px-3.5 py-1 rounded-full bg-surface-container hover:bg-primary hover:text-on-primary text-on-surface text-label-sm font-medium chip-interactive border border-outline-variant/20 shadow-sm cursor-pointer" onclick="setInputValue('Water')">Water</button>
+    <button class="px-3.5 py-1 rounded-full bg-surface-container hover:bg-primary hover:text-on-primary text-on-surface text-label-sm font-medium chip-interactive border border-outline-variant/20 shadow-xs cursor-pointer" onclick="setInputValue('Hello')">Hello</button>
+    <button class="px-3.5 py-1 rounded-full bg-surface-container hover:bg-primary hover:text-on-primary text-on-surface text-label-sm font-medium chip-interactive border border-outline-variant/20 shadow-xs cursor-pointer" onclick="setInputValue('Thank you')">Thank you</button>
+    <button class="px-3.5 py-1 rounded-full bg-surface-container hover:bg-primary hover:text-on-primary text-on-surface text-label-sm font-medium chip-interactive border border-outline-variant/20 shadow-xs cursor-pointer" onclick="setInputValue('How are you?')">How are you?</button>
+    <button class="px-3.5 py-1 rounded-full bg-surface-container hover:bg-primary hover:text-on-primary text-on-surface text-label-sm font-medium chip-interactive border border-outline-variant/20 shadow-xs cursor-pointer" onclick="setInputValue('Need help')">Need help</button>
+    <button class="px-3.5 py-1 rounded-full bg-surface-container hover:bg-primary hover:text-on-primary text-on-surface text-label-sm font-medium chip-interactive border border-outline-variant/20 shadow-xs cursor-pointer" onclick="setInputValue('Water')">Water</button>
   </div>
 </div>
 
@@ -879,7 +898,7 @@
     Do you want to perform the gesture for this message and save it in the database?
   </p>
   <div class="flex flex-wrap items-center justify-center gap-3 w-full max-w-[330px]">
-    <button id="btn-confirm-record-gesture" onclick="confirmPerformMissingGesture()" class="flex-1 h-11 px-5 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-bold text-label-md btn-bounce shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+    <button id="btn-confirm-record-gesture" onclick="confirmPerformMissingGesture()" class="flex-1 h-11 px-5 bg-primary hover:bg-primary/95 text-on-primary rounded-xl font-semibold text-label-md btn-bounce shadow-sm flex items-center justify-center gap-2 cursor-pointer">
       <span class="material-symbols-outlined text-[18px]">videocam</span>
       <span>Yes, Perform Gesture</span>
     </button>
@@ -1098,7 +1117,7 @@
         </p>
 
         <!-- Quick Start Pill Button -->
-        <button onclick="toggleSignCamera()" class="mt-space-md px-space-xl py-2.5 bg-gradient-to-r from-secondary to-teal-500 text-on-secondary-fixed font-bold text-label-md rounded-xl shadow-lg hover:shadow-secondary/25 transition-all flex items-center gap-space-xs btn-bounce cursor-pointer">
+        <button onclick="toggleSignCamera()" class="mt-space-md h-11 px-6 bg-secondary hover:bg-secondary/95 text-on-secondary font-semibold text-label-md rounded-xl shadow-md transition-all flex items-center gap-2 btn-bounce cursor-pointer">
           <span class="material-symbols-outlined text-[18px]">videocam</span>
           <span>Start Camera Input</span>
         </button>
@@ -1187,9 +1206,10 @@
   <!-- Input / Voice Output Bar at Bottom of Feed -->
   <div class="pt-space-md mt-space-md border-t border-outline-variant/30 flex flex-col gap-space-sm"><div id="sign-mic-status" class="hidden items-center gap-2 text-error text-xs font-semibold px-1 pb-1"><span class="w-2 h-2 rounded-full bg-error animate-ping"></span><span>Listening... Speak now</span></div>
     <div class="flex items-center gap-space-xs">
-      <input class="flex-1 bg-surface border border-outline-variant/40 rounded-xl px-space-md py-space-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-sm transition-all shadow-inner" id="manual-text-input" placeholder="Type or translate sign message..." type="text" onkeydown="if(event.key==='Enter'){ event.preventDefault(); sendManualMessage(); }"><button class="p-2.5 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-sm border border-outline-variant/20 flex items-center justify-center" id="sign-mic-btn" title="Voice Input (Mic)" onclick="toggleSignVoiceRecording()"><span class="material-symbols-outlined text-[20px]">mic</span></button>
-      <button class="bg-primary text-on-primary px-space-md py-space-sm rounded-xl font-label-md btn-bounce shadow-md cursor-pointer" onclick="sendManualMessage()">
-        Send
+      <input class="flex-1 bg-surface border border-outline-variant/40 rounded-xl px-space-md py-2.5 text-on-surface focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-body-sm transition-all shadow-inner" id="manual-text-input" placeholder="Type or translate sign message..." type="text" onkeydown="if(event.key==='Enter'){ event.preventDefault(); sendManualMessage(); }"><button class="w-10 h-10 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-xs border border-outline-variant/25 flex items-center justify-center" id="sign-mic-btn" title="Voice Input (Mic)" onclick="toggleSignVoiceRecording()"><span class="material-symbols-outlined text-[20px]">mic</span></button>
+      <button class="h-10 px-4 bg-primary hover:bg-primary/95 text-on-primary rounded-xl font-label-md font-semibold btn-bounce shadow-sm flex items-center gap-1.5 cursor-pointer" onclick="sendManualMessage()">
+        <span>Send</span>
+        <span class="material-symbols-outlined text-[16px]">send</span>
       </button>
     </div>
     <div class="flex items-center justify-between text-body-sm text-on-surface-variant">
@@ -1272,7 +1292,7 @@
         <h3 class="text-inverse-on-surface font-bold text-sm" id="chat-missing-gesture-title">"..." is not in the dataset</h3>
         <p class="text-tertiary-fixed-dim text-xs mt-1 max-w-xs leading-snug" id="chat-missing-gesture-desc">Do you want to perform the gesture for this and save it in the database?</p>
         <div class="flex items-center justify-center gap-2 mt-3">
-          <button onclick="confirmPerformMissingGesture()" class="px-3.5 py-1.5 rounded-xl bg-primary text-on-primary font-bold text-xs shadow-md hover:bg-primary/90 transition-all flex items-center gap-1 cursor-pointer">
+          <button onclick="confirmPerformMissingGesture()" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary/95 text-on-primary font-semibold text-xs shadow-sm btn-bounce transition-all flex items-center gap-1.5 cursor-pointer">
             <span class="material-symbols-outlined text-[15px]">videocam</span>
             <span id="chat-missing-yes-label">Yes, Perform Gesture</span>
           </button>
@@ -1347,14 +1367,11 @@
         <div class="relative flex-1">
           <input id="live-chat-input" class="w-full bg-surface text-on-surface placeholder:text-outline px-space-md py-3 rounded-xl border border-outline-variant/40 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-body-md shadow-inner" placeholder="Type message or sign on camera..." type="text" onkeydown="if(event.key==='Enter') sendLiveMessage()">
         </div>
-        <button class="p-3 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-sm border border-outline-variant/20" id="live-cam-toggle-btn" title="Sign User Camera Reply (Click to toggle camera)" onclick="toggleLiveCamera()"><span id="live-cam-icon" class="material-symbols-outlined text-[20px]">videocam</span></button>
-        <button class="p-3 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-sm border border-outline-variant/20" id="live-mic-btn" title="Voice Input (Mic)" onclick="toggleLiveVoiceRecording()">
+        <button class="w-11 h-11 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-xs border border-outline-variant/25 flex items-center justify-center" id="live-cam-toggle-btn" title="Sign User Camera Reply (Click to toggle camera)" onclick="toggleLiveCamera()"><span id="live-cam-icon" class="material-symbols-outlined text-[20px]">videocam</span></button>
+        <button class="w-11 h-11 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-xs border border-outline-variant/25 flex items-center justify-center" id="live-mic-btn" title="Voice Input (Mic)" onclick="toggleLiveVoiceRecording()">
           <span class="material-symbols-outlined text-[20px]">mic</span>
         </button>
-
-
-        </button>
-        <button id="live-send-btn" onclick="sendLiveMessage()" class="px-space-lg py-3 bg-gradient-to-r from-primary to-primary-container text-on-primary rounded-xl font-medium text-label-md btn-bounce shadow-md flex items-center gap-space-xs cursor-pointer">
+        <button id="live-send-btn" onclick="sendLiveMessage()" class="h-11 px-5 bg-primary hover:bg-primary/95 text-on-primary rounded-xl font-semibold text-label-md btn-bounce shadow-sm flex items-center gap-1.5 cursor-pointer">
           <span>Send</span>
           <span class="material-symbols-outlined text-[18px]">send</span>
         </button>
@@ -1385,6 +1402,6 @@
   </footer>
 
   <!-- Application Logic -->
-  <script src="app.js?v=20261025_livechat_missing_gesture"></script>
+  <script src="app.js?v=20261025_ui_polish_graphics"></script>
 </body>
 </html>
