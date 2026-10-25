@@ -38,6 +38,13 @@ class App {
     this.detailsGestureSamples = [];
     this.detailsActiveGesture = null;
 
+    // Detect contributor onboarding mode immediately
+    const urlParams = new URLSearchParams(window.location.search);
+    const newGestureParam = urlParams.get("new_gesture");
+    this.isContributorMode = urlParams.get("onboard") === "1" || Boolean(newGestureParam && newGestureParam.trim());
+    this.isOnboardingNewGesture = this.isContributorMode;
+    this.pendingOnboardGestureName = (newGestureParam || "").trim();
+
     this.init();
   }
 
@@ -46,24 +53,65 @@ class App {
     this.bindActionButtons();
     this.bindSignerSelection();
     this.setupNetworkListeners();
+
+    if (this.isContributorMode) {
+      this.enableContributorMode();
+      this.openAddSignerModal(this.pendingOnboardGestureName);
+      // Background data fetch without blocking onboarding UI
+      this.populateSignerDropdowns().catch(console.warn);
+      this.refreshGesturesList().catch(console.warn);
+      return;
+    }
+
     await this.populateSignerDropdowns();
     await this.loadDashboard();
     await this.refreshGesturesList();
-    this.checkUrlOnboardingRequest();
   }
 
-  checkUrlOnboardingRequest() {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const newGesture = params.get("new_gesture");
-      if (newGesture && newGesture.trim()) {
-        this.pendingOnboardGestureName = newGesture.trim();
-        this.isOnboardingNewGesture = true;
-        this.openAddSignerModal(this.pendingOnboardGestureName);
-      }
-    } catch (e) {
-      console.warn("URL onboarding check error:", e);
+  generateUniqueContributorId() {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let suffix = "";
+    for (let i = 0; i < 6; i++) {
+      suffix += chars.charAt(Math.floor(Math.random() * chars.length));
     }
+    return `USR-${suffix}`;
+  }
+
+  enableContributorMode() {
+    // Lock down admin sidebar, signer switcher, export ZIP, and delete actions so unknown contributors can ONLY record their gesture
+    const sidebar = document.getElementById("admin-sidebar");
+    const mainWrapper = document.getElementById("admin-main-wrapper");
+    const mobileMenuBtn = document.getElementById("admin-mobile-menu-btn");
+    const activeSignerWrapper = document.getElementById("admin-active-signer-wrapper");
+    const exportBtn = document.getElementById("btn-export-dataset");
+    const headerTitle = document.getElementById("collector-header-title");
+    const closeModalBtn = document.getElementById("btn-close-add-signer");
+
+    if (sidebar) {
+      sidebar.classList.add("hidden");
+      sidebar.classList.remove("md:flex");
+    }
+    if (mainWrapper) {
+      mainWrapper.classList.remove("md:ml-sidebar");
+    }
+    if (mobileMenuBtn) {
+      mobileMenuBtn.classList.add("hidden");
+    }
+    if (activeSignerWrapper) {
+      activeSignerWrapper.classList.add("hidden");
+    }
+    if (exportBtn) {
+      exportBtn.classList.add("hidden");
+    }
+    if (headerTitle) {
+      headerTitle.textContent = "ISL Gesture Contributor Studio";
+    }
+    if (closeModalBtn) {
+      closeModalBtn.classList.add("hidden");
+    }
+
+    // Switch straight to the Collect Dataset view behind the setup modal
+    this.navigateTo("collection");
   }
 
   // ==========================================
@@ -1267,6 +1315,10 @@ class App {
   }
 
   async removeAllSigners() {
+    if (this.isContributorMode) {
+      alert("Unauthorized: Contributor mode cannot remove signers.");
+      return;
+    }
     if (!confirm("Are you sure you want to remove ALL registered signers and their assignments?")) return;
     try {
       await api.removeAllSigners();
@@ -1294,36 +1346,92 @@ class App {
     const banner = document.getElementById("onboard-gesture-banner");
     const bannerLabel = document.getElementById("onboard-gesture-name-label");
     const typeContainer = document.getElementById("onboard-gesture-type-container");
+    const gestureNameInput = document.getElementById("input-onboard-gesture-name");
     const typeSelect = document.getElementById("input-onboard-gesture-type");
+    const handCountSelect = document.getElementById("input-onboard-hand-count");
+    const targetSamplesInput = document.getElementById("input-onboard-target-samples");
     const titleEl = document.getElementById("add-signer-modal-title");
-    const submitBtn = document.getElementById("btn-submit-add-signer");
+    const descEl = document.getElementById("add-signer-modal-desc");
+    const submitBtnText = document.getElementById("btn-submit-add-signer-text") || document.getElementById("btn-submit-add-signer");
+    const idLabel = document.getElementById("label-signer-id");
+    const idInput = document.getElementById("input-signer-id");
+    const nameInput = document.getElementById("input-signer-name");
 
-    if (activeOnboardName) {
+    if (this.isContributorMode || activeOnboardName) {
+      document.documentElement.classList.add("contributor-modal-active");
       if (banner) banner.classList.remove("hidden");
-      if (bannerLabel) bannerLabel.textContent = activeOnboardName;
+      if (bannerLabel) bannerLabel.textContent = activeOnboardName || "Custom Gesture";
       if (typeContainer) typeContainer.classList.remove("hidden");
+      if (gestureNameInput) gestureNameInput.value = activeOnboardName || "";
       if (typeSelect) {
-        typeSelect.value = activeOnboardName.length === 1 ? "STATIC" : "DYNAMIC";
+        typeSelect.value = (activeOnboardName && activeOnboardName.length === 1) ? "STATIC" : "DYNAMIC";
       }
-      if (titleEl) titleEl.textContent = "Enter Signer ID & Name to Perform Gesture";
-      if (submitBtn) submitBtn.textContent = "Continue & Perform Gesture";
+      if (handCountSelect) {
+        handCountSelect.value = "ONE_HAND";
+      }
+      if (targetSamplesInput) {
+        targetSamplesInput.value = "10";
+      }
+      if (titleEl) titleEl.textContent = "Contribute New Gesture to Dataset";
+      if (descEl) descEl.textContent = "Configure your gesture details below and click Perform Gesture to open the camera.";
+      if (submitBtnText) submitBtnText.textContent = "Perform Gesture";
+
+      // Check if user already registered in /connect
+      let registeredProfile = null;
+      try {
+        const raw = localStorage.getItem("g2t2g_user_profile");
+        if (raw) registeredProfile = JSON.parse(raw);
+      } catch (e) {}
+
+      let assignedId = registeredProfile?.signer_id;
+      if (!assignedId) {
+        assignedId = localStorage.getItem("g2t2g_guest_id");
+        if (!assignedId || !assignedId.startsWith("USR-")) {
+          assignedId = this.generateUniqueContributorId();
+          localStorage.setItem("g2t2g_guest_id", assignedId);
+        }
+      }
+
+      if (idLabel) {
+        idLabel.textContent = registeredProfile
+          ? "Assigned Unique User ID (Registered Profile)"
+          : "Auto-Assigned Unique Signer ID";
+      }
+      if (idInput) {
+        idInput.value = assignedId;
+        idInput.readOnly = true;
+        idInput.classList.add("opacity-80", "cursor-not-allowed", "text-primary", "font-bold");
+      }
+      if (nameInput) {
+        if (registeredProfile && registeredProfile.name) {
+          nameInput.value = registeredProfile.name;
+        } else {
+          nameInput.value = "";
+          setTimeout(() => nameInput.focus(), 50);
+        }
+      }
     } else {
       if (banner) banner.classList.add("hidden");
       if (typeContainer) typeContainer.classList.add("hidden");
       if (titleEl) titleEl.textContent = "Add Team Member / Signer";
-      if (submitBtn) submitBtn.textContent = "Register Signer";
+      if (descEl) descEl.textContent = "Registers a new signer profile in the central database.";
+      if (submitBtnText) submitBtnText.textContent = "Register Signer";
+      if (idLabel) idLabel.textContent = "Unique Signer ID (USN) *";
+      if (idInput) {
+        idInput.readOnly = false;
+        idInput.classList.remove("opacity-80", "cursor-not-allowed", "text-primary", "font-bold");
+        idInput.value = "";
+        setTimeout(() => idInput.focus(), 50);
+      }
+      if (nameInput) nameInput.value = "";
     }
-
-    const idInput = document.getElementById("input-signer-id");
-    const nameInput = document.getElementById("input-signer-name");
-    if (idInput) {
-      idInput.value = "";
-      setTimeout(() => idInput.focus(), 50);
-    }
-    if (nameInput) nameInput.value = "";
   }
 
-  closeAddSignerModal() {
+  closeAddSignerModal(force = false) {
+    if (this.isContributorMode && this.isOnboardingNewGesture && !force) {
+      return;
+    }
+    document.documentElement.classList.remove("contributor-modal-active");
     const modal = document.getElementById("add-signer-modal");
     if (modal) {
       modal.classList.add("hidden");
@@ -1340,32 +1448,45 @@ class App {
 
     const signerId = document.getElementById("input-signer-id")?.value.trim();
     const displayName = document.getElementById("input-signer-name")?.value.trim();
+    const onboardGestureInput = document.getElementById("input-onboard-gesture-name")?.value.trim();
     const onboardType = document.getElementById("input-onboard-gesture-type")?.value || "DYNAMIC";
+    const onboardHandCount = document.getElementById("input-onboard-hand-count")?.value || "ONE_HAND";
+    const onboardTargetSamples = Math.max(1, Math.min(500, parseInt(document.getElementById("input-onboard-target-samples")?.value || "10", 10) || 10));
 
     if (!signerId || !displayName) {
-      alert("Please enter both Signer ID and Signer Name.");
+      alert("Please enter your Name.");
+      return;
+    }
+
+    const activeGestureText = (onboardGestureInput || this.pendingOnboardGestureName || "").trim();
+    if ((this.isContributorMode || this.isOnboardingNewGesture) && !activeGestureText) {
+      alert("Please enter the Gesture Name you want to add to the database.");
       return;
     }
 
     this._isSubmittingSigner = true;
     try {
-      // Check if signer already exists; if not, create them
-      const existingSigner = (this.signers || []).find(
-        s => s.signer_id.toLowerCase() === signerId.toLowerCase()
-      );
-      if (!existingSigner) {
+      // Create or update signer in SQLite; safely continue if already registered
+      try {
         await api.createSigner({ signer_id: signerId, display_name: displayName, enabled: true });
+      } catch (signerErr) {
+        console.warn("Signer already registered or notice:", signerErr);
       }
-      await this.populateSignerDropdowns();
+      try {
+        await this.populateSignerDropdowns();
+      } catch (pErr) {}
       this.setActiveSigner(signerId);
 
-      // If onboarding a new gesture from Normal User, create/select the gesture and open Collect Dataset camera
-      if (this.pendingOnboardGestureName) {
-        const rawGestureName = this.pendingOnboardGestureName.trim();
+      // If onboarding a gesture from Normal User / Live Chat, create/select the gesture and open Collect Dataset camera
+      if (this.isContributorMode || this.isOnboardingNewGesture || activeGestureText) {
+        const rawGestureName = activeGestureText;
         const gestureId = rawGestureName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "custom_gesture";
         const displayTitle = rawGestureName.charAt(0).toUpperCase() + rawGestureName.slice(1);
 
-        await this.refreshGesturesList();
+        try {
+          await this.refreshGesturesList();
+        } catch (rErr) {}
+
         const existsGesture = (this.gestures || []).find(
           g => g.gesture_id.toLowerCase() === gestureId.toLowerCase() || (g.name || "").toLowerCase() === rawGestureName.toLowerCase()
         );
@@ -1384,51 +1505,80 @@ class App {
             }
           } catch (trErr) {}
 
-          await api.createGesture({
-            gesture_id: gestureId,
-            name: displayTitle,
-            english_meaning: displayTitle,
-            kannada_meaning: kannadaMeaning,
-            gesture_type: onboardType,
-            hand_count: "ONE_HAND",
-            description: `Recorded by ${displayName} (${signerId}) via Normal User request.`,
-            enabled: true,
-            verification_status: "VERIFIED"
-          });
-          await this.refreshGesturesList();
+          try {
+            await api.createGesture({
+              gesture_id: gestureId,
+              name: displayTitle,
+              english_meaning: displayTitle,
+              kannada_meaning: kannadaMeaning,
+              gesture_type: onboardType,
+              hand_count: onboardHandCount,
+              description: `Recorded by ${displayName} (${signerId}) via ISL Connect Contributor Mode.`,
+              enabled: true,
+              verification_status: "VERIFIED"
+            });
+          } catch (gestErr) {
+            console.warn("Gesture already exists or notice:", gestErr);
+          }
+          try {
+            await this.refreshGesturesList();
+          } catch (rErr) {}
         }
 
         this.pendingOnboardGestureName = null;
-        this.closeAddSignerModal();
+        this.isOnboardingNewGesture = false;
+        document.documentElement.classList.remove("contributor-modal-active");
+        this.closeAddSignerModal(true);
 
         // Remove query params from URL without reloading
         try {
           window.history.replaceState({}, document.title, window.location.pathname);
         } catch (hErr) {}
 
-        // Navigate directly to Collect Dataset view and select the new gesture & signer
+        // Navigate directly to Collect Dataset view and lock in the contributor's gesture, signer ID, and target samples
         this.navigateTo("collection");
         setTimeout(() => {
           const select = document.getElementById("collect-gesture-select");
           if (select) {
             select.value = targetGestureId;
-            this.handleCollectionGestureChange();
+            if (this.isContributorMode) {
+              select.disabled = true;
+              select.classList.add("opacity-85", "cursor-not-allowed");
+            }
           }
           const signerInput = document.getElementById("collect-signer-input");
           if (signerInput) {
             signerInput.value = signerId;
+            if (this.isContributorMode) {
+              signerInput.readOnly = true;
+              signerInput.classList.add("opacity-85", "cursor-not-allowed");
+            }
           }
+          const targetInput = document.getElementById("collect-target-samples-input");
+          if (targetInput) {
+            targetInput.value = String(onboardTargetSamples);
+            this.handleTargetSamplesChange();
+          }
+          this.handleCollectionGestureChange();
           this.updateCollectorStorageBanner();
-        }, 250);
+
+          // Automatically start camera stream for immediate recording
+          if (this.tracker && typeof this.tracker.startCamera === "function") {
+            const videoEl = document.getElementById("webcam-video");
+            if (videoEl && !this.tracker.camera) {
+              this.tracker.startCamera(videoEl).catch(console.warn);
+            }
+          }
+        }, 150);
         return;
       }
 
-      this.closeAddSignerModal();
+      this.closeAddSignerModal(true);
       if (this.activeView === "team") await this.loadTeamPage();
       await this.loadDashboard();
       alert(`Signer "${signerId}" (${displayName}) registered successfully!`);
     } catch (err) {
-      alert("Failed to register signer / gesture: " + err.message);
+      alert("Notice: " + (err.message || "Ready to record"));
     } finally {
       this._isSubmittingSigner = false;
     }
@@ -3123,6 +3273,10 @@ class App {
   // DELETION METHODS (#6)
   // ==========================================
   async deleteSample(sampleId) {
+    if (this.isContributorMode) {
+      alert("Unauthorized: Contributor mode cannot delete dataset samples.");
+      return;
+    }
     if (!confirm(`Are you sure you want to delete sample "${sampleId}"?\n\nThis will permanently delete the database record and associated images, videos, and landmark files from disk.`)) {
       return;
     }
@@ -3136,6 +3290,10 @@ class App {
   }
 
   async deleteGesture(gestureId) {
+    if (this.isContributorMode) {
+      alert("Unauthorized: Contributor mode cannot delete dataset gestures.");
+      return;
+    }
     const targetId = gestureId || this.detailsActiveGestureId;
     if (!targetId) return;
 
@@ -3474,6 +3632,10 @@ class App {
 
     // Export dataset button
     document.getElementById("btn-export-dataset")?.addEventListener("click", () => {
+      if (this.isContributorMode) {
+        alert("Unauthorized: Contributor mode cannot export dataset archive.");
+        return;
+      }
       window.location.href = api.getExportUrl();
     });
   }

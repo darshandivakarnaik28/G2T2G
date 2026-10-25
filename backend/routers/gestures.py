@@ -50,9 +50,40 @@ def create_gesture(gesture_in: GestureCreate, db: Session = Depends(get_db)):
     clean_id = gesture_in.gesture_id.strip().lower()
     existing = db.query(Gesture).filter(Gesture.gesture_id == clean_id).first()
     if existing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Gesture with ID '{gesture_in.gesture_id}' already exists."
+        if gesture_in.name:
+            existing.name = gesture_in.name
+        if gesture_in.english_meaning:
+            existing.english_meaning = gesture_in.english_meaning
+        if gesture_in.kannada_meaning:
+            existing.kannada_meaning = gesture_in.kannada_meaning
+        if gesture_in.gesture_type:
+            existing.gesture_type = gesture_in.gesture_type.upper()
+        if gesture_in.hand_count:
+            existing.hand_count = gesture_in.hand_count.upper()
+        if gesture_in.description:
+            existing.description = gesture_in.description
+        db.commit()
+        db.refresh(existing)
+        sample_count = db.query(DatasetSample).filter(DatasetSample.gesture_id == existing.gesture_id).count()
+        signer_count = db.query(DatasetSample.signer_id).filter(DatasetSample.gesture_id == existing.gesture_id).distinct().count()
+        model = db.query(ThreeDModel).filter(ThreeDModel.gesture_id == existing.gesture_id).first()
+        return GestureOut(
+            id=existing.id,
+            gesture_id=existing.gesture_id,
+            name=existing.name,
+            english_meaning=existing.english_meaning,
+            kannada_meaning=existing.kannada_meaning,
+            gesture_type=existing.gesture_type,
+            hand_count=existing.hand_count,
+            description=existing.description,
+            enabled=existing.enabled,
+            verification_status=existing.verification_status,
+            created_at=existing.created_at,
+            updated_at=existing.updated_at,
+            sample_count=sample_count,
+            signer_count=signer_count,
+            has_3d_model=bool(model),
+            model_filename=model.filename if model else None
         )
 
     db_gesture = Gesture(

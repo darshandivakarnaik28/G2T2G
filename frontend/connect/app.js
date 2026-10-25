@@ -1922,6 +1922,14 @@ function triggerTranslation() {
     const emptyState = document.getElementById('normal-chat-empty');
     if (emptyState) emptyState.remove();
 
+    const activeUser = getStoredUserProfile();
+    const senderLabel = activeUser && activeUser.name
+      ? `${activeUser.name} (${activeUser.signer_id})`
+      : 'You (Normal User)';
+    const senderInitial = activeUser && activeUser.name
+      ? activeUser.name.trim().charAt(0).toUpperCase()
+      : 'U';
+
     const msgDiv = document.createElement('div');
     msgDiv.className = "flex flex-col gap-space-xs bg-surface/90 backdrop-blur-sm p-4 rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow animate-fade-in";
 
@@ -1929,8 +1937,8 @@ function triggerTranslation() {
       msgDiv.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-space-xs">
-            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
-            <span class="text-label-md font-bold text-on-surface">You (Normal User)</span>
+            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">${senderInitial}</div>
+            <span class="text-label-md font-bold text-on-surface">${senderLabel}</span>
           </div>
           <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
         </div>
@@ -1950,8 +1958,8 @@ function triggerTranslation() {
       msgDiv.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-space-xs">
-            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
-            <span class="text-label-md font-bold text-on-surface">You (Normal User)</span>
+            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">${senderInitial}</div>
+            <span class="text-label-md font-bold text-on-surface">${senderLabel}</span>
           </div>
           <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
         </div>
@@ -2797,6 +2805,14 @@ function sendLiveMessage() {
     const emptyState = document.getElementById('live-chat-empty');
     if (emptyState) emptyState.remove();
 
+    const activeUser = getStoredUserProfile();
+    const senderLabel = activeUser && activeUser.name
+      ? `${activeUser.name} (${activeUser.signer_id})`
+      : 'Normal User';
+    const senderInitial = activeUser && activeUser.name
+      ? activeUser.name.trim().charAt(0).toUpperCase()
+      : 'U';
+
     const msg = document.createElement('div');
     msg.className = "flex flex-col gap-space-xs bg-surface/90 backdrop-blur-sm p-4 rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow animate-fade-in";
 
@@ -2804,8 +2820,8 @@ function sendLiveMessage() {
       msg.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-space-xs">
-            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
-            <span class="text-label-md font-bold text-on-surface">Normal User</span>
+            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">${senderInitial}</div>
+            <span class="text-label-md font-bold text-on-surface">${senderLabel}</span>
           </div>
           <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
         </div>
@@ -2825,8 +2841,8 @@ function sendLiveMessage() {
       msg.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-space-xs">
-            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
-            <span class="text-label-md font-bold text-on-surface">Normal User</span>
+            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">${senderInitial}</div>
+            <span class="text-label-md font-bold text-on-surface">${senderLabel}</span>
           </div>
           <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
         </div>
@@ -2955,5 +2971,191 @@ document.addEventListener('DOMContentLoaded', () => {
     langObserver.observe(document.body, { childList: true, subtree: true });
   }
 
+  // Initialize User Profile Badge in Header
+  updateHeaderProfileBadge();
+
   console.log("ISL Connect User Application Initialized successfully.");
 });
+
+// --------------------------------------------------------------------------
+// User Profile & Registration System (Auto-Generated Unique ID + Validation)
+// --------------------------------------------------------------------------
+function generateUniqueUserId() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let suffix = '';
+  for (let i = 0; i < 6; i++) {
+    suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return `USR-${suffix}`;
+}
+window.generateUniqueUserId = generateUniqueUserId;
+
+function getStoredUserProfile() {
+  try {
+    const raw = localStorage.getItem('g2t2g_user_profile');
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.signer_id && parsed.name) {
+      return parsed;
+    }
+  } catch (e) {}
+  return null;
+}
+window.getStoredUserProfile = getStoredUserProfile;
+
+function updateHeaderProfileBadge() {
+  const profile = getStoredUserProfile();
+  const labelEl = document.getElementById('header-profile-label');
+  const iconEl = document.getElementById('header-profile-icon');
+  const btnEl = document.getElementById('header-profile-btn');
+  if (!labelEl || !btnEl) return;
+
+  if (profile && profile.name) {
+    const firstName = profile.name.trim().split(/\s+/)[0];
+    labelEl.textContent = `${firstName} (${profile.signer_id})`;
+    if (iconEl) iconEl.textContent = 'verified_user';
+    btnEl.title = `Signed in as ${profile.name} (${profile.signer_id}) — Click to view/edit`;
+  } else {
+    labelEl.textContent = state.currentLang === 'kn' ? 'ಲಾಗಿನ್' : 'Sign In';
+    if (iconEl) iconEl.textContent = 'person';
+    btnEl.title = 'User Profile & Registration';
+  }
+}
+window.updateHeaderProfileBadge = updateHeaderProfileBadge;
+
+function openUserProfileModal() {
+  const modal = document.getElementById('user-profile-modal');
+  if (!modal) return;
+
+  const existing = getStoredUserProfile();
+  const uniqueId = (existing && existing.signer_id) ? existing.signer_id : generateUniqueUserId();
+
+  const idInput = document.getElementById('profile-unique-id');
+  const idDisplay = document.getElementById('profile-unique-id-display');
+  const nameInput = document.getElementById('profile-name');
+  const ageInput = document.getElementById('profile-age');
+  const genderInput = document.getElementById('profile-gender');
+  const roleInput = document.getElementById('profile-role');
+  const contactInput = document.getElementById('profile-contact');
+  const emailInput = document.getElementById('profile-email');
+  const logoutBtn = document.getElementById('profile-logout-btn');
+  const errBox = document.getElementById('profile-form-error');
+
+  if (idInput) idInput.value = uniqueId;
+  if (idDisplay) idDisplay.textContent = uniqueId;
+  if (nameInput) nameInput.value = existing?.name || '';
+  if (ageInput) ageInput.value = existing?.age || '';
+  if (genderInput) genderInput.value = existing?.gender || '';
+  if (roleInput) roleInput.value = existing?.role || 'Normal / Hearing User';
+  if (contactInput) contactInput.value = existing?.contact_number || '';
+  if (emailInput) emailInput.value = existing?.email || '';
+  if (errBox) {
+    errBox.classList.add('hidden');
+    errBox.classList.remove('flex');
+  }
+  if (logoutBtn) {
+    if (existing) logoutBtn.classList.remove('hidden');
+    else logoutBtn.classList.add('hidden');
+  }
+
+  modal.classList.remove('hidden');
+  modal.classList.add('flex');
+  setTimeout(() => nameInput?.focus(), 60);
+}
+window.openUserProfileModal = openUserProfileModal;
+
+function closeUserProfileModal() {
+  const modal = document.getElementById('user-profile-modal');
+  if (!modal) return;
+  modal.classList.add('hidden');
+  modal.classList.remove('flex');
+}
+window.closeUserProfileModal = closeUserProfileModal;
+
+function showProfileFormError(msg) {
+  const errBox = document.getElementById('profile-form-error');
+  const errText = document.getElementById('profile-form-error-text');
+  if (errText) errText.textContent = msg;
+  if (errBox) {
+    errBox.classList.remove('hidden');
+    errBox.classList.add('flex');
+  }
+}
+
+async function saveUserProfileForm(e) {
+  if (e) e.preventDefault();
+
+  const uniqueId = (document.getElementById('profile-unique-id')?.value || '').trim() || generateUniqueUserId();
+  const name = (document.getElementById('profile-name')?.value || '').trim();
+  const ageVal = parseInt(document.getElementById('profile-age')?.value || '', 10);
+  const gender = (document.getElementById('profile-gender')?.value || '').trim();
+  const role = (document.getElementById('profile-role')?.value || 'Normal / Hearing User').trim();
+  const contact = (document.getElementById('profile-contact')?.value || '').replace(/\s+/g, '').trim();
+  const email = (document.getElementById('profile-email')?.value || '').trim();
+
+  if (!name || name.length < 2) {
+    showProfileFormError('Please enter your full name (minimum 2 characters).');
+    return;
+  }
+  if (isNaN(ageVal) || ageVal < 5 || ageVal > 100) {
+    showProfileFormError('Please enter a valid age between 5 and 100.');
+    return;
+  }
+  if (!gender) {
+    showProfileFormError('Please select your gender.');
+    return;
+  }
+  if (!/^[6-9]\d{9}$/.test(contact)) {
+    showProfileFormError('Please enter a valid 10-digit mobile contact number (starting with 6–9).');
+    return;
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+    showProfileFormError('Please enter a valid email address (e.g., name@example.com).');
+    return;
+  }
+
+  const profileData = {
+    signer_id: uniqueId,
+    name: name,
+    age: ageVal,
+    gender: gender,
+    role: role,
+    contact_number: contact,
+    email: email
+  };
+
+  // Save in localStorage so both /connect and Dataset Collector share the exact Unique ID & Name
+  localStorage.setItem('g2t2g_user_profile', JSON.stringify(profileData));
+  localStorage.setItem('isl_active_signer', uniqueId);
+
+  // Also persist in SQLite database via /api/signers
+  try {
+    await fetch('/api/signers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        signer_id: uniqueId,
+        display_name: name,
+        age: ageVal,
+        gender: gender,
+        role: role,
+        contact_number: contact,
+        email: email,
+        enabled: true
+      })
+    });
+  } catch (err) {
+    console.warn('Could not sync user profile to backend:', err);
+  }
+
+  updateHeaderProfileBadge();
+  closeUserProfileModal();
+}
+window.saveUserProfileForm = saveUserProfileForm;
+
+function clearUserProfile() {
+  localStorage.removeItem('g2t2g_user_profile');
+  updateHeaderProfileBadge();
+  closeUserProfileModal();
+}
+window.clearUserProfile = clearUserProfile;

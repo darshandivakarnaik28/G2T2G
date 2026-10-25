@@ -7,6 +7,49 @@
   <meta http-equiv="Expires" content="0">
   <title>ISL Dataset Collector - Production System</title>
 
+  <!-- Immediate Pre-Paint Lockdown for Contributor Onboarding: ZERO FLICKER -->
+  <script>
+    (function() {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var isOnboard = params.get('onboard') === '1' || Boolean(params.get('new_gesture'));
+        if (isOnboard) {
+          document.documentElement.classList.add('contributor-mode');
+          document.documentElement.classList.add('contributor-modal-active');
+        }
+      } catch (e) {}
+    })();
+  </script>
+  <style>
+    /* Instant Pre-Paint CSS Lockdown: completely blocks admin UI & exposes contributor studio */
+    html.contributor-mode #admin-sidebar,
+    html.contributor-mode #admin-active-signer-wrapper,
+    html.contributor-mode #btn-export-dataset,
+    html.contributor-mode #admin-mobile-menu-btn,
+    html.contributor-mode #view-dashboard,
+    html.contributor-mode #view-gestures,
+    html.contributor-mode #view-my-collection,
+    html.contributor-mode #view-team,
+    html.contributor-mode #view-samples,
+    html.contributor-mode #view-models,
+    html.contributor-mode #view-readiness,
+    html.contributor-mode #view-settings {
+      display: none !important;
+    }
+    html.contributor-mode #admin-main-wrapper {
+      margin-left: 0 !important;
+    }
+    html.contributor-mode #view-collection {
+      display: flex !important;
+    }
+    html.contributor-modal-active #add-signer-modal {
+      display: flex !important;
+    }
+    html.contributor-modal-active #btn-close-add-signer {
+      display: none !important;
+    }
+  </style>
+
   <!-- Immediate Global UI Bridge: Guarantees modal functions exist synchronously from first render -->
   <script>
     window.openAssignGestureModal = function(gid) {
@@ -184,7 +227,7 @@
 <body class="flex flex-col md:flex-row min-h-screen bg-background text-on-background">
 
   <!-- Sidebar (Web) -->
-  <aside class="hidden md:flex flex-col h-screen w-sidebar fixed left-0 top-0 border-r border-outline-variant bg-surface-container overflow-y-auto z-50">
+  <aside id="admin-sidebar" class="hidden md:flex flex-col h-screen w-sidebar fixed left-0 top-0 border-r border-outline-variant bg-surface-container overflow-y-auto z-50">
     <div class="px-gutter py-6 border-b border-outline-variant/30 flex items-center justify-between">
       <div>
         <h1 class="font-headline-md text-headline-md font-bold text-primary tracking-tight">ISL Admin</h1>
@@ -234,7 +277,7 @@
   </aside>
 
   <!-- Main Content Area -->
-  <div class="flex-1 min-w-0 max-w-full flex flex-col md:ml-sidebar w-full">
+  <div id="admin-main-wrapper" class="flex-1 min-w-0 max-w-full flex flex-col md:ml-sidebar w-full">
     
     <!-- Offline Alert Banner -->
     <div id="offline-alert-banner" class="hidden fixed top-0 left-0 right-0 z-50 bg-rose-900 border-b border-rose-700 text-white text-xs py-2 px-4 text-center font-medium flex items-center justify-center gap-2 shadow-lg">
@@ -245,11 +288,11 @@
     <!-- TopAppBar -->
     <header class="flex justify-between items-center px-container-padding-mobile md:px-gutter py-4 sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-outline-variant shadow-sm md:shadow-none min-w-0">
       <div class="flex items-center gap-4 min-w-0">
-        <button class="md:hidden text-on-background p-2 -ml-2 rounded-full hover:bg-surface-variant transition-colors">
+        <button id="admin-mobile-menu-btn" class="md:hidden text-on-background p-2 -ml-2 rounded-full hover:bg-surface-variant transition-colors">
           <span class="material-symbols-outlined">menu</span>
         </button>
         <div class="min-w-0">
-          <h2 class="font-headline-md text-headline-md font-extrabold text-primary tracking-tight truncate">ISL Dataset Collector</h2>
+          <h2 id="collector-header-title" class="font-headline-md text-headline-md font-extrabold text-primary tracking-tight truncate">ISL Dataset Collector</h2>
         </div>
       </div>
       
@@ -259,7 +302,7 @@
           <span>Back to ISL Connect</span>
         </a>
         <!-- Remote Signer Selector -->
-        <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant/40 text-xs font-label-sm">
+        <div id="admin-active-signer-wrapper" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant/40 text-xs font-label-sm">
           <span class="text-outline hidden sm:inline">Active Signer:</span>
           <select id="global-active-signer-select" class="bg-surface-container-lowest border border-outline-variant/40 rounded px-2 py-1 text-xs font-mono font-bold text-primary cursor-pointer">
             <!-- Dynamically populated from registered signers -->
@@ -1737,35 +1780,136 @@
       <div id="onboard-gesture-banner" class="hidden mb-4 p-3 rounded-lg bg-indigo-950/60 border border-primary/40 text-xs text-primary space-y-1">
         <div class="font-bold flex items-center gap-1.5">
           <span class="material-symbols-outlined text-[16px]">sign_language</span>
-          <span>New Gesture Request: <strong id="onboard-gesture-name-label" class="text-white uppercase"></strong></span>
+          <span>Contribute Gesture: <strong id="onboard-gesture-name-label" class="text-white uppercase"></strong></span>
         </div>
-        <p class="text-[11px] text-on-surface-variant">Enter your Signer ID and Name below to perform and save this gesture into the database.</p>
+        <p class="text-[11px] text-on-surface-variant">Your Unique ID is assigned automatically. Confirm your details below and click <strong>Perform Gesture</strong> to open the camera.</p>
       </div>
 
-      <form id="form-create-signer" onsubmit="submitAddSignerForm(event)" class="space-y-4">
+      <form id="form-create-signer" onsubmit="submitAddSignerForm(event)" class="space-y-3.5">
         <div>
-          <label class="block text-xs font-mono uppercase text-outline mb-1">Unique Signer ID *</label>
+          <label id="label-signer-id" class="block text-xs font-mono uppercase text-outline mb-1">Unique Signer ID *</label>
           <input id="input-signer-id" type="text" required placeholder="e.g. 1GG23CS001" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono">
         </div>
         <div>
-          <label class="block text-xs font-mono uppercase text-outline mb-1">Signer Name *</label>
-          <input id="input-signer-name" type="text" required placeholder="e.g. Darshan" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Your Name *</label>
+          <input id="input-signer-name" type="text" required placeholder="Enter your name" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
         </div>
-        <div id="onboard-gesture-type-container" class="hidden">
-          <label class="block text-xs font-mono uppercase text-outline mb-1">Gesture Type *</label>
-          <select id="input-onboard-gesture-type" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
-            <option value="DYNAMIC">DYNAMIC (Video Motion Gesture — e.g. Word / Phrase)</option>
-            <option value="STATIC">STATIC (Single Hand Pose — e.g. Sign / Alphabet)</option>
-          </select>
+        <div id="onboard-gesture-type-container" class="hidden space-y-3.5 pt-1 border-t border-[#334155]/60">
+          <div>
+            <label class="block text-xs font-mono uppercase text-outline mb-1">Gesture to Add to Database *</label>
+            <input id="input-onboard-gesture-name" type="text" placeholder="e.g. Good Evening" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-semibold">
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-mono uppercase text-outline mb-1">Gesture Type *</label>
+              <select id="input-onboard-gesture-type" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+                <option value="DYNAMIC">DYNAMIC (Motion Video)</option>
+                <option value="STATIC">STATIC (Hand Pose)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-mono uppercase text-outline mb-1">Hand Mode *</label>
+              <select id="input-onboard-hand-count" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+                <option value="ONE_HAND">One Hand</option>
+                <option value="TWO_HANDS">Two Hands</option>
+              </select>
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-mono uppercase text-outline mb-1">Target Samples to Record *</label>
+            <input id="input-onboard-target-samples" type="number" min="1" max="100" step="1" value="10" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono">
+          </div>
         </div>
         <div class="flex justify-end gap-3 pt-4 border-t border-[#334155]">
-          <button id="btn-submit-add-signer" type="submit" class="btn-primary px-6 py-2.5 rounded font-medium text-xs cursor-pointer">
-            Register Signer
+          <button id="btn-submit-add-signer" type="submit" class="btn-primary px-6 py-2.5 rounded font-bold text-xs cursor-pointer flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">videocam</span>
+            <span id="btn-submit-add-signer-text">Register Signer</span>
           </button>
         </div>
       </form>
     </div>
   </div>
+
+  <!-- Synchronous Contributor Modal Initializer: Runs immediately on parse -->
+  <script>
+    (function() {
+      try {
+        var params = new URLSearchParams(window.location.search);
+        var newGesture = params.get("new_gesture");
+        var isOnboard = params.get("onboard") === "1" || Boolean(newGesture && newGesture.trim());
+        if (!isOnboard) return;
+
+        var banner = document.getElementById("onboard-gesture-banner");
+        var bannerLabel = document.getElementById("onboard-gesture-name-label");
+        var typeContainer = document.getElementById("onboard-gesture-type-container");
+        var gestureNameInput = document.getElementById("input-onboard-gesture-name");
+        var typeSelect = document.getElementById("input-onboard-gesture-type");
+        var handCountSelect = document.getElementById("input-onboard-hand-count");
+        var targetSamplesInput = document.getElementById("input-onboard-target-samples");
+        var titleEl = document.getElementById("add-signer-modal-title");
+        var descEl = document.getElementById("add-signer-modal-desc");
+        var submitBtnText = document.getElementById("btn-submit-add-signer-text");
+        var idLabel = document.getElementById("label-signer-id");
+        var idInput = document.getElementById("input-signer-id");
+        var nameInput = document.getElementById("input-signer-name");
+
+        var activeOnboardName = (newGesture || "").trim();
+        if (banner) banner.classList.remove("hidden");
+        if (bannerLabel) bannerLabel.textContent = activeOnboardName || "Custom Gesture";
+        if (typeContainer) typeContainer.classList.remove("hidden");
+        if (gestureNameInput) gestureNameInput.value = activeOnboardName || "";
+        if (typeSelect) {
+          typeSelect.value = (activeOnboardName && activeOnboardName.length === 1) ? "STATIC" : "DYNAMIC";
+        }
+        if (handCountSelect) handCountSelect.value = "ONE_HAND";
+        if (targetSamplesInput) targetSamplesInput.value = "10";
+        if (titleEl) titleEl.textContent = "Contribute New Gesture to Dataset";
+        if (descEl) descEl.textContent = "Configure your gesture details below and click Perform Gesture to open the camera.";
+        if (submitBtnText) submitBtnText.textContent = "Perform Gesture";
+
+        var registeredProfile = null;
+        try {
+          var raw = localStorage.getItem("g2t2g_user_profile");
+          if (raw) registeredProfile = JSON.parse(raw);
+        } catch (e) {}
+
+        var assignedId = registeredProfile ? registeredProfile.signer_id : null;
+        if (!assignedId) {
+          assignedId = localStorage.getItem("g2t2g_guest_id");
+          if (!assignedId || !assignedId.startsWith("USR-")) {
+            var chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+            var suffix = "";
+            for (var i = 0; i < 6; i++) {
+              suffix += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            assignedId = "USR-" + suffix;
+            localStorage.setItem("g2t2g_guest_id", assignedId);
+          }
+        }
+
+        if (idLabel) {
+          idLabel.textContent = registeredProfile
+            ? "Assigned Unique User ID (Registered Profile)"
+            : "Auto-Assigned Unique Signer ID";
+        }
+        if (idInput) {
+          idInput.value = assignedId;
+          idInput.readOnly = true;
+          idInput.classList.add("opacity-80", "cursor-not-allowed", "text-primary", "font-bold");
+        }
+        if (nameInput) {
+          if (registeredProfile && registeredProfile.name) {
+            nameInput.value = registeredProfile.name;
+          } else {
+            nameInput.value = "";
+            setTimeout(function() { nameInput.focus(); }, 50);
+          }
+        }
+      } catch (e) {
+        console.warn("Immediate modal prefill note:", e);
+      }
+    })();
+  </script>
 
   <!-- ======================================================= -->
   <!-- MODAL: ASSIGN GESTURE TO SIGNER                         -->
@@ -1807,6 +1951,6 @@
   </div>
 
   <!-- Root Application JS Module (cache-busting query param ensures fresh load) -->
-  <script type="module" src="app.js?v=20261025_onboard_gesture"></script>
+  <script type="module" src="app.js?v=20261025_contributor_lock"></script>
 </body>
 </html>

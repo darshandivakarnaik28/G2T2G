@@ -10,8 +10,13 @@ class Signer(Base):
     __tablename__ = "signers"
 
     id = Column(Integer, primary_key=True, index=True)
-    signer_id = Column(String(64), unique=True, index=True, nullable=False) # e.g. "S001", "S002"
+    signer_id = Column(String(64), unique=True, index=True, nullable=False) # e.g. "S001", "USR-8492A1"
     display_name = Column(String(128), nullable=False)
+    age = Column(Integer, nullable=True)
+    role = Column(String(64), nullable=True)
+    gender = Column(String(32), nullable=True)
+    contact_number = Column(String(32), nullable=True)
+    email = Column(String(128), nullable=True)
     enabled = Column(Boolean, default=True)
     is_master = Column(Boolean, default=False) # Master signer for standardized Text-to-Gesture display
     created_at = Column(DateTime, default=datetime.datetime.utcnow)

@@ -7,8 +7,13 @@ from pydantic import BaseModel, Field
 
 # Signer schemas
 class SignerCreate(BaseModel):
-    signer_id: str = Field(..., description="Unique Signer ID e.g. S001")
-    display_name: str = Field(..., description="Full or display name of the team member")
+    signer_id: str = Field(..., description="Unique Signer ID e.g. S001 or USR-8492A1")
+    display_name: str = Field(..., description="Full or display name of the user or team member")
+    age: Optional[int] = None
+    role: Optional[str] = None
+    gender: Optional[str] = None
+    contact_number: Optional[str] = None
+    email: Optional[str] = None
     enabled: bool = True
     is_master: bool = False
 
@@ -16,6 +21,11 @@ class SignerOut(BaseModel):
     id: int
     signer_id: str
     display_name: str
+    age: Optional[int] = None
+    role: Optional[str] = None
+    gender: Optional[str] = None
+    contact_number: Optional[str] = None
+    email: Optional[str] = None
     enabled: bool
     is_master: bool = False
     created_at: datetime.datetime

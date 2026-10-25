@@ -60,6 +60,16 @@ def ensure_schema_compatibility():
                 if signer_cols and "is_master" not in signer_cols:
                     conn.execute(text("ALTER TABLE signers ADD COLUMN is_master BOOLEAN DEFAULT 0"))
                     conn.commit()
+                for col_name, col_type in [
+                    ("age", "INTEGER"),
+                    ("role", "VARCHAR(64)"),
+                    ("gender", "VARCHAR(32)"),
+                    ("contact_number", "VARCHAR(32)"),
+                    ("email", "VARCHAR(128)"),
+                ]:
+                    if signer_cols and col_name not in signer_cols:
+                        conn.execute(text(f"ALTER TABLE signers ADD COLUMN {col_name} {col_type}"))
+                        conn.commit()
     except Exception as e:
         print(f"Schema compatibility check notice: {e}")
 

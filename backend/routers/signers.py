@@ -38,14 +38,47 @@ def create_signer(signer_in: SignerCreate, db: Session = Depends(get_db)):
     clean_id = signer_in.signer_id.strip()
     existing = db.query(Signer).filter(func.lower(Signer.signer_id) == clean_id.lower()).first()
     if existing:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Signer with ID '{clean_id}' already exists."
+        existing.display_name = signer_in.display_name.strip()
+        if signer_in.age is not None:
+            existing.age = signer_in.age
+        if signer_in.role is not None:
+            existing.role = signer_in.role
+        if signer_in.gender is not None:
+            existing.gender = signer_in.gender
+        if signer_in.contact_number is not None:
+            existing.contact_number = signer_in.contact_number
+        if signer_in.email is not None:
+            existing.email = signer_in.email
+        db.commit()
+        db.refresh(existing)
+        sample_count = db.query(DatasetSample).filter(DatasetSample.signer_id == existing.signer_id).count()
+        assignments = db.query(CollectionAssignment).filter(CollectionAssignment.signer_id == existing.signer_id).all()
+        completed_count = sum(1 for a in assignments if a.status == "COMPLETED")
+        return SignerOut(
+            id=existing.id,
+            signer_id=existing.signer_id,
+            display_name=existing.display_name,
+            age=getattr(existing, "age", None),
+            role=getattr(existing, "role", None),
+            gender=getattr(existing, "gender", None),
+            contact_number=getattr(existing, "contact_number", None),
+            email=getattr(existing, "email", None),
+            enabled=existing.enabled,
+            is_master=getattr(existing, "is_master", False) or False,
+            created_at=existing.created_at,
+            sample_count=sample_count,
+            assigned_gestures_count=len(assignments),
+            completed_assignments_count=completed_count
         )
 
     signer = Signer(
         signer_id=clean_id,
         display_name=signer_in.display_name.strip(),
+        age=signer_in.age,
+        role=signer_in.role,
+        gender=signer_in.gender,
+        contact_number=signer_in.contact_number,
+        email=signer_in.email,
         enabled=signer_in.enabled
     )
     db.add(signer)
@@ -56,6 +89,11 @@ def create_signer(signer_in: SignerCreate, db: Session = Depends(get_db)):
         id=signer.id,
         signer_id=signer.signer_id,
         display_name=signer.display_name,
+        age=signer.age,
+        role=signer.role,
+        gender=signer.gender,
+        contact_number=signer.contact_number,
+        email=signer.email,
         enabled=signer.enabled,
         is_master=getattr(signer, "is_master", False) or False,
         created_at=signer.created_at,
