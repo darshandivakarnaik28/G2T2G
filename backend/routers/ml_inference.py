@@ -31,19 +31,28 @@ _CACHE: Dict[str, Any] = {
     "dynamic_bundle": None,
     "report": None,
     "templates": None,
+    "templates_mtime": 0.0,
     "loaded": False
 }
 
 
 def ensure_models_loaded(force_reload: bool = False):
-    """Lazy-loads trained model bundles and templates into memory."""
+    """Lazy-loads trained model bundles and templates into memory, auto-refreshing templates if modified."""
+    templates_path = MODEL_DIR / "gesture_templates.json"
     if _CACHE["loaded"] and not force_reload:
+        if templates_path.exists():
+            current_mtime = templates_path.stat().st_mtime
+            if current_mtime > _CACHE.get("templates_mtime", 0.0):
+                try:
+                    _CACHE["templates"] = json.loads(templates_path.read_text(encoding="utf-8"))
+                    _CACHE["templates_mtime"] = current_mtime
+                except Exception:
+                    pass
         return True
 
     static_path = MODEL_DIR / "static_model_bundle.joblib"
     dynamic_path = MODEL_DIR / "dynamic_model_bundle.joblib"
     report_path = MODEL_DIR / "training_metrics_report.json"
-    templates_path = MODEL_DIR / "gesture_templates.json"
 
     if not static_path.exists() or not dynamic_path.exists():
         return False
@@ -55,6 +64,7 @@ def ensure_models_loaded(force_reload: bool = False):
             _CACHE["report"] = json.loads(report_path.read_text(encoding="utf-8"))
         if templates_path.exists():
             _CACHE["templates"] = json.loads(templates_path.read_text(encoding="utf-8"))
+            _CACHE["templates_mtime"] = templates_path.stat().st_mtime
         _CACHE["loaded"] = True
         return True
     except Exception as e:
@@ -275,28 +285,99 @@ def get_gesture_template(gesture_query: str):
     supported = report.get("supported_gestures") or {}
 
     q = gesture_query.strip().lower().replace(" ", "_")
-    # Direct match
+    # Direct match in precomputed ML templates
     matched_gid = None
     if q in templates:
         matched_gid = q
     else:
-        # Search by name or English meaning substring
         for gid, meta in supported.items():
-            if q == gid or q in (meta.get("name", "").lower()) or q in (meta.get("english_meaning", "").lower()):
+            name_norm = (meta.get("name", "") or "").strip().lower().replace(" ", "_")
+            en_norm = (meta.get("english_meaning", "") or "").strip().lower().replace(" ", "_")
+            if q == gid or q == name_norm or q == en_norm:
                 if gid in templates:
                     matched_gid = gid
                     break
 
-    if not matched_gid:
-        raise HTTPException(status_code=404, detail=f"No 3D landmark template found for '{gesture_query}'.")
+    if matched_gid:
+        tmpl = templates[matched_gid]
+        meta = supported.get(matched_gid, {})
+        return {
+            "gesture_id": matched_gid,
+            "name": meta.get("name", matched_gid.upper()),
+            "english_meaning": meta.get("english_meaning", meta.get("name", matched_gid.upper())),
+            "kannada_meaning": meta.get("kannada_meaning", ""),
+            "gesture_type": tmpl.get("gesture_type", "STATIC"),
+            "sample_id": tmpl.get("sample_id"),
+            "signer_id": tmpl.get("signer_id", "1GG23CS007"),
+            "stored_file_path": tmpl.get("stored_file_path"),
+            "ml_confidence": tmpl.get("ml_confidence", 1.0),
+            "hand_count": tmpl.get("hand_count", 1),
+            "frames": tmpl.get("frames", [])
+        }
 
-    tmpl = templates[matched_gid]
-    meta = supported.get(matched_gid, {})
-    return {
-        "gesture_id": matched_gid,
-        "name": meta.get("name", matched_gid.upper()),
-        "english_meaning": meta.get("english_meaning", meta.get("name", matched_gid.upper())),
-        "kannada_meaning": meta.get("kannada_meaning", ""),
-        "gesture_type": tmpl.get("gesture_type", "STATIC"),
-        "frames": tmpl.get("frames", [])
-    }
+    # Dynamic database lookup for newly recorded gestures added via Dataset Collector
+    import sqlite3
+    db_path = BASE_DIR / "isl_dataset.db"
+    if db_path.exists():
+        conn = sqlite3.connect(str(db_path))
+        c = conn.cursor()
+        c.execute(
+            "SELECT gesture_id, name, english_meaning, kannada_meaning, gesture_type, hand_count FROM gestures WHERE lower(gesture_id) = ? OR lower(name) = ?",
+            (q, gesture_query.strip().lower()),
+        )
+        g_row = c.fetchone()
+        if g_row:
+            gid, gname, gen, gkn, gtype, ghcount = g_row
+            c.execute(
+                """
+                SELECT sample_id, signer_id, stored_file_path, detection_confidence
+                FROM dataset_samples
+                WHERE gesture_id = ?
+                ORDER BY is_master_reference DESC, detection_confidence DESC, id DESC
+                LIMIT 1
+                """,
+                (gid,),
+            )
+            s_row = c.fetchone()
+            if s_row:
+                sid, signer_id, stored_path, det_conf = s_row
+                c.execute(
+                    """
+                    SELECT frame_index, left_hand_landmarks, right_hand_landmarks
+                    FROM landmark_sequences
+                    WHERE sample_id = ?
+                    ORDER BY frame_index ASC
+                    """,
+                    (sid,),
+                )
+                f_rows = c.fetchall()
+                conn.close()
+                frames_out = []
+                for f_idx, l_raw, r_raw in f_rows:
+                    lp = parse_landmarks(l_raw)
+                    rp = parse_landmarks(r_raw)
+                    if lp is not None or rp is not None:
+                        prim = lp if lp is not None else rp
+                        sec = rp if (lp is not None and rp is not None) else None
+                        frames_out.append({
+                            "frame_index": f_idx,
+                            "left_hand_landmarks": prim.round(4).tolist() if prim is not None else [],
+                            "right_hand_landmarks": sec.round(4).tolist() if sec is not None else [],
+                        })
+                if frames_out:
+                    return {
+                        "gesture_id": gid,
+                        "name": gname,
+                        "english_meaning": gen or gname,
+                        "kannada_meaning": gkn or "",
+                        "gesture_type": gtype or "DYNAMIC",
+                        "sample_id": sid,
+                        "signer_id": signer_id,
+                        "stored_file_path": stored_path,
+                        "ml_confidence": round(float(det_conf or 0.95), 4),
+                        "hand_count": 2 if ghcount == "TWO_HANDS" else 1,
+                        "frames": frames_out,
+                    }
+        conn.close()
+
+    raise HTTPException(status_code=404, detail=f"No 3D landmark template found for '{gesture_query}'.")

@@ -49,6 +49,21 @@ class App {
     await this.populateSignerDropdowns();
     await this.loadDashboard();
     await this.refreshGesturesList();
+    this.checkUrlOnboardingRequest();
+  }
+
+  checkUrlOnboardingRequest() {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const newGesture = params.get("new_gesture");
+      if (newGesture && newGesture.trim()) {
+        this.pendingOnboardGestureName = newGesture.trim();
+        this.isOnboardingNewGesture = true;
+        this.openAddSignerModal(this.pendingOnboardGestureName);
+      }
+    } catch (e) {
+      console.warn("URL onboarding check error:", e);
+    }
   }
 
   // ==========================================
@@ -1269,12 +1284,36 @@ class App {
   // ==========================================
   // SIGNER & ASSIGNMENT MODALS
   // ==========================================
-  openAddSignerModal() {
+  openAddSignerModal(onboardGestureName = null) {
     const modal = document.getElementById("add-signer-modal");
     if (modal) {
       modal.classList.remove("hidden");
       modal.style.display = "flex";
     }
+    const activeOnboardName = onboardGestureName || this.pendingOnboardGestureName;
+    const banner = document.getElementById("onboard-gesture-banner");
+    const bannerLabel = document.getElementById("onboard-gesture-name-label");
+    const typeContainer = document.getElementById("onboard-gesture-type-container");
+    const typeSelect = document.getElementById("input-onboard-gesture-type");
+    const titleEl = document.getElementById("add-signer-modal-title");
+    const submitBtn = document.getElementById("btn-submit-add-signer");
+
+    if (activeOnboardName) {
+      if (banner) banner.classList.remove("hidden");
+      if (bannerLabel) bannerLabel.textContent = activeOnboardName;
+      if (typeContainer) typeContainer.classList.remove("hidden");
+      if (typeSelect) {
+        typeSelect.value = activeOnboardName.length === 1 ? "STATIC" : "DYNAMIC";
+      }
+      if (titleEl) titleEl.textContent = "Enter Signer ID & Name to Perform Gesture";
+      if (submitBtn) submitBtn.textContent = "Continue & Perform Gesture";
+    } else {
+      if (banner) banner.classList.add("hidden");
+      if (typeContainer) typeContainer.classList.add("hidden");
+      if (titleEl) titleEl.textContent = "Add Team Member / Signer";
+      if (submitBtn) submitBtn.textContent = "Register Signer";
+    }
+
     const idInput = document.getElementById("input-signer-id");
     const nameInput = document.getElementById("input-signer-name");
     if (idInput) {
@@ -1301,6 +1340,7 @@ class App {
 
     const signerId = document.getElementById("input-signer-id")?.value.trim();
     const displayName = document.getElementById("input-signer-name")?.value.trim();
+    const onboardType = document.getElementById("input-onboard-gesture-type")?.value || "DYNAMIC";
 
     if (!signerId || !displayName) {
       alert("Please enter both Signer ID and Signer Name.");
@@ -1309,14 +1349,86 @@ class App {
 
     this._isSubmittingSigner = true;
     try {
-      await api.createSigner({ signer_id: signerId, display_name: displayName, enabled: true });
-      this.closeAddSignerModal();
+      // Check if signer already exists; if not, create them
+      const existingSigner = (this.signers || []).find(
+        s => s.signer_id.toLowerCase() === signerId.toLowerCase()
+      );
+      if (!existingSigner) {
+        await api.createSigner({ signer_id: signerId, display_name: displayName, enabled: true });
+      }
       await this.populateSignerDropdowns();
+      this.setActiveSigner(signerId);
+
+      // If onboarding a new gesture from Normal User, create/select the gesture and open Collect Dataset camera
+      if (this.pendingOnboardGestureName) {
+        const rawGestureName = this.pendingOnboardGestureName.trim();
+        const gestureId = rawGestureName.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "") || "custom_gesture";
+        const displayTitle = rawGestureName.charAt(0).toUpperCase() + rawGestureName.slice(1);
+
+        await this.refreshGesturesList();
+        const existsGesture = (this.gestures || []).find(
+          g => g.gesture_id.toLowerCase() === gestureId.toLowerCase() || (g.name || "").toLowerCase() === rawGestureName.toLowerCase()
+        );
+
+        let targetGestureId = existsGesture ? existsGesture.gesture_id : gestureId;
+        if (!existsGesture) {
+          let kannadaMeaning = rawGestureName;
+          try {
+            const gUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=kn&dt=t&q=${encodeURIComponent(rawGestureName)}`;
+            const trRes = await fetch(gUrl);
+            if (trRes.ok) {
+              const trData = await trRes.json();
+              if (Array.isArray(trData) && Array.isArray(trData[0])) {
+                kannadaMeaning = trData[0].map(part => part[0]).filter(Boolean).join(" ").trim() || rawGestureName;
+              }
+            }
+          } catch (trErr) {}
+
+          await api.createGesture({
+            gesture_id: gestureId,
+            name: displayTitle,
+            english_meaning: displayTitle,
+            kannada_meaning: kannadaMeaning,
+            gesture_type: onboardType,
+            hand_count: "ONE_HAND",
+            description: `Recorded by ${displayName} (${signerId}) via Normal User request.`,
+            enabled: true,
+            verification_status: "VERIFIED"
+          });
+          await this.refreshGesturesList();
+        }
+
+        this.pendingOnboardGestureName = null;
+        this.closeAddSignerModal();
+
+        // Remove query params from URL without reloading
+        try {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        } catch (hErr) {}
+
+        // Navigate directly to Collect Dataset view and select the new gesture & signer
+        this.navigateTo("collection");
+        setTimeout(() => {
+          const select = document.getElementById("collect-gesture-select");
+          if (select) {
+            select.value = targetGestureId;
+            this.handleCollectionGestureChange();
+          }
+          const signerInput = document.getElementById("collect-signer-input");
+          if (signerInput) {
+            signerInput.value = signerId;
+          }
+          this.updateCollectorStorageBanner();
+        }, 250);
+        return;
+      }
+
+      this.closeAddSignerModal();
       if (this.activeView === "team") await this.loadTeamPage();
       await this.loadDashboard();
       alert(`Signer "${signerId}" (${displayName}) registered successfully!`);
     } catch (err) {
-      alert("Failed to create signer: " + err.message);
+      alert("Failed to register signer / gesture: " + err.message);
     } finally {
       this._isSubmittingSigner = false;
     }
@@ -1698,7 +1810,7 @@ class App {
       if (this.capturedStaticData.imageBase64) {
         formData.append("image_base64", this.capturedStaticData.imageBase64);
       }
-      formData.append("save_media", isMaster ? "true" : "false");
+      formData.append("save_media", "true");
 
       const saved = await api.uploadWebcamImageSample(formData);
 
@@ -2381,16 +2493,15 @@ class App {
       formData.append("frame_count", this.recordedDynamicData.frameCount || sanitizedFrames.length || 120);
       formData.append("confidence", 0.94);
 
-      // Only attach heavy video payload if designated Master Signer (avoids Cloudflare tunnel timeouts)
-      if (isMaster && this.recordedDynamicData.videoBlob) {
+      // Attach video payload & save media + 21-landmark sequence to database
+      if (this.recordedDynamicData.videoBlob) {
         formData.append("video", this.recordedDynamicData.videoBlob, `recording_${Date.now()}.webm`);
       }
-      formData.append("save_media", isMaster ? "true" : "false");
+      formData.append("save_media", "true");
 
       const saved = await api.uploadWebcamVideoSample(formData);
 
-      const modeMsg = isMaster ? "👑 Master Video + 21-Landmark Sequence" : "⚡ 21-Landmark Sequence (Storage Saved)";
-      alert(`Sample saved successfully!\nMode: ${modeMsg}\nSample ID: ${saved.sample_id}`);
+      alert(`Gesture sample saved to database successfully!\nSample ID: ${saved.sample_id}`);
       saveBtn.disabled = false;
       saveBtn.textContent = "Save Dynamic Sample to Dataset";
       document.getElementById("dynamic-recorded-panel").classList.add("hidden");

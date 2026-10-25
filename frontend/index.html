@@ -254,6 +254,10 @@
       </div>
       
       <div class="flex items-center gap-3 flex-shrink-0">
+        <a href="/connect/#normal" class="px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 border border-primary/40 text-xs font-bold text-primary flex items-center gap-1.5 transition-colors">
+          <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+          <span>Back to ISL Connect</span>
+        </a>
         <!-- Remote Signer Selector -->
         <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container border border-outline-variant/40 text-xs font-label-sm">
           <span class="text-outline hidden sm:inline">Active Signer:</span>
@@ -1727,20 +1731,35 @@
         <span class="material-symbols-outlined text-[22px]">close</span>
       </button>
 
-      <h2 class="text-xl font-bold text-on-background mb-1">Add Team Member / Signer</h2>
-      <p class="text-xs text-on-surface-variant mb-6">Registers a new signer profile in the central database.</p>
+      <h2 id="add-signer-modal-title" class="text-xl font-bold text-on-background mb-1">Add Team Member / Signer</h2>
+      <p id="add-signer-modal-desc" class="text-xs text-on-surface-variant mb-4">Registers a new signer profile in the central database.</p>
+
+      <div id="onboard-gesture-banner" class="hidden mb-4 p-3 rounded-lg bg-indigo-950/60 border border-primary/40 text-xs text-primary space-y-1">
+        <div class="font-bold flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[16px]">sign_language</span>
+          <span>New Gesture Request: <strong id="onboard-gesture-name-label" class="text-white uppercase"></strong></span>
+        </div>
+        <p class="text-[11px] text-on-surface-variant">Enter your Signer ID and Name below to perform and save this gesture into the database.</p>
+      </div>
 
       <form id="form-create-signer" onsubmit="submitAddSignerForm(event)" class="space-y-4">
         <div>
           <label class="block text-xs font-mono uppercase text-outline mb-1">Unique Signer ID *</label>
-          <input id="input-signer-id" type="text" required placeholder="e.g. signer_001" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono">
+          <input id="input-signer-id" type="text" required placeholder="e.g. 1GG23CS001" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background font-mono">
         </div>
         <div>
           <label class="block text-xs font-mono uppercase text-outline mb-1">Signer Name *</label>
           <input id="input-signer-name" type="text" required placeholder="e.g. Darshan" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
         </div>
+        <div id="onboard-gesture-type-container" class="hidden">
+          <label class="block text-xs font-mono uppercase text-outline mb-1">Gesture Type *</label>
+          <select id="input-onboard-gesture-type" class="w-full bg-surface-container-lowest border border-outline-variant/40 rounded p-2.5 text-sm text-on-background">
+            <option value="DYNAMIC">DYNAMIC (Video Motion Gesture — e.g. Word / Phrase)</option>
+            <option value="STATIC">STATIC (Single Hand Pose — e.g. Sign / Alphabet)</option>
+          </select>
+        </div>
         <div class="flex justify-end gap-3 pt-4 border-t border-[#334155]">
-          <button type="submit" class="btn-primary px-6 py-2.5 rounded font-medium text-xs cursor-pointer">
+          <button id="btn-submit-add-signer" type="submit" class="btn-primary px-6 py-2.5 rounded font-medium text-xs cursor-pointer">
             Register Signer
           </button>
         </div>
@@ -1788,6 +1807,6 @@
   </div>
 
   <!-- Root Application JS Module (cache-busting query param ensures fresh load) -->
-  <script type="module" src="app.js?v=20261017_target_dynamic"></script>
+  <script type="module" src="app.js?v=20261025_onboard_gesture"></script>
 </body>
 </html>

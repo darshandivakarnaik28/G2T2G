@@ -58,15 +58,36 @@ const DICTIONARY = {
   "WHERE": { en: "WHERE", kn: "ಎಲ್ಲಿ (Elli)" },
   "WHO": { en: "WHO", kn: "ಯಾರು (Yaaru)" },
   "WHY": { en: "WHY", kn: "ಯಾಕೆ (Yaake)" },
-  "SUPER": { en: "SUPER", kn: "ಸೂಪರ್ / ಅತ್ಯುತ್ತಮ (Super)" },
-  "NEED HELP": { en: "NEED HELP", kn: "ಸಹಾಯ ಬೇಕು (Sahaya Beku)" },
-  "ALL CLEAR": { en: "ALL CLEAR", kn: "ಎಲ್ಲವೂ ಸರಿ (Ellavu Sari)" }
+  "SUPER": { en: "SUPER", kn: "ಸೂಪರ್ / ಅತ್ಯುತ್ತಮ (Super)" }
 };
 
 // Populate A-Z static alphabet signs in DICTIONARY
 "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(letter => {
   DICTIONARY[letter] = { en: `Letter ${letter}`, kn: `ಅಕ್ಷರ ${letter}` };
 });
+
+// Dynamically sync any newly recorded gestures (sample_count > 0) from the SQLite database
+async function syncDatasetGestures() {
+  try {
+    const res = await fetch('/api/gestures');
+    if (!res.ok) return;
+    const list = await res.json();
+    if (!Array.isArray(list)) return;
+    list.forEach(g => {
+      if (g && g.sample_count > 0 && g.gesture_id) {
+        const keyUpper = (g.name || g.gesture_id).trim().toUpperCase();
+        const gidUpper = g.gesture_id.trim().toUpperCase();
+        const entry = {
+          en: keyUpper,
+          kn: g.kannada_meaning || keyUpper,
+          gesture_id: g.gesture_id.trim().toLowerCase()
+        };
+        DICTIONARY[keyUpper] = entry;
+        DICTIONARY[gidUpper] = entry;
+      }
+    });
+  } catch (e) {}
+}
 
 function cleanKannadaOnly(str) {
   if (!str) return "";
@@ -253,6 +274,303 @@ function toggleAccessibility() {
 }
 window.toggleAccessibility = toggleAccessibility;
 
+// Instant Dictionary-Based Full Page UI Translations (English <-> Kannada)
+const UI_TRANSLATIONS = {
+  // Navigation & Header / Footer
+  "G2T2G": "G2T2G",
+  "ISL Connect": "ISL ಕನೆಕ್ಟ್",
+  "Home": "ಮುಖಪುಟ",
+  "Normal": "ಸಾಮಾನ್ಯ",
+  "Normal User": "ಸಾಮಾನ್ಯ ಬಳಕೆದಾರ",
+  "Hearing User": "ಸಾಮಾನ್ಯ ಬಳಕೆದಾರ",
+  "Sign": "ಸೈನ್",
+  "Sign User": "ಸೈನ್ ಬಳಕೆದಾರ",
+  "Live Chat": "ಲೈವ್ ಚಾಟ್",
+  "Live Workspace": "ಲೈವ್ ಕಾರ್ಯಕ್ಷೇತ್ರ",
+  "How it Works": "ಇದು ಹೇಗೆ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತದೆ",
+  "How It Works": "ಇದು ಹೇಗೆ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತದೆ",
+  "How ISL Connect Works": "ISL ಕನೆಕ್ಟ್ ಹೇಗೆ ಕಾರ್ಯನಿರ್ವಹಿಸುತ್ತದೆ",
+  "Toggle dark mode": "ಡಾರ್ಕ್ ಮೋಡ್ ಬದಲಿಸಿ",
+  "© 2024 ISL Connect - G2T2G Bridging Indian Sign Language. All rights reserved.": "© 2024 ISL ಕನೆಕ್ಟ್ - G2T2G ಭಾರತೀಯ ಸಂಜ್ಞಾ ಭಾಷೆ ಸೇತುವೆ. ಎಲ್ಲಾ ಹಕ್ಕುಗಳನ್ನು ಕಾಯ್ದಿರಿಸಲಾಗಿದೆ.",
+
+  // Home Hero & Cards
+  "Next-Gen ISL Translation & Communication": "ಹೊಸ ತಲೆಮಾರಿನ ISL ಅನುವಾದ ಮತ್ತು ಸಂವಹನ",
+  "Communicate Beyond Words": "ಪದಗಳನ್ನು ಮೀರಿ ಸಂವಹನ ನಡೆಸಿ",
+  "Real-time Indian Sign Language communication bridging sign users and hearing individuals instantly. Empowering seamless, accessible conversations everywhere.": "ಸೈನ್ ಬಳಕೆದಾರರು ಮತ್ತು ಸಾಮಾನ್ಯ ಜನರನ್ನು ತಕ್ಷಣವೇ ಬೆಸೆಯುವ ನೈಜ-ಸಮಯದ ಭಾರತೀಯ ಸಂಜ್ಞಾ ಭಾಷೆ ಸಂವಹನ ವೇದಿಕೆ.",
+  "Start Communication": "ಸಂವಹನ ಪ್ರಾರಂಭಿಸಿ",
+  "Translation Accuracy": "ಅನುವಾದ ನಿಖರತೆ",
+  "Real-time Latency": "ನೈಜ-ಸಮಯದ ವೇಗ",
+  "Accessible Support": "ಲಭ್ಯವಿರುವ ಬೆಂಬಲ",
+  "Live ISL Stream": "ಲೈವ್ ISL ಸ್ಟ್ರೀಮ್",
+  "Select Your Communication Mode": "ನಿಮ್ಮ ಸಂವಹನ ವಿಧಾನವನ್ನು ಆಯ್ಕೆಮಾಡಿ",
+  "Choose your preferred way to interact. Our platform dynamically adapts to bridge the gap effortlessly.": "ನಿಮ್ಮ ಆದ್ಯತೆಯ ಸಂವಹನ ವಿಧಾನವನ್ನು ಆರಿಸಿ. ನಮ್ಮ ವೇದಿಕೆಯು ಸುಲಭವಾಗಿ ಸಂವಹನ ನಡೆಸಲು ನೆರವಾಗುತ್ತದೆ.",
+  "Primary Interface": "ಪ್ರಾಥಮಿಕ ಇಂಟರ್ಫೇಸ್",
+  "Communicate naturally using Indian Sign Language (ISL). Camera captures your signs and translates them to voice and text in real-time.": "ಭಾರತೀಯ ಸಂಜ್ಞಾ ಭಾಷೆ (ISL) ಬಳಸಿ ಸಹಜವಾಗಿ ಸಂವಹನ ನಡೆಸಿ. ಕ್ಯಾಮೆರಾ ನಿಮ್ಮ ಸೈನ್‌ಗಳನ್ನು ಗುರುತಿಸಿ ಧ್ವನಿ ಮತ್ತು ಪಠ್ಯಕ್ಕೆ ಅನುವಾದಿಸುತ್ತದೆ.",
+  "AI-powered sign recognition with 21 joints": "21 ಕೀಲುಗಳ AI ಆಧಾರಿತ ಸೈನ್ ಗುರುತಿಸುವಿಕೆ",
+  "Instant voice synthesis for hearing participants": "ಕೇಳಿಸಿಕೊಳ್ಳುವವರಿಗೆ ತಕ್ಷಣದ ಧ್ವನಿ ಅನುವಾದ",
+  "Start as Sign User": "ಸೈನ್ ಬಳಕೆದಾರರಾಗಿ ಪ್ರಾರಂಭಿಸಿ",
+  "Hearing / Speech Interface": "ಧ್ವನಿ / ಪಠ್ಯ ಇಂಟರ್ಫೇಸ್",
+  "Communicate using Text input or Voice transcription. Your messages are instantly translated into visual ISL animations and avatars.": "ಪಠ್ಯ ಅಥವಾ ಧ್ವನಿಯ ಮೂಲಕ ಸಂವಹನ ನಡೆಸಿ. ನಿಮ್ಮ ಸಂದೇಶಗಳನ್ನು ತಕ್ಷಣವೇ ದೃಶ್ಯ ISL ಸೈನ್ ಮತ್ತು 3D ಅವತಾರ್‌ಗೆ ಅನುವಾದಿಸಲಾಗುತ್ತದೆ.",
+  "Speech-to-ISL instant voice transcription": "ಧ್ವನಿಯಿಂದ ISL ಗೆ ತಕ್ಷಣದ ಅನುವಾದ",
+  "Interactive 3D 21-landmark hand rendering": "ಸಂವಾದಾತ್ಮಕ 3D 21-ಲ್ಯಾಂಡ್‌ಮಾರ್ಕ್ ಕೈ ಮಾದರಿ",
+  "Start as Hearing User": "ಸಾಮಾನ್ಯ ಬಳಕೆದಾರರಾಗಿ ಪ್ರಾರಂಭಿಸಿ",
+
+  // Architecture / How It Works Section
+  "End-to-End Bidirectional Pipeline": "ದ್ವಿಮುಖ ಅನುವಾದ ವ್ಯವಸ್ಥೆ",
+  "Our hybrid neural architecture seamlessly translates Indian Sign Language and Spoken/Written Language in sub-second real-time with dual visual confirmation.": "ನಮ್ಮ ಹೈಬ್ರಿಡ್ ನರಮಂಡಲ ವ್ಯವಸ್ಥೆಯು ಭಾರತೀಯ ಸಂಜ್ಞಾ ಭಾಷೆ ಮತ್ತು ಧ್ವನಿ/ಪಠ್ಯ ಭಾಷೆಯನ್ನು ತಕ್ಷಣವೇ ದ್ವಿಮುಖವಾಗಿ ಅನುವಾದಿಸುತ್ತದೆ.",
+  "Complete Pipeline": "ಪೂರ್ಣ ವ್ಯವಸ್ಥೆ",
+  "Sign → Voice/Text": "ಸೈನ್ → ಧ್ವನಿ/ಪಠ್ಯ",
+  "Voice/Text → 3D ISL": "ಧ್ವನಿ/ಪಠ್ಯ → 3D ISL",
+  "Step 01": "ಹಂತ 01",
+  "Step 02": "ಹಂತ 02",
+  "Step 03": "ಹಂತ 03",
+  "Step 04": "ಹಂತ 04",
+  "AI Vision Tracking": "AI ಕ್ಯಾಮೆರಾ ಟ್ರ್ಯಾಕಿಂಗ್",
+  "Real-time camera tracks": "ನೈಜ-ಸಮಯದ ಕ್ಯಾಮೆರಾ ಪ್ರತಿ ಕೈಯ",
+  "21 3D hand landmarks": "21 3D ಹ್ಯಾಂಡ್ ಲ್ಯಾಂಡ್‌ಮಾರ್ಕ್‌ಗಳನ್ನು",
+  "per hand at 60 FPS without gloves or specialized hardware.": "ಯಾವುದೇ ಕೈಗವಸುಗಳಿಲ್ಲದೆ 60 FPS ವೇಗದಲ್ಲಿ ಟ್ರ್ಯಾಕ್ ಮಾಡುತ್ತದೆ.",
+  "21 Keypoints": "21 ಬಿಂದುಗಳು",
+  "1080p @ 60fps": "1080p @ 60fps",
+  "Neural Classifier": "ನ್ಯೂರಲ್ ವರ್ಗೀಕರಣ",
+  "Temporal LSTM & Transformer architecture analyzes normalized 3D vectors to classify continuous gestures and fingerspelling.": "LSTM ಮತ್ತು ಟ್ರಾನ್ಸ್‌ಫಾರ್ಮರ್ ಮಾದರಿಯು 3D ವೆಕ್ಟರ್‌ಗಳನ್ನು ವಿಶ್ಲೇಷಿಸಿ ಸ್ಥಿರ ಮತ್ತು ಚಲನೆಯ ಸೈನ್‌ಗಳನ್ನು ನಿಖರವಾಗಿ ಗುರುತಿಸುತ್ತದೆ.",
+  "99.2% Conf": "99.2% ನಿಖರತೆ",
+  "Spatial Norm": "ಸ್ಪೇಷಿಯಲ್ ನಾರ್ಮ್",
+  "Instant Voice Synthesis": "ತಕ್ಷಣದ ಧ್ವನಿ ನಿರ್ಮಾಣ",
+  "Recognized gestures instantly generate crystal clear speech and multilingual text (English & ಕನ್ನಡ) for hearing participants.": "ಗುರುತಿಸಲಾದ ಸೈನ್‌ಗಳು ತಕ್ಷಣವೇ ಸ್ಪಷ್ಟವಾದ ಧ್ವನಿ ಮತ್ತು ಪಠ್ಯವನ್ನು ರಚಿಸುತ್ತವೆ.",
+  "Web Speech TTS": "ವೆಬ್ ಸ್ಪೀಚ್ ಧ್ವನಿ",
+  "Multilingual": "ಬಹುಭಾಷಾ ಬೆಂಬಲ",
+  "Dual Frame 3D Render": "ಡ್ಯುಯಲ್ ಫ್ರೇಮ್ 3D ಪ್ರದರ್ಶನ",
+  "Normal user voice/text maps to authentic master gesture frames and live Three.js 3D 21-landmark skeletal hand animations.": "ಸಾಮಾನ್ಯ ಬಳಕೆದಾರರ ಧ್ವನಿ/ಪಠ್ಯವು ಮಾಸ್ಟರ್ ಸೈನ್ ವಿಡಿಯೋ ಮತ್ತು ಲೈವ್ 3D 21-ಲ್ಯಾಂಡ್‌ಮಾರ್ಕ್ ಕೈ ಆನಿಮೇಷನ್ ಅನ್ನು ಪ್ರದರ್ಶಿಸುತ್ತದೆ.",
+  "Master Reference": "ಮಾಸ್ಟರ್ ರೆಫರೆನ್ಸ್",
+  "3D 21-Landmark Hand": "3D 21-ಲ್ಯಾಂಡ್‌ಮಾರ್ಕ್ ಕೈ",
+  "<15ms Latency": "<15ms ವೇಗ",
+  "Experience the Sub-Second Latency": "ತಕ್ಷಣದ ಅನುವಾದವನ್ನು ಅನುಭವಿಸಿ",
+  "Test how spoken sentences, typed phrases, and gestures cross-translate immediately in our dedicated workspace.": "ಮಾತನಾಡುವ ವಾಕ್ಯಗಳು, ಟೈಪ್ ಮಾಡಿದ ಪದಗಳು ಮತ್ತು ಸೈನ್‌ಗಳು ಹೇಗೆ ತಕ್ಷಣವೇ ಅನುವಾದಗೊಳ್ಳುತ್ತವೆ ಎಂಬುದನ್ನು ಪರೀಕ್ಷಿಸಿ.",
+  "Try Sign User Mode": "ಸೈನ್ ಬಳಕೆದಾರ ಮೋಡ್ ಪ್ರಯತ್ನಿಸಿ",
+  "Try Hearing User Mode": "ಸಾಮಾನ್ಯ ಬಳಕೆದಾರ ಮೋಡ್ ಪ್ರಯತ್ನಿಸಿ",
+
+  // Normal User Panel
+  "Interactive Translation Studio": "ಸಂವಾದಾತ್ಮಕ ಅನುವಾದ ಸ್ಟುಡಿಯೋ",
+  "Normal User Interface & 3D ISL Engine": "ಸಾಮಾನ್ಯ ಬಳಕೆದಾರ ಇಂಟರ್ಫೇಸ್ ಮತ್ತು 3D ISL ಎಂಜಿನ್",
+  "Live ISL Stream Active": "ಲೈವ್ ISL ಸ್ಟ್ರೀಮ್ ಸಕ್ರಿಯವಾಗಿದೆ",
+  "Compose Message": "ಸಂದೇಶ ಬರೆಯಿರಿ",
+  "Type or speak to convert to 3D ISL": "3D ISL ಗೆ ಬದಲಿಸಲು ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಮಾತನಾಡಿ",
+  "Speak Message": "ಸಂದೇಶ ಮಾತನಾಡಿ",
+  "Stop Recording": "ರೆಕಾರ್ಡಿಂಗ್ ನಿಲ್ಲಿಸಿ",
+  "Listening...": "ಕೇಳಿಸಿಕೊಳ್ಳುತ್ತಿದೆ...",
+  "Listening... Speak now": "ಕೇಳಿಸಿಕೊಳ್ಳುತ್ತಿದೆ... ಈಗ ಮಾತನಾಡಿ",
+  "Transcribing voice...": "ಧ್ವನಿಯನ್ನು ಪಠ್ಯಕ್ಕೆ ಬದಲಿಸಲಾಗುತ್ತಿದೆ...",
+  "Generate ISL": "ISL ರಚಿಸಿ",
+  "Quick Phrases:": "ತ್ವರಿತ ಪದಗಳು:",
+  "Hello": "ನಮಸ್ಕಾರ",
+  "Thank you": "ಧನ್ಯವಾದಗಳು",
+  "How are you?": "ನೀವು ಹೇಗಿದ್ದೀರಿ?",
+  "Need help": "ಸಹಾಯ ಬೇಕು",
+  "Water": "ನೀರು",
+  "Conversation Feed": "ಸಂಭಾಷಣೆ ಪಟ್ಟಿ",
+  "Live transcript & ISL log": "ಲೈವ್ ಸಂಭಾಷಣೆ ಮತ್ತು ISL ದಾಖಲೆ",
+  "No messages yet": "ಇನ್ನೂ ಯಾವುದೇ ಸಂದೇಶಗಳಿಲ್ಲ",
+  "Type or speak above to generate 3D ISL animation": "3D ISL ಆನಿಮೇಷನ್ ರಚಿಸಲು ಮೇಲೆ ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಮಾತನಾಡಿ",
+  "Pro-Tip for Clear ISL Output": "ಸ್ಪಷ್ಟ ISL ಅನುವಾದಕ್ಕಾಗಿ ಸಲಹೆ",
+  "Keep sentences concise and structured. The 3D avatar automatically translates regional sign variations and grammatical markers for optimal comprehension.": "ವಾಕ್ಯಗಳನ್ನು ಸರಳವಾಗಿ ಮತ್ತು ಸ್ಪಷ್ಟವಾಗಿ ಇರಿಸಿ. 3D ಅವತಾರ್ ಸುಲಭವಾಗಿ ಅರ್ಥವಾಗುವಂತೆ ಸೈನ್‌ಗಳನ್ನು ಪ್ರದರ್ಶಿಸುತ್ತದೆ.",
+  "ISL Buddy": "ISL ಮಿತ್ರ",
+  "Standby Mode": "ಸ್ಟ್ಯಾಂಡ್‌ಬೈ ಮೋಡ್",
+  "Please compose a message": "ದಯವಿಟ್ಟು ಸಂದೇಶವನ್ನು ಬರೆಯಿರಿ",
+  "Type or speak a message on the left to reveal the": "ಎಡಭಾಗದಲ್ಲಿ ಸಂದೇಶವನ್ನು ಟೈಪ್ ಮಾಡಿ ಅಥವಾ ಮಾತನಾಡಿ:",
+  "Master Signer Gesture": "ಮಾಸ್ಟರ್ ಸೈನರ್ ಸೈನ್",
+  "and": "ಮತ್ತು",
+  "Try clicking \"Water\", \"Hello\", or use the microphone": "\"ನೀರು\", \"ನಮಸ್ಕಾರ\" ಕ್ಲಿಕ್ ಮಾಡಿ ಅಥವಾ ಮೈಕ್ ಬಳಸಿ",
+  "Voice & 3D Hand": "ಧ್ವನಿ ಮತ್ತು 3D ಕೈ",
+  "Dual Studio": "ಡ್ಯುಯಲ್ ಸ್ಟುಡಿಯೋ",
+  "Upper: Master Signer Gesture": "ಮೇಲಿನ ಪರದೆ: ಮಾಸ್ಟರ್ ಸೈನರ್ ಸೈನ್",
+  "Verified master signer reference recording": "ಪರಿಶೀಲಿಸಿದ ಮಾಸ್ಟರ್ ಸೈನರ್ ರೆಫರೆನ್ಸ್ ವಿಡಿಯೋ/ಚಿತ್ರ",
+  "Master Reference": "ಮಾಸ್ಟರ್ ರೆಫರೆನ್ಸ್",
+  "Master Reference Gesture": "ಮಾಸ್ಟರ್ ರೆಫರೆನ್ಸ್ ಸೈನ್",
+  "Below: 3D 21-Landmark Hand Model": "ಕೆಳಗಿನ ಪರದೆ: 3D 21-ಲ್ಯಾಂಡ್‌ಮಾರ್ಕ್ ಕೈ ಮಾದರಿ",
+  "Awaiting Trained Model": "ತರಬೇತಿ ಪಡೆದ ಮಾದರಿ ಸಿದ್ಧವಾಗಿದೆ",
+  "Trained Model Active": "ತರಬೇತಿ ಪಡೆದ ಮಾದರಿ ಸಕ್ರಿಯವಾಗಿದೆ",
+  "Ready for Trained Model Landmark Stream": "21-ಲ್ಯಾಂಡ್‌ಮಾರ್ಕ್ 3D ಸ್ಟ್ರೀಮ್‌ಗೆ ಸಿದ್ಧವಾಗಿದೆ",
+  "Streaming from trained model pending": "3D ಲ್ಯಾಂಡ್‌ಮಾರ್ಕ್ ಸ್ಟ್ರೀಮ್ ಸಿದ್ಧವಾಗಿದೆ",
+  "Playback Speed": "ಪ್ಲೇಬ್ಯಾಕ್ ವೇಗ",
+  "Gesture Not in Dataset": "ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಸೈನ್ ಲಭ್ಯವಿಲ್ಲ",
+  "This gesture is not in the dataset": "ಈ ಸೈನ್ ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ",
+  "Do you want to perform the gesture for this message and save it in the database?": "ಈ ಸಂದೇಶಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಿ ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಉಳಿಸಲು ಬಯಸುವಿರಾ?",
+  "Yes, Perform Gesture": "ಹೌದು, ಸೈನ್ ಮಾಡಿ",
+  "No": "ಇಲ್ಲ",
+  "21 Landmarks": "21 ಬಿಂದುಗಳು",
+  "Three.js Canvas": "3D ಕ್ಯಾನ್ವಾಸ್",
+  "Guide": "ಮಾರ್ಗದರ್ಶಿ",
+  "You (Hearing User)": "ನೀವು (ಸಾಮಾನ್ಯ ಬಳಕೆದಾರ)",
+  "You (Normal User)": "ನೀವು (ಸಾಮಾನ್ಯ ಬಳಕೆದಾರ)",
+  "Master Sign & 3D 21-Landmark Output": "ಮಾಸ್ಟರ್ ಸೈನ್ ಮತ್ತು 3D 21-ಲ್ಯಾಂಡ್‌ಮಾರ್ಕ್ ಪ್ರದರ್ಶನ",
+
+  // Sign User Panel
+  "Live AI Vision": "ಲೈವ್ AI ಕ್ಯಾಮೆರಾ",
+  "Translating Sign to Voice & Text": "ಸೈನ್‌ನಿಂದ ಧ್ವನಿ ಮತ್ತು ಪಠ್ಯಕ್ಕೆ ಅನುವಾದ",
+  "Performs sign here": "ಇಲ್ಲಿ ಸೈನ್ ಮಾಡಿ",
+  "Click the video icon above to open your camera and start real-time Indian Sign Language input.": "ಕ್ಯಾಮೆರಾ ತೆರೆಯಲು ಮತ್ತು ನೈಜ-ಸಮಯದ ಭಾರತೀಯ ಸಂಜ್ಞಾ ಭಾಷೆ ಇನ್‌ಪುಟ್ ಪ್ರಾರಂಭಿಸಲು ಮೇಲಿನ ವಿಡಿಯೋ ಐಕಾನ್ ಕ್ಲಿಕ್ ಮಾಡಿ.",
+  "Start Camera Input": "ಕ್ಯಾಮೆರಾ ಪ್ರಾರಂಭಿಸಿ",
+  "Waiting for hand...": "ಕೈಗಾಗಿ ಕಾಯುತ್ತಿದೆ...",
+  "Searching for hands...": "ಕೈಗಳಿಗಾಗಿ ಹುಡುಕುತ್ತಿದೆ...",
+  "Tracking Confidence:": "ಗುರುತಿಸುವಿಕೆಯ ನಿಖರತೆ:",
+  "Tracking 21 3D Landmarks per Hand": "ಪ್ರತಿ ಕೈಯ 21 3D ಬಿಂದುಗಳನ್ನು ಟ್ರ್ಯಾಕ್ ಮಾಡಲಾಗುತ್ತಿದೆ",
+  "0 Hands": "0 ಕೈಗಳು",
+  "No Hands": "ಕೈಗಳಿಲ್ಲ",
+  "No Hands Detected": "ಯಾವುದೇ ಕೈ ಕಂಡುಬಂದಿಲ್ಲ",
+  "Quick Sign Shortcuts": "ತ್ವರಿತ ಸೈನ್ ಬಟನ್‌ಗಳು",
+  "Click to simulate gesture input": "ಸೈನ್ ಇನ್‌ಪುಟ್ ಪರೀಕ್ಷಿಸಲು ಕ್ಲಿಕ್ ಮಾಡಿ",
+  "HELLO": "ನಮಸ್ಕಾರ",
+  "THANK YOU": "ಧನ್ಯವಾದಗಳು",
+  "HELP NEEDED": "ಸಹಾಯ ಬೇಕು",
+  "ALL CLEAR": "ಎಲ್ಲವೂ ಸರಿ",
+  "Bidirectional": "ದ್ವಿಮುಖ ಸಂವಹನ",
+  "No gestures signed yet": "ಇನ್ನೂ ಯಾವುದೇ ಸೈನ್ ಮಾಡಿಲ್ಲ",
+  "Use camera or quick sign buttons to start communicating": "ಸಂವಹನ ಪ್ರಾರಂಭಿಸಲು ಕ್ಯಾಮೆರಾ ಅಥವಾ ತ್ವರಿತ ಸೈನ್ ಬಟನ್‌ಗಳನ್ನು ಬಳಸಿ",
+  "Send": "ಕಳುಹಿಸಿ",
+  "Auto voice output active": "ಸ್ವಯಂ ಧ್ವನಿ ಅನುವಾದ ಸಕ್ರಿಯವಾಗಿದೆ",
+  "Clear Chat": "ಚಾಟ್ ಅಳಿಸಿ",
+  "You (Sign User - ISL)": "ನೀವು (ಸೈನ್ ಬಳಕೆದಾರ - ISL)",
+
+  // Live Chat Panel
+  "Unified Communication Workspace": "ಏಕೀಕೃತ ಸಂವಹನ ಕಾರ್ಯಕ್ಷೇತ್ರ",
+  "Live Chat & Real-Time ISL Translation": "ಲೈವ್ ಚಾಟ್ ಮತ್ತು ನೈಜ-ಸಮಯದ ISL ಅನುವಾದ",
+  "Live Connection: Active": "ಲೈವ್ ಸಂಪರ್ಕ: ಸಕ್ರಿಯವಾಗಿದೆ",
+  "AI Tracking Active": "AI ಟ್ರ್ಯಾಕಿಂಗ್ ಸಕ್ರಿಯವಾಗಿದೆ",
+  "Upper: Sign User Live Camera (ISL Reply)": "ಮೇಲಿನ ಪರದೆ: ಸೈನ್ ಬಳಕೆದಾರರ ಲೈವ್ ಕ್ಯಾಮೆರಾ (ISL ಪ್ರತಿಕ್ರಿಯೆ)",
+  "Ready to Sign": "ಸೈನ್ ಮಾಡಲು ಸಿದ್ಧ",
+  "Perform Sign to Reply": "ಪ್ರತಿಕ್ರಿಯಿಸಲು ಸೈನ್ ಮಾಡಿ",
+  "Waiting for gestures...": "ಸೈನ್‌ಗಳಿಗಾಗಿ ಕಾಯುತ್ತಿದೆ...",
+  "Camera active for real-time sign recognition": "ನೈಜ-ಸಮಯದ ಸೈನ್ ಗುರುತಿಸುವಿಕೆಗಾಗಿ ಕ್ಯಾಮೆರಾ ಸಿದ್ಧವಾಗಿದೆ",
+  "3D ISL Avatar Output": "3D ISL ಅವತಾರ್ ಪ್ರದರ್ಶನ",
+  "v2.4 Ready": "v2.4 ಸಿದ್ಧ",
+  "Avatar Ready": "ಅವತಾರ್ ಸಿದ್ಧವಾಗಿದೆ",
+  "Continuous Live Conversation": "ನಿರಂತರ ಲೈವ್ ಸಂಭಾಷಣೆ",
+  "Synchronized ISL & Text": "ಸಿಂಕ್ರೊನೈಸ್ ಮಾಡಿದ ISL ಮತ್ತು ಪಠ್ಯ",
+  "No live conversation yet": "ಇನ್ನೂ ಯಾವುದೇ ಲೈವ್ ಸಂಭಾಷಣೆ ಇಲ್ಲ",
+  "Send a message or sign on camera to begin real-time translation": "ನೈಜ-ಸಮಯದ ಅನುವಾದವನ್ನು ಪ್ರಾರಂಭಿಸಲು ಸಂದೇಶ ಕಳುಹಿಸಿ ಅಥವಾ ಕ್ಯಾಮೆರಾದಲ್ಲಿ ಸೈನ್ ಮಾಡಿ",
+  "Master Sign & 3D ISL Avatar Output": "ಮಾಸ್ಟರ್ ಸೈನ್ ಮತ್ತು 3D ISL ಅವತಾರ್ ಪ್ರದರ್ಶನ",
+  "Sign User (ISL Reply)": "ಸೈನ್ ಬಳಕೆದಾರ (ISL ಪ್ರತಿಕ್ರಿಯೆ)"
+};
+
+function translateDynamicUIString(str, lang) {
+  if (!str) return str;
+  const trimmed = str.replace(/\s+/g, ' ').trim();
+  if (!trimmed) return str;
+
+  if (lang === 'kn') {
+    if (UI_TRANSLATIONS[trimmed]) {
+      return UI_TRANSLATIONS[trimmed];
+    }
+    const upper = trimmed.toUpperCase();
+    if (DICTIONARY[upper]) {
+      return cleanKannadaOnly(DICTIONARY[upper].kn);
+    }
+    if (trimmed.startsWith('Signer:')) {
+      return trimmed
+        .replace('Signer:', 'ಸೈನರ್:')
+        .replace('(Master Reference)', '(ಮಾಸ್ಟರ್ ರೆಫರೆನ್ಸ್)')
+        .replace('(Master)', '(ಮಾಸ್ಟರ್)');
+    }
+    if (trimmed.startsWith('Streaming 21-Landmark Trajectory:')) {
+      const rest = trimmed.replace('Streaming 21-Landmark Trajectory:', '').trim();
+      const { knMeaning } = resolveTrainedGesture(rest);
+      return `21-ಲ್ಯಾಂಡ್‌ಮಾರ್ಕ್ 3D ಚಲನೆ: ${knMeaning || rest}`;
+    }
+    if (trimmed.startsWith('Master Gesture:')) {
+      const rest = trimmed.replace('Master Gesture:', '').trim();
+      return `ಮಾಸ್ಟರ್ ಸೈನ್: ${rest}`;
+    }
+    if (trimmed.startsWith('ISL Camera Recognized')) {
+      return trimmed.replace('ISL Camera Recognized', 'ISL ಕ್ಯಾಮೆರಾ ಗುರುತಿಸಿದೆ');
+    }
+    if (/^\d+\s+Hands?/.test(trimmed)) {
+      return trimmed
+        .replace('1 Hand', '1 ಕೈ')
+        .replace('Hands', 'ಕೈಗಳು')
+        .replace('Right Hand', 'ಬಲಗೈ')
+        .replace('Left Hand', 'ಎಡಗೈ')
+        .replace('Single Hand', 'ಒಂದು ಕೈ')
+        .replace('Both Hands', 'ಎರಡೂ ಕೈಗಳು');
+    }
+  } else if (lang === 'en') {
+    // Reverse lookup if a node was originally created while in Kannada mode
+    for (const [enKey, knVal] of Object.entries(UI_TRANSLATIONS)) {
+      if (trimmed === knVal) return enKey;
+    }
+    for (const [k, val] of Object.entries(DICTIONARY)) {
+      if (trimmed === cleanKannadaOnly(val.kn)) return val.en || k;
+    }
+  }
+  return null;
+}
+
+let isTranslatingDOM = false;
+
+function applyFullPageTranslation(lang) {
+  if (!document.body || isTranslatingDOM) return;
+  isTranslatingDOM = true;
+
+  try {
+    const walker = document.createTreeWalker(
+      document.body,
+      NodeFilter.SHOW_TEXT,
+      {
+        acceptNode(node) {
+          const parent = node.parentElement;
+          if (!parent) return NodeFilter.FILTER_REJECT;
+          const tag = parent.tagName ? parent.tagName.toLowerCase() : '';
+          if (tag === 'script' || tag === 'style' || tag === 'noscript') {
+            return NodeFilter.FILTER_REJECT;
+          }
+          if (parent.classList && parent.classList.contains('material-symbols-outlined')) {
+            return NodeFilter.FILTER_REJECT;
+          }
+          if (parent.id === 'header-lang-label') {
+            return NodeFilter.FILTER_REJECT;
+          }
+          return NodeFilter.FILTER_ACCEPT;
+        }
+      }
+    );
+
+    let currentNode = walker.nextNode();
+    while (currentNode) {
+      const rawVal = currentNode.nodeValue || '';
+      const trimmed = rawVal.replace(/\s+/g, ' ').trim();
+
+      if (trimmed.length > 1) {
+        if (currentNode.__origEnText === undefined) {
+          currentNode.__origEnText = rawVal;
+          currentNode.__origEnTrimmed = trimmed;
+        }
+
+        const origTrimmed = currentNode.__origEnTrimmed || trimmed;
+        if (lang === 'kn') {
+          const knTranslated = translateDynamicUIString(origTrimmed, 'kn') || translateDynamicUIString(trimmed, 'kn');
+          if (knTranslated) {
+            const leading = (rawVal.match(/^\s*/) || [''])[0];
+            const trailing = (rawVal.match(/\s*$/) || [''])[0];
+            currentNode.nodeValue = `${leading}${knTranslated}${trailing}`;
+          }
+        } else {
+          const enRestored = translateDynamicUIString(origTrimmed, 'en');
+          if (enRestored && origTrimmed !== enRestored) {
+            const leading = (rawVal.match(/^\s*/) || [''])[0];
+            const trailing = (rawVal.match(/\s*$/) || [''])[0];
+            currentNode.nodeValue = `${leading}${enRestored}${trailing}`;
+          } else if (currentNode.__origEnText !== undefined) {
+            currentNode.nodeValue = currentNode.__origEnText;
+          }
+        }
+      }
+      currentNode = walker.nextNode();
+    }
+  } finally {
+    isTranslatingDOM = false;
+  }
+}
+window.applyFullPageTranslation = applyFullPageTranslation;
+
 function toggleGlobalLang() {
   const nextLang = state.currentLang === 'en' ? 'kn' : 'en';
   switchLang(nextLang);
@@ -276,10 +594,8 @@ function switchLang(lang) {
     }
   }
 
-  const liveLangLabel = document.getElementById('live-lang-label');
-  if (liveLangLabel) {
-    liveLangLabel.textContent = lang === 'en' ? 'English' : 'ಕನ್ನಡ (Kannada)';
-  }
+  // Instantly translate all page contents between English and Kannada
+  applyFullPageTranslation(lang);
 
   // Update input placeholders to match active system language
   const normalInput = document.getElementById('normal-text-input');
@@ -330,6 +646,39 @@ function toggleAudio() {
 }
 window.toggleAudio = toggleAudio;
 
+let cachedSpeechVoices = [];
+function preloadSpeechVoices() {
+  if (!('speechSynthesis' in window)) return;
+  const load = () => {
+    const v = window.speechSynthesis.getVoices();
+    if (v && v.length > 0) {
+      cachedSpeechVoices = v;
+    }
+  };
+  load();
+  if (typeof window.speechSynthesis.onvoiceschanged !== 'undefined') {
+    window.speechSynthesis.onvoiceschanged = load;
+  }
+}
+preloadSpeechVoices();
+
+function pickFastVoice(langCode) {
+  if (!cachedSpeechVoices || cachedSpeechVoices.length === 0) {
+    if ('speechSynthesis' in window) {
+      cachedSpeechVoices = window.speechSynthesis.getVoices() || [];
+    }
+  }
+  const prefix = langCode.split('-')[0].toLowerCase();
+  // Prefer local OS voice (localService: true) for zero-latency offline synthesis
+  const exactLocal = cachedSpeechVoices.find(v => v.localService && v.lang && v.lang.toLowerCase() === langCode.toLowerCase());
+  if (exactLocal) return exactLocal;
+  const prefixLocal = cachedSpeechVoices.find(v => v.localService && v.lang && v.lang.toLowerCase().startsWith(prefix));
+  if (prefixLocal) return prefixLocal;
+  const exactAny = cachedSpeechVoices.find(v => v.lang && v.lang.toLowerCase() === langCode.toLowerCase());
+  if (exactAny) return exactAny;
+  return cachedSpeechVoices.find(v => v.lang && v.lang.toLowerCase().startsWith(prefix)) || null;
+}
+
 function speakText(text) {
   if (state.isAudioMuted || !text) return;
   if ('speechSynthesis' in window) {
@@ -343,19 +692,31 @@ function speakText(text) {
       .trim();
     if (!cleanSpeech) cleanSpeech = String(text).trim();
 
-    // Prevent back-to-back duplicate utterance of the same word
+    // Short 350ms guard only to prevent double-firing from the same click/key event
     const now = Date.now();
-    if (state.lastSpokenText === cleanSpeech && (now - (state.lastSpokenTime || 0)) < 2500) {
+    if (state.lastSpokenText === cleanSpeech && (now - (state.lastSpokenTime || 0)) < 350) {
       return;
     }
     state.lastSpokenText = cleanSpeech;
     state.lastSpokenTime = now;
 
-    window.speechSynthesis.cancel();
+    // Only cancel if currently speaking — avoids Windows/Chrome SAPI5 1-second reset delay when idle
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+
+    const targetLang = state.currentLang === 'kn' ? 'kn-IN' : 'en-IN';
     const utterance = new SpeechSynthesisUtterance(cleanSpeech);
-    utterance.rate = 0.95;
+    utterance.lang = targetLang;
+    const preferredVoice = pickFastVoice(targetLang);
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+    utterance.rate = 1.05;
     utterance.pitch = 1.0;
-    utterance.lang = state.currentLang === 'kn' ? 'kn-IN' : 'en-IN';
     window.speechSynthesis.speak(utterance);
   }
 }
@@ -832,7 +1193,7 @@ class ISL3DAvatarViewer {
     this.bones = [];
     this.animTime = 0;
     this.isPlaying = false;
-    this.speed = 1.0;
+    this.speed = state.playbackSpeed || 1.0;
     this.currentGesture = 'REST';
     this.gestureProgress = 0;
 
@@ -973,6 +1334,26 @@ class ISL3DAvatarViewer {
       this.bones.push({ mesh: boneMesh, p1, p2 });
     });
 
+    // Build second hand group for 2-handed ISL dynamic gestures
+    this.secondHandGroup = new THREE.Group();
+    this.secondHandGroup.visible = false;
+    this.scene.add(this.secondHandGroup);
+
+    this.secondJoints = [];
+    this.defaultCoords.forEach((coord) => {
+      const mesh = new THREE.Mesh(jointGeo, jointMaterial);
+      mesh.position.set(coord[0], coord[1], coord[2]);
+      this.secondHandGroup.add(mesh);
+      this.secondJoints.push(mesh);
+    });
+
+    this.secondBones = [];
+    this.connections.forEach(([p1, p2]) => {
+      const boneMesh = new THREE.Mesh(boneGeo, boneMaterial);
+      this.secondHandGroup.add(boneMesh);
+      this.secondBones.push({ mesh: boneMesh, p1, p2 });
+    });
+
     this.updateBones();
   }
 
@@ -987,8 +1368,27 @@ class ISL3DAvatarViewer {
       const dist = dir.length();
       mesh.scale.set(1, dist, 1);
 
-      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      if (dist > 0.0001) {
+        mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+      }
     });
+
+    if (this.secondHandGroup && this.secondHandGroup.visible && this.secondBones) {
+      this.secondBones.forEach(({ mesh, p1, p2 }) => {
+        const pos1 = this.secondJoints[p1].position;
+        const pos2 = this.secondJoints[p2].position;
+        const mid = new THREE.Vector3().addVectors(pos1, pos2).multiplyScalar(0.5);
+        mesh.position.copy(mid);
+
+        const dir = new THREE.Vector3().subVectors(pos2, pos1);
+        const dist = dir.length();
+        mesh.scale.set(1, dist, 1);
+
+        if (dist > 0.0001) {
+          mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.normalize());
+        }
+      });
+    }
   }
 
   resetToNeutralPose() {
@@ -1004,11 +1404,14 @@ class ISL3DAvatarViewer {
       this.handGroup.rotation.set(0, 0, 0);
       this.handGroup.position.set(0, 0, 0);
     }
+    if (this.secondHandGroup) {
+      this.secondHandGroup.visible = false;
+    }
     this.updateBones();
   }
 
-  // Ready hook for trained ML model prediction stream (21 landmark points)
-  setLandmarks(landmarks) {
+  // Ready hook for trained ML model prediction stream (21 landmark points, optional second hand)
+  setLandmarks(landmarks, secondLandmarks = null) {
     if (!landmarks || !landmarks.length) return;
     landmarks.forEach((pt, i) => {
       if (this.joints[i]) {
@@ -1018,7 +1421,65 @@ class ISL3DAvatarViewer {
         this.joints[i].position.set(x, y, z);
       }
     });
+
+    if (this.secondHandGroup && this.secondJoints) {
+      if (secondLandmarks && secondLandmarks.length >= 21) {
+        this.secondHandGroup.visible = true;
+        secondLandmarks.forEach((pt, i) => {
+          if (this.secondJoints[i]) {
+            const x = pt.x !== undefined ? (pt.x - 0.5) * 14 : ((pt[0] !== undefined ? pt[0] - 0.5 : 0) * 14);
+            const y = pt.y !== undefined ? (0.5 - pt.y) * 14 : ((pt[1] !== undefined ? 0.5 - pt[1] : 0) * 14);
+            const z = pt.z !== undefined ? -pt.z * 14 : (-(pt[2] || 0) * 14);
+            this.secondJoints[i].position.set(x, y, z);
+          }
+        });
+      } else {
+        this.secondHandGroup.visible = false;
+      }
+    }
+
     this.updateBones();
+  }
+
+  interpolateHandPoints(lmA, lmB, alpha) {
+    const validA = lmA && lmA.length >= 21;
+    const validB = lmB && lmB.length >= 21;
+    if (!validA && !validB) return null;
+    if (validA && !validB) return lmA;
+    if (!validA && validB) return lmB;
+
+    const out = [];
+    for (let i = 0; i < 21; i++) {
+      const a = lmA[i];
+      const b = lmB[i];
+      const ax = a.x !== undefined ? a.x : (a[0] || 0);
+      const ay = a.y !== undefined ? a.y : (a[1] || 0);
+      const az = a.z !== undefined ? a.z : (a[2] || 0);
+      const bx = b.x !== undefined ? b.x : (b[0] || 0);
+      const by = b.y !== undefined ? b.y : (b[1] || 0);
+      const bz = b.z !== undefined ? b.z : (b[2] || 0);
+      out.push({
+        x: ax + alpha * (bx - ax),
+        y: ay + alpha * (by - ay),
+        z: az + alpha * (bz - az)
+      });
+    }
+    return out;
+  }
+
+  setInterpolatedFrame(frameA, frameB, alpha = 0) {
+    if (!frameA) return;
+    const targetB = frameB || frameA;
+    const leftInterp = this.interpolateHandPoints(frameA.left_hand_landmarks, targetB.left_hand_landmarks, alpha);
+    const rightInterp = this.interpolateHandPoints(frameA.right_hand_landmarks, targetB.right_hand_landmarks, alpha);
+
+    if (leftInterp && rightInterp) {
+      this.setLandmarks(leftInterp, rightInterp);
+    } else if (leftInterp) {
+      this.setLandmarks(leftInterp, null);
+    } else if (rightInterp) {
+      this.setLandmarks(rightInterp, null);
+    }
   }
 
   async playGesture(gestureName) {
@@ -1038,10 +1499,7 @@ class ISL3DAvatarViewer {
           this.sequenceFrames = data.frames;
           this.frameCursor = 0;
           this.isPlaying = data.frames.length > 1;
-          const firstLm = data.frames[0].left_hand_landmarks && data.frames[0].left_hand_landmarks.length >= 21
-            ? data.frames[0].left_hand_landmarks
-            : data.frames[0].right_hand_landmarks;
-          if (firstLm) this.setLandmarks(firstLm);
+          this.setInterpolatedFrame(data.frames[0], data.frames[0], 0);
           return;
         }
       }
@@ -1057,19 +1515,23 @@ class ISL3DAvatarViewer {
 
     if (this.controls) this.controls.update();
 
-    // Stream real recorded 21-landmark sequence when playing a dynamic gesture
+    // Stream real recorded 21-landmark sequence with smooth sub-frame interpolation (supports 0.1x & 0.25x slow-mo)
     if (this.isPlaying && this.sequenceFrames && this.sequenceFrames.length > 1) {
+      const len = this.sequenceFrames.length;
       this.frameCursor = (this.frameCursor || 0) + 0.35 * (this.speed || 1.0);
-      if (this.frameCursor >= this.sequenceFrames.length) {
-        this.frameCursor = 0;
+      if (this.frameCursor >= len) {
+        this.frameCursor = this.frameCursor % len;
       }
-      const idx = Math.floor(this.frameCursor) % this.sequenceFrames.length;
-      const frame = this.sequenceFrames[idx];
-      if (frame) {
-        const lm = (frame.left_hand_landmarks && frame.left_hand_landmarks.length >= 21)
-          ? frame.left_hand_landmarks
-          : frame.right_hand_landmarks;
-        if (lm) this.setLandmarks(lm);
+      const idxA = Math.floor(this.frameCursor) % len;
+      const idxB = (idxA + 1) % len;
+      const alpha = this.frameCursor - Math.floor(this.frameCursor);
+      this.setInterpolatedFrame(this.sequenceFrames[idxA], this.sequenceFrames[idxB], alpha);
+
+      if (this === state.normalViewer) {
+        const scrubber = document.getElementById('normal-scrubber');
+        if (scrubber) {
+          scrubber.value = Math.round((this.frameCursor / len) * 100);
+        }
       }
     }
 
@@ -1137,14 +1599,27 @@ function setSpeed(speed, btn) {
   if (state.normalViewer) state.normalViewer.speed = speed;
   if (state.chatViewer) state.chatViewer.speed = speed;
 
-  document.querySelectorAll('.speed-btn').forEach(b => {
-    b.classList.remove('bg-primary', 'text-on-primary', 'shadow-sm');
-    b.classList.add('text-on-surface-variant');
-  });
-  if (btn) {
-    btn.classList.add('bg-primary', 'text-on-primary', 'shadow-sm');
-    btn.classList.remove('text-on-surface-variant');
+  // Synchronize upper Master Signer video playback speed with 3D hand speed
+  const clampedRate = Math.max(0.1, Math.min(2.0, speed));
+  const masterVideo = document.getElementById('master-reference-video');
+  if (masterVideo) {
+    try { masterVideo.playbackRate = clampedRate; } catch (e) {}
   }
+  const chatMasterVideo = document.getElementById('chat-master-video');
+  if (chatMasterVideo) {
+    try { chatMasterVideo.playbackRate = clampedRate; } catch (e) {}
+  }
+
+  document.querySelectorAll('.speed-btn').forEach(b => {
+    const btnSpeed = parseFloat(b.getAttribute('data-speed'));
+    if (btnSpeed === speed || b === btn) {
+      b.classList.add('bg-primary', 'text-on-primary', 'shadow-sm');
+      b.classList.remove('text-on-surface-variant');
+    } else {
+      b.classList.remove('bg-primary', 'text-on-primary', 'shadow-sm');
+      b.classList.add('text-on-surface-variant');
+    }
+  });
 }
 window.setSpeed = setSpeed;
 
@@ -1171,63 +1646,154 @@ function resolveTrainedGesture(text) {
     "THANKS": "THANK_YOU",
     "WHAT TIME": "WHAT_TIME",
     "TIME": "WHAT_TIME",
-    "HOW ARE YOU": "HELLO"
+    "HOW ARE YOU": "HELLO",
+    "HI": "HELLO"
   };
 
   if (SYNONYM_MAP[upper] && DICTIONARY[SYNONYM_MAP[upper]]) {
     const k = SYNONYM_MAP[upper];
-    return { cleanId: k.toLowerCase(), signKey: DICTIONARY[k].en, knMeaning: cleanKannadaOnly(DICTIONARY[k].kn) };
+    return { found: true, rawText: cleaned, cleanId: k.toLowerCase(), signKey: DICTIONARY[k].en, knMeaning: cleanKannadaOnly(DICTIONARY[k].kn) };
   }
 
   // 0. Check if input matches a Kannada word/phrase in DICTIONARY
   for (const [key, val] of Object.entries(DICTIONARY)) {
     const pureKn = cleanKannadaOnly(val.kn);
-    if (pureKn && (cleaned === pureKn || cleaned.includes(pureKn))) {
-      const cid = key.toLowerCase().replace(/\s+/g, '_');
-      return { cleanId: cid, signKey: val.en || key, knMeaning: pureKn };
+    if (pureKn && cleaned === pureKn) {
+      const cid = (val.gesture_id || key).toLowerCase().replace(/\s+/g, '_');
+      return { found: true, rawText: cleaned, cleanId: cid, signKey: val.en || key, knMeaning: pureKn };
     }
   }
 
   // 1. Exact match in DICTIONARY
   if (DICTIONARY[upper]) {
-    const cid = upper.toLowerCase().replace(/\s+/g, '_');
-    return { cleanId: cid, signKey: upper, knMeaning: cleanKannadaOnly(DICTIONARY[upper].kn) };
+    const entry = DICTIONARY[upper];
+    const cid = (entry.gesture_id || upper).toLowerCase().replace(/\s+/g, '_');
+    return { found: true, rawText: cleaned, cleanId: cid, signKey: entry.en || upper, knMeaning: cleanKannadaOnly(entry.kn) };
   }
   if (DICTIONARY[underscored]) {
-    return { cleanId: underscored.toLowerCase(), signKey: DICTIONARY[underscored].en, knMeaning: cleanKannadaOnly(DICTIONARY[underscored].kn) };
+    const entry = DICTIONARY[underscored];
+    const cid = (entry.gesture_id || underscored).toLowerCase();
+    return { found: true, rawText: cleaned, cleanId: cid, signKey: entry.en || upper, knMeaning: cleanKannadaOnly(entry.kn) };
   }
 
-  // 2. Multi-character word/phrase match (sorted longest-first so single letters A-Z don't falsely match)
-  const multiCharKeys = Object.keys(DICTIONARY)
-    .filter(k => k.length > 1)
-    .sort((a, b) => b.length - a.length);
-
-  const words = upper.split(/\s+/);
-  for (const key of multiCharKeys) {
-    if (upper.includes(key) || words.includes(key)) {
-      const cid = key.toLowerCase().replace(/\s+/g, '_');
-      return { cleanId: cid, signKey: key.replace(/_/g, ' '), knMeaning: cleanKannadaOnly(DICTIONARY[key].kn) };
-    }
-  }
-
-  // 3. Single letter A-Z fallback if user typed a single character or "letter X"
+  // 2. Single letter A-Z match if user typed a single character or "letter X"
   const letterMatch = upper.match(/^LETTER\s+([A-Z])$/) || upper.match(/^([A-Z])$/);
   if (letterMatch) {
     const ltr = letterMatch[1];
-    return { cleanId: ltr.toLowerCase(), signKey: ltr, knMeaning: DICTIONARY[ltr] ? cleanKannadaOnly(DICTIONARY[ltr].kn) : ltr };
+    return { found: true, rawText: cleaned, cleanId: ltr.toLowerCase(), signKey: ltr, knMeaning: DICTIONARY[ltr] ? cleanKannadaOnly(DICTIONARY[ltr].kn) : ltr };
   }
 
-  // Default fallback to HELLO
-  return { cleanId: 'hello', signKey: 'HELLO', knMeaning: cleanKannadaOnly(DICTIONARY['HELLO'].kn) };
+  // Not found in dataset — do NOT show a different gesture!
+  return {
+    found: false,
+    rawText: cleaned,
+    cleanId: underscored.toLowerCase(),
+    signKey: upper,
+    knMeaning: cleaned
+  };
 }
+
+function showMissingGesturePrompt(gestureText) {
+  const cleanName = (gestureText || '').trim();
+  state.pendingMissingGesture = cleanName;
+
+  const petIdle = document.getElementById('normal-pet-idle');
+  const dualFrames = document.getElementById('normal-dual-frames');
+  const missingCard = document.getElementById('normal-missing-gesture-card');
+  const missingTitle = document.getElementById('missing-gesture-title');
+  const missingDesc = document.getElementById('missing-gesture-desc');
+  const masterVideo = document.getElementById('master-reference-video');
+
+  if (petIdle) petIdle.classList.add('hidden');
+  if (dualFrames) {
+    dualFrames.classList.add('hidden');
+    dualFrames.classList.remove('flex');
+  }
+  if (masterVideo) {
+    try { masterVideo.pause(); } catch (e) {}
+  }
+  if (state.normalViewer) {
+    state.normalViewer.isPlaying = false;
+  }
+
+  if (missingCard) {
+    missingCard.classList.remove('hidden');
+    missingCard.classList.add('flex');
+  }
+  if (missingTitle) {
+    missingTitle.textContent = state.currentLang === 'kn'
+      ? `"${cleanName}" ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ`
+      : `"${cleanName}" is not in the dataset`;
+  }
+  if (missingDesc) {
+    missingDesc.textContent = state.currentLang === 'kn'
+      ? `ಈ ಸೈನ್ ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಇಲ್ಲ. ನೀವು "${cleanName}" ಗಾಗಿ ಸೈನ್ ಮಾಡಿ ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಉಳಿಸಲು ಬಯಸುವಿರಾ?`
+      : `This gesture is not in the dataset. Do you want to perform the gesture for "${cleanName}" and save it in the database?`;
+  }
+}
+window.showMissingGesturePrompt = showMissingGesturePrompt;
+
+function confirmPerformMissingGesture(customGestureText) {
+  const targetGesture = (customGestureText || state.pendingMissingGesture || '').trim();
+  if (!targetGesture) return;
+  window.location.href = `/?new_gesture=${encodeURIComponent(targetGesture)}&onboard=1`;
+}
+window.confirmPerformMissingGesture = confirmPerformMissingGesture;
+
+function dismissMissingGesturePrompt() {
+  state.pendingMissingGesture = null;
+  const missingCard = document.getElementById('normal-missing-gesture-card');
+  const petIdle = document.getElementById('normal-pet-idle');
+  if (missingCard) {
+    missingCard.classList.add('hidden');
+    missingCard.classList.remove('flex');
+  }
+  if (petIdle) {
+    petIdle.classList.remove('hidden');
+  }
+}
+window.dismissMissingGesturePrompt = dismissMissingGesturePrompt;
 
 async function showMasterGestureAnd3D(text) {
   if (!text) return;
 
-  // Hide idle pet card, reveal dual frames (Upper Master Gesture + Below 3D Model)
+  let resolved = resolveTrainedGesture(text);
+  // If not found in local DICTIONARY, check once with backend in case it was just added to SQLite
+  if (!resolved.found) {
+    await syncDatasetGestures();
+    resolved = resolveTrainedGesture(text);
+  }
+
+  if (!resolved.found) {
+    showMissingGesturePrompt(resolved.rawText || text);
+    return;
+  }
+
+  const { cleanId, signKey, knMeaning } = resolved;
+  const activeDisplayTitle = state.currentLang === 'kn' ? knMeaning : signKey;
+
+  // Verify the gesture actually has recorded samples in the database
+  let sample = null;
+  try {
+    const res = await fetch(`/api/gestures/${encodeURIComponent(cleanId)}/master-sample`);
+    if (res.ok) {
+      sample = await res.json();
+    } else if (res.status === 404) {
+      // Gesture has 0 recorded samples in database
+      showMissingGesturePrompt(resolved.rawText || text);
+      return;
+    }
+  } catch (e) {}
+
+  // Hide idle pet card and missing card, reveal dual frames (Upper Master Gesture + Below 3D Model)
   const petIdle = document.getElementById('normal-pet-idle');
+  const missingCard = document.getElementById('normal-missing-gesture-card');
   const dualFrames = document.getElementById('normal-dual-frames');
   if (petIdle) petIdle.classList.add('hidden');
+  if (missingCard) {
+    missingCard.classList.add('hidden');
+    missingCard.classList.remove('flex');
+  }
   if (dualFrames) {
     dualFrames.classList.remove('hidden');
     dualFrames.classList.add('flex');
@@ -1243,47 +1809,43 @@ async function showMasterGestureAnd3D(text) {
   const modelStatusBadge = document.getElementById('model-status-badge');
   const modelStandbyBanner = document.getElementById('model-standby-banner');
 
-  const { cleanId, signKey, knMeaning } = resolveTrainedGesture(text);
-  const activeDisplayTitle = state.currentLang === 'kn' ? knMeaning : signKey;
-
   if (masterTitle) {
     masterTitle.textContent = activeDisplayTitle;
   }
 
-  try {
-    const res = await fetch(`/api/gestures/${encodeURIComponent(cleanId)}/master-sample`);
-    if (res.ok) {
-      const sample = await res.json();
-      if (masterSignerId && sample.signer_id) {
-        masterSignerId.textContent = `Signer: ${sample.signer_id} (Master Reference)`;
-      }
-      if (sample && sample.stored_file_path && sample.stored_file_path !== 'landmarks_only') {
-        const mediaUrl = `/${sample.stored_file_path.replace(/^\/+/, '')}`;
-        const isVideo = /\.(webm|mp4|mov|mkv)$/i.test(sample.stored_file_path);
+  if (sample) {
+    if (masterSignerId && sample.signer_id) {
+      masterSignerId.textContent = `Signer: ${sample.signer_id} (Master Reference)`;
+    }
+    if (sample.stored_file_path && sample.stored_file_path !== 'landmarks_only') {
+      const mediaUrl = `/${sample.stored_file_path.replace(/^\/+/, '')}`;
+      const isVideo = /\.(webm|mp4|mov|mkv)$/i.test(sample.stored_file_path);
 
-        if (masterFallback) masterFallback.classList.add('hidden');
+      if (masterFallback) masterFallback.classList.add('hidden');
 
-        if (isVideo && masterVideo) {
-          if (masterImg) masterImg.classList.add('hidden');
-          masterVideo.src = mediaUrl;
-          masterVideo.classList.remove('hidden');
-          masterVideo.load();
-          masterVideo.play().catch(() => {});
-        } else if (masterImg) {
-          if (masterVideo) {
-            masterVideo.pause();
-            masterVideo.classList.add('hidden');
-          }
-          masterImg.src = mediaUrl;
-          masterImg.classList.remove('hidden');
+      if (isVideo && masterVideo) {
+        if (masterImg) masterImg.classList.add('hidden');
+        const rate = Math.max(0.1, Math.min(2.0, state.playbackSpeed || 1.0));
+        masterVideo.src = mediaUrl;
+        masterVideo.classList.remove('hidden');
+        masterVideo.onloadedmetadata = () => {
+          try { masterVideo.playbackRate = rate; } catch (e) {}
+        };
+        masterVideo.load();
+        try { masterVideo.playbackRate = rate; } catch (e) {}
+        masterVideo.play().catch(() => {});
+      } else if (masterImg) {
+        if (masterVideo) {
+          masterVideo.pause();
+          masterVideo.classList.add('hidden');
         }
-      } else {
-        showFallbackMaster(activeDisplayTitle);
+        masterImg.src = mediaUrl;
+        masterImg.classList.remove('hidden');
       }
     } else {
       showFallbackMaster(activeDisplayTitle);
     }
-  } catch (e) {
+  } else {
     showFallbackMaster(activeDisplayTitle);
   }
 
@@ -1324,14 +1886,16 @@ window.showMasterGestureAnd3D = showMasterGestureAnd3D;
 
 function setInputValue(text) {
   const textarea = document.getElementById('normal-text-input');
-  const { signKey, knMeaning } = resolveTrainedGesture(text);
-  const activeText = state.currentLang === 'kn' ? knMeaning : signKey;
+  const resolved = resolveTrainedGesture(text);
+  const activeText = resolved.found
+    ? (state.currentLang === 'kn' ? resolved.knMeaning : resolved.signKey)
+    : text;
   if (textarea) textarea.value = activeText;
-  // Speak the selected phrase aloud in the active language only
+  // Speak the selected phrase aloud immediately in the active language
   if (!state.isAudioMuted && activeText) {
     speakText(activeText);
   }
-  // Automatically activate Upper Master Gesture & Below 3D Landmarks preview
+  // Activate Upper Master Gesture & Below 3D Landmarks preview (or missing gesture prompt)
   showMasterGestureAnd3D(text);
 }
 window.setInputValue = setInputValue;
@@ -1341,15 +1905,18 @@ function triggerTranslation() {
   if (!textarea || !textarea.value.trim()) return;
 
   const text = textarea.value.trim();
-  const { signKey, knMeaning } = resolveTrainedGesture(text);
-  const activeMsg = state.currentLang === 'kn' ? knMeaning : text;
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const feed = document.getElementById('normal-chat-feed');
+  const resolved = resolveTrainedGesture(text);
+  const activeMsg = resolved.found
+    ? (state.currentLang === 'kn' ? resolved.knMeaning : text)
+    : text;
 
-  // Generate voice output (TTS) strictly in the active language
+  // Speak immediately FIRST for zero-latency voice output
   if (!state.isAudioMuted) {
     speakText(activeMsg);
   }
+
+  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const feed = document.getElementById('normal-chat-feed');
 
   if (feed) {
     const emptyState = document.getElementById('normal-chat-empty');
@@ -1357,26 +1924,55 @@ function triggerTranslation() {
 
     const msgDiv = document.createElement('div');
     msgDiv.className = "flex flex-col gap-space-xs bg-surface/90 backdrop-blur-sm p-4 rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow animate-fade-in";
-    msgDiv.innerHTML = `
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-space-xs">
-          <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
-          <span class="text-label-md font-bold text-on-surface">You (Normal User)</span>
+
+    if (resolved.found) {
+      msgDiv.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-space-xs">
+            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
+            <span class="text-label-md font-bold text-on-surface">You (Normal User)</span>
+          </div>
+          <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
         </div>
-        <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
-      </div>
-      <p class="text-body-md text-on-surface pl-7 font-bold">${activeMsg}</p>
-      <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
-        <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
-          <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D 21-Landmark Output
-        </span>
-      </div>
-    `;
+        <p class="text-body-md text-on-surface pl-7 font-bold">${activeMsg}</p>
+        <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
+          <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
+            <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D 21-Landmark Output
+          </span>
+        </div>
+      `;
+    } else {
+      const safeAttr = text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const notFoundText = state.currentLang === 'kn'
+        ? 'ಈ ಸೈನ್ ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ. ಇದಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಲು ಬಯಸುವಿರಾ?'
+        : 'This gesture is not in the dataset. Do you want to perform the gesture for this?';
+      const yesBtnText = state.currentLang === 'kn' ? 'ಹೌದು, ಸೈನ್ ಮಾಡಿ' : 'Yes, Perform Gesture';
+      msgDiv.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-space-xs">
+            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
+            <span class="text-label-md font-bold text-on-surface">You (Normal User)</span>
+          </div>
+          <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
+        </div>
+        <p class="text-body-md text-on-surface pl-7 font-bold">${activeMsg}</p>
+        <div class="pl-7 mt-1 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <span class="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">info</span>
+            <span>${notFoundText}</span>
+          </span>
+          <button onclick="confirmPerformMissingGesture('${safeAttr}')" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold shadow-xs hover:bg-primary/90 transition-colors cursor-pointer shrink-0 flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">videocam</span>
+            <span>${yesBtnText}</span>
+          </button>
+        </div>
+      `;
+    }
     feed.appendChild(msgDiv);
     feed.scrollTop = feed.scrollHeight;
   }
 
-  // Display Upper Master Gesture + Below 3D 21-Landmark Hand Model
+  // Display Upper Master Gesture + Below 3D 21-Landmark Hand Model (or Missing Gesture Prompt)
   showMasterGestureAnd3D(text);
 
   textarea.value = '';
@@ -1854,6 +2450,11 @@ async function toggleLiveCamera() {
         chatMasterCaption.classList.add('hidden');
         chatMasterCaption.classList.remove('flex');
       }
+      const chatMissingOverlay = document.getElementById('chat-missing-gesture-overlay');
+      if (chatMissingOverlay) {
+        chatMissingOverlay.classList.add('hidden');
+        chatMissingOverlay.classList.remove('flex');
+      }
       if (standby) standby.classList.add('hidden');
       if (upperLabel) upperLabel.textContent = 'Upper: Sign User Live Camera (ISL Reply)';
 
@@ -2011,6 +2612,74 @@ function sendSignUserLiveReply(textEn, textKn, confPct) {
 }
 window.sendSignUserLiveReply = sendSignUserLiveReply;
 
+function showChatMissingGesturePrompt(gestureText) {
+  const cleanGesture = (gestureText || '').trim();
+  state.pendingMissingGesture = cleanGesture;
+
+  const standby = document.getElementById('chat-camera-standby');
+  const upperLabel = document.getElementById('chat-upper-frame-label');
+  const chatMasterImg = document.getElementById('chat-master-img');
+  const chatMasterVideo = document.getElementById('chat-master-video');
+  const chatMasterCaption = document.getElementById('chat-master-caption');
+  const chatMissingOverlay = document.getElementById('chat-missing-gesture-overlay');
+  const titleEl = document.getElementById('chat-missing-gesture-title');
+  const descEl = document.getElementById('chat-missing-gesture-desc');
+  const badgeEl = document.getElementById('chat-missing-gesture-badge');
+  const yesLabelEl = document.getElementById('chat-missing-yes-label');
+  const noLabelEl = document.getElementById('chat-missing-no-label');
+
+  if (standby) standby.classList.add('hidden');
+  if (upperLabel) {
+    upperLabel.textContent = state.currentLang === 'kn' ? 'ಈ ಸೈನ್ ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ' : 'Gesture Not in Dataset';
+  }
+  if (chatMasterImg) chatMasterImg.classList.add('hidden');
+  if (chatMasterVideo) {
+    chatMasterVideo.pause();
+    chatMasterVideo.classList.add('hidden');
+  }
+  if (chatMasterCaption) {
+    chatMasterCaption.classList.add('hidden');
+    chatMasterCaption.classList.remove('flex');
+  }
+  if (state.chatViewer) {
+    state.chatViewer.pause();
+  }
+
+  if (state.currentLang === 'kn') {
+    if (badgeEl) badgeEl.textContent = 'ಈ ಸೈನ್ ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ';
+    if (titleEl) titleEl.textContent = `"${cleanGesture}" ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ`;
+    if (descEl) descEl.textContent = 'ಇದಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಿ ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಉಳಿಸಲು ಬಯಸುವಿರಾ?';
+    if (yesLabelEl) yesLabelEl.textContent = 'ಹೌದು, ಸೈನ್ ಮಾಡಿ';
+    if (noLabelEl) noLabelEl.textContent = 'ಇಲ್ಲ';
+  } else {
+    if (badgeEl) badgeEl.textContent = 'Gesture Not in Dataset';
+    if (titleEl) titleEl.textContent = `"${cleanGesture}" is not in the dataset`;
+    if (descEl) descEl.textContent = 'Do you want to perform the gesture for this and save it in the database?';
+    if (yesLabelEl) yesLabelEl.textContent = 'Yes, Perform Gesture';
+    if (noLabelEl) noLabelEl.textContent = 'No';
+  }
+
+  if (chatMissingOverlay) {
+    chatMissingOverlay.classList.remove('hidden');
+    chatMissingOverlay.classList.add('flex');
+  }
+}
+window.showChatMissingGesturePrompt = showChatMissingGesturePrompt;
+
+function dismissChatMissingGesturePrompt() {
+  state.pendingMissingGesture = null;
+  const chatMissingOverlay = document.getElementById('chat-missing-gesture-overlay');
+  const standby = document.getElementById('chat-camera-standby');
+  const upperLabel = document.getElementById('chat-upper-frame-label');
+  if (chatMissingOverlay) {
+    chatMissingOverlay.classList.add('hidden');
+    chatMissingOverlay.classList.remove('flex');
+  }
+  if (standby) standby.classList.remove('hidden');
+  if (upperLabel) upperLabel.textContent = 'Upper: Master Signer Gesture';
+}
+window.dismissChatMissingGesturePrompt = dismissChatMissingGesturePrompt;
+
 async function showChatMasterGestureAnd3D(text) {
   if (!text) return;
 
@@ -2019,8 +2688,32 @@ async function showChatMasterGestureAnd3D(text) {
     await toggleLiveCamera();
   }
 
-  const { cleanId, signKey, knMeaning } = resolveTrainedGesture(text);
+  let resolved = resolveTrainedGesture(text);
+  if (!resolved.found) {
+    await syncDatasetGestures();
+    resolved = resolveTrainedGesture(text);
+  }
+
+  if (!resolved.found) {
+    showChatMissingGesturePrompt(resolved.rawText || text);
+    return;
+  }
+
+  const { cleanId, signKey, knMeaning } = resolved;
   const activeTitle = state.currentLang === 'kn' ? knMeaning : signKey;
+
+  let sample = null;
+  try {
+    const res = await fetch(`/api/gestures/${encodeURIComponent(cleanId)}/master-sample`);
+    if (res.ok) {
+      sample = await res.json();
+    } else if (res.status === 404) {
+      showChatMissingGesturePrompt(resolved.rawText || text);
+      return;
+    }
+  } catch (e) {
+    console.warn('[Live Chat] Master sample fetch notice:', e);
+  }
 
   const standby = document.getElementById('chat-camera-standby');
   const upperLabel = document.getElementById('chat-upper-frame-label');
@@ -2029,47 +2722,51 @@ async function showChatMasterGestureAnd3D(text) {
   const chatMasterCaption = document.getElementById('chat-master-caption');
   const chatMasterTitle = document.getElementById('chat-master-title');
   const chatMasterSigner = document.getElementById('chat-master-signer');
+  const chatMissingOverlay = document.getElementById('chat-missing-gesture-overlay');
 
+  if (chatMissingOverlay) {
+    chatMissingOverlay.classList.add('hidden');
+    chatMissingOverlay.classList.remove('flex');
+  }
   if (standby) standby.classList.add('hidden');
   if (upperLabel) upperLabel.textContent = 'Upper: Master Signer Gesture';
   if (chatMasterTitle) {
     chatMasterTitle.textContent = activeTitle;
   }
 
-  try {
-    const res = await fetch(`/api/gestures/${encodeURIComponent(cleanId)}/master-sample`);
-    if (res.ok) {
-      const sample = await res.json();
-      if (chatMasterSigner && sample.signer_id) {
-        chatMasterSigner.textContent = `Signer: ${sample.signer_id} (Master)`;
+  if (sample) {
+    if (chatMasterSigner && sample.signer_id) {
+      chatMasterSigner.textContent = `Signer: ${sample.signer_id} (Master)`;
+    }
+    if (sample.stored_file_path && sample.stored_file_path !== 'landmarks_only') {
+      const mediaUrl = `/${sample.stored_file_path.replace(/^\/+/, '')}`;
+      const isVideo = /\.(webm|mp4|mov|mkv)$/i.test(sample.stored_file_path);
+
+      if (chatMasterCaption) {
+        chatMasterCaption.classList.remove('hidden');
+        chatMasterCaption.classList.add('flex');
       }
-      if (sample && sample.stored_file_path && sample.stored_file_path !== 'landmarks_only') {
-        const mediaUrl = `/${sample.stored_file_path.replace(/^\/+/, '')}`;
-        const isVideo = /\.(webm|mp4|mov|mkv)$/i.test(sample.stored_file_path);
 
-        if (chatMasterCaption) {
-          chatMasterCaption.classList.remove('hidden');
-          chatMasterCaption.classList.add('flex');
+      if (isVideo && chatMasterVideo) {
+        if (chatMasterImg) chatMasterImg.classList.add('hidden');
+        const rate = Math.max(0.1, Math.min(2.0, state.playbackSpeed || 1.0));
+        chatMasterVideo.src = mediaUrl;
+        chatMasterVideo.classList.remove('hidden');
+        chatMasterVideo.onloadedmetadata = () => {
+          try { chatMasterVideo.playbackRate = rate; } catch (e) {}
+        };
+        chatMasterVideo.load();
+        try { chatMasterVideo.playbackRate = rate; } catch (e) {}
+        chatMasterVideo.play().catch(() => {});
+      } else if (chatMasterImg) {
+        if (chatMasterVideo) {
+          chatMasterVideo.pause();
+          chatMasterVideo.classList.add('hidden');
         }
-
-        if (isVideo && chatMasterVideo) {
-          if (chatMasterImg) chatMasterImg.classList.add('hidden');
-          chatMasterVideo.src = mediaUrl;
-          chatMasterVideo.classList.remove('hidden');
-          chatMasterVideo.load();
-          chatMasterVideo.play().catch(() => {});
-        } else if (chatMasterImg) {
-          if (chatMasterVideo) {
-            chatMasterVideo.pause();
-            chatMasterVideo.classList.add('hidden');
-          }
-          chatMasterImg.src = mediaUrl;
-          chatMasterImg.classList.remove('hidden');
-        }
+        chatMasterImg.src = mediaUrl;
+        chatMasterImg.classList.remove('hidden');
       }
     }
-  } catch (e) {
-    console.warn('[Live Chat] Master sample fetch notice:', e);
   }
 
   initChat3DViewer();
@@ -2083,10 +2780,12 @@ function sendLiveMessage() {
   const input = document.getElementById('live-chat-input');
   if (!input || !input.value.trim()) return;
   const text = input.value.trim();
-  const { knMeaning } = resolveTrainedGesture(text);
-  const activeMsg = state.currentLang === 'kn' ? knMeaning : text;
+  const resolved = resolveTrainedGesture(text);
+  const activeMsg = resolved.found
+    ? (state.currentLang === 'kn' ? resolved.knMeaning : text)
+    : text;
 
-  // Generate voice output (TTS) strictly in the active system language
+  // Generate voice output (TTS) immediately for zero-latency audio
   if (!state.isAudioMuted) {
     speakText(activeMsg);
   }
@@ -2100,26 +2799,55 @@ function sendLiveMessage() {
 
     const msg = document.createElement('div');
     msg.className = "flex flex-col gap-space-xs bg-surface/90 backdrop-blur-sm p-4 rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow animate-fade-in";
-    msg.innerHTML = `
-      <div class="flex items-center justify-between">
-        <div class="flex items-center gap-space-xs">
-          <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
-          <span class="text-label-md font-bold text-on-surface">Normal User</span>
+
+    if (resolved.found) {
+      msg.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-space-xs">
+            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
+            <span class="text-label-md font-bold text-on-surface">Normal User</span>
+          </div>
+          <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
         </div>
-        <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
-      </div>
-      <p class="text-body-md text-on-surface pl-7 font-bold">${activeMsg}</p>
-      <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
-        <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
-          <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D ISL Avatar Output
-        </span>
-      </div>
-    `;
+        <p class="text-body-md text-on-surface pl-7 font-bold">${activeMsg}</p>
+        <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
+          <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
+            <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D ISL Avatar Output
+          </span>
+        </div>
+      `;
+    } else {
+      const safeAttr = text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const notFoundText = state.currentLang === 'kn'
+        ? 'ಈ ಸೈನ್ ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ. ಇದಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಲು ಬಯಸುವಿರಾ?'
+        : 'This gesture is not in the dataset. Do you want to perform the gesture for this?';
+      const yesBtnText = state.currentLang === 'kn' ? 'ಹೌದು, ಸೈನ್ ಮಾಡಿ' : 'Yes, Perform Gesture';
+      msg.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-space-xs">
+            <div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary text-[12px] font-bold shadow-xs">U</div>
+            <span class="text-label-md font-bold text-on-surface">Normal User</span>
+          </div>
+          <span class="text-label-sm text-on-surface-variant font-medium">${timeStr}</span>
+        </div>
+        <p class="text-body-md text-on-surface pl-7 font-bold">${activeMsg}</p>
+        <div class="pl-7 mt-1 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <span class="text-xs font-semibold text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-[16px]">info</span>
+            <span>${notFoundText}</span>
+          </span>
+          <button onclick="confirmPerformMissingGesture('${safeAttr}')" class="px-3 py-1.5 rounded-lg bg-primary text-on-primary text-xs font-bold shadow-xs hover:bg-primary/90 transition-colors cursor-pointer shrink-0 flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">videocam</span>
+            <span>${yesBtnText}</span>
+          </button>
+        </div>
+      `;
+    }
     feed.appendChild(msg);
     feed.scrollTop = feed.scrollHeight;
   }
 
-  // Always show Upper Master Signer Gesture in the camera display + Below 3D ISL Avatar
+  // Show Upper Master Signer Gesture + Below 3D ISL Avatar (or Missing Gesture Prompt if not in dataset)
   showChatMasterGestureAnd3D(text);
 
   input.value = '';
@@ -2165,6 +2893,8 @@ window.switchHiwMode = switchHiwMode;
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Theme preference (Dark / Light Mode)
   initTheme();
+  preloadSpeechVoices();
+  syncDatasetGestures();
 
   // Check initial hash
   const initialHash = window.location.hash.replace('#', '') || 'home';
@@ -2213,6 +2943,16 @@ document.addEventListener('DOMContentLoaded', () => {
         sendManualMessage();
       }
     });
+  }
+
+  // Automatically translate any newly inserted DOM elements when Kannada mode is active
+  if (typeof MutationObserver !== 'undefined' && document.body) {
+    const langObserver = new MutationObserver(() => {
+      if (state.currentLang === 'kn' && !isTranslatingDOM) {
+        applyFullPageTranslation('kn');
+      }
+    });
+    langObserver.observe(document.body, { childList: true, subtree: true });
   }
 
   console.log("ISL Connect User Application Initialized successfully.");
