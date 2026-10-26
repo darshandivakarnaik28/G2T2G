@@ -1241,7 +1241,7 @@ class ISL3DAvatarViewer {
     this.scene.background = new THREE.Color(0x0d1322);
 
     this.camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
-    this.camera.position.set(0, 5, 26);
+    this.camera.position.set(0, 0, 24);
 
     this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     this.renderer.setSize(width, height);
@@ -1259,15 +1259,15 @@ class ISL3DAvatarViewer {
       this.controls.minDistance = 10;
     }
 
-    // Lighting
-    const ambient = new THREE.AmbientLight(0xffffff, 0.7);
+    // Clean neutral studio lighting so the skeleton structure is sharp and NOT washed in green
+    const ambient = new THREE.AmbientLight(0xffffff, 0.85);
     this.scene.add(ambient);
 
-    const dirLight1 = new THREE.DirectionalLight(0x89f5e7, 1.4);
+    const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.2);
     dirLight1.position.set(15, 25, 20);
     this.scene.add(dirLight1);
 
-    const dirLight2 = new THREE.DirectionalLight(0xb4c5ff, 0.9);
+    const dirLight2 = new THREE.DirectionalLight(0x93c5fd, 0.65);
     dirLight2.position.set(-15, -10, -10);
     this.scene.add(dirLight2);
 
@@ -1297,26 +1297,49 @@ class ISL3DAvatarViewer {
     this.handGroup = new THREE.Group();
     this.scene.add(this.handGroup);
 
-    // 21 Landmark Joint Spheres Material: High-tech teal glowing joint
+    // Sleek small joint materials (NO solid green; clean crisp luminous pearl & electric blue)
     const jointMaterial = new THREE.MeshStandardMaterial({
-      color: 0x89f5e7,
-      emissive: 0x005049,
-      roughness: 0.2,
-      metalness: 0.6
+      color: 0xf8fafc,
+      emissive: 0x38bdf8,
+      emissiveIntensity: 0.5,
+      roughness: 0.15,
+      metalness: 0.8
     });
 
-    // Bone Cylinder Material: Deep indigo-navy articulated links
+    const fingertipMaterial = new THREE.MeshStandardMaterial({
+      color: 0xfbbf24,
+      emissive: 0xd97706,
+      emissiveIntensity: 0.45,
+      roughness: 0.2,
+      metalness: 0.7
+    });
+
+    const wristMaterial = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.5,
+      roughness: 0.2,
+      metalness: 0.8
+    });
+
+    // Bone Cylinder Material: High-definition articulated electric cyan/blue skeleton
     const boneMaterial = new THREE.MeshStandardMaterial({
-      color: 0x3b82f6,
-      roughness: 0.4,
+      color: 0x2563eb,
+      emissive: 0x1d4ed8,
+      emissiveIntensity: 0.35,
+      roughness: 0.25,
       metalness: 0.5
     });
 
-    const jointGeo = new THREE.SphereGeometry(0.35, 16, 16);
+    // Much smaller joint nodes so the skeleton lines are the prominent hero
+    const wristGeo = new THREE.SphereGeometry(0.14, 16, 16);
+    const knuckleGeo = new THREE.SphereGeometry(0.10, 16, 16);
+    const midJointGeo = new THREE.SphereGeometry(0.08, 16, 16);
+    const tipJointGeo = new THREE.SphereGeometry(0.10, 16, 16);
 
     // Initial 21 joint landmark coordinates
     this.defaultCoords = [
-      [0, -4, 0],       // 0: Wrist
+      [0, -4, 0],        // 0: Wrist
       [-1.8, -2.5, 0.2], // 1: Thumb CMC
       [-2.8, -1.0, 0.4], // 2: Thumb MCP
       [-3.4, 0.5, 0.6],  // 3: Thumb IP
@@ -1339,10 +1362,25 @@ class ISL3DAvatarViewer {
       [2.9, 3.3, 0.3]    // 20: Pinky TIP
     ];
 
+    const isTip = (i) => i === 4 || i === 8 || i === 12 || i === 16 || i === 20;
+    const isKnuckle = (i) => i === 1 || i === 5 || i === 9 || i === 13 || i === 17;
+    const isWrist = (i) => i === 0;
+
     // Create 21 joints
     this.joints = [];
     this.defaultCoords.forEach((coord, i) => {
-      const mesh = new THREE.Mesh(jointGeo, jointMaterial);
+      let geo = midJointGeo;
+      let mat = jointMaterial;
+      if (isWrist(i)) {
+        geo = wristGeo;
+        mat = wristMaterial;
+      } else if (isTip(i)) {
+        geo = tipJointGeo;
+        mat = fingertipMaterial;
+      } else if (isKnuckle(i)) {
+        geo = knuckleGeo;
+      }
+      const mesh = new THREE.Mesh(geo, mat);
       mesh.position.set(coord[0], coord[1], coord[2]);
       this.handGroup.add(mesh);
       this.joints.push(mesh);
@@ -1359,7 +1397,7 @@ class ISL3DAvatarViewer {
     ];
 
     this.bones = [];
-    const boneGeo = new THREE.CylinderGeometry(0.16, 0.16, 1, 8);
+    const boneGeo = new THREE.CylinderGeometry(0.08, 0.08, 1, 12);
 
     this.connections.forEach(([p1, p2]) => {
       const boneMesh = new THREE.Mesh(boneGeo, boneMaterial);
@@ -1367,14 +1405,14 @@ class ISL3DAvatarViewer {
       this.bones.push({ mesh: boneMesh, p1, p2 });
     });
 
-    // Build second hand group for 2-handed ISL dynamic gestures
+    // Hide second hand group permanently - focus strictly on ONE single skeleton
     this.secondHandGroup = new THREE.Group();
     this.secondHandGroup.visible = false;
     this.scene.add(this.secondHandGroup);
 
     this.secondJoints = [];
     this.defaultCoords.forEach((coord) => {
-      const mesh = new THREE.Mesh(jointGeo, jointMaterial);
+      const mesh = new THREE.Mesh(midJointGeo, jointMaterial);
       mesh.position.set(coord[0], coord[1], coord[2]);
       this.secondHandGroup.add(mesh);
       this.secondJoints.push(mesh);
@@ -1443,31 +1481,43 @@ class ISL3DAvatarViewer {
     this.updateBones();
   }
 
-  // Ready hook for trained ML model prediction stream (21 landmark points, optional second hand)
+  // Ready hook for trained ML model prediction stream - focuses on ONE single crisp skeleton
   setLandmarks(landmarks, secondLandmarks = null) {
     if (!landmarks || !landmarks.length) return;
-    landmarks.forEach((pt, i) => {
-      if (this.joints[i]) {
-        const x = pt.x !== undefined ? (pt.x - 0.5) * 14 : ((pt[0] !== undefined ? pt[0] - 0.5 : 0) * 14);
-        const y = pt.y !== undefined ? (0.5 - pt.y) * 14 : ((pt[1] !== undefined ? 0.5 - pt[1] : 0) * 14);
-        const z = pt.z !== undefined ? -pt.z * 14 : (-(pt[2] || 0) * 14);
-        this.joints[i].position.set(x, y, z);
-      }
-    });
 
-    if (this.secondHandGroup && this.secondJoints) {
-      if (secondLandmarks && secondLandmarks.length >= 21) {
-        this.secondHandGroup.visible = true;
-        secondLandmarks.forEach((pt, i) => {
-          if (this.secondJoints[i]) {
-            const x = pt.x !== undefined ? (pt.x - 0.5) * 14 : ((pt[0] !== undefined ? pt[0] - 0.5 : 0) * 14);
-            const y = pt.y !== undefined ? (0.5 - pt.y) * 14 : ((pt[1] !== undefined ? 0.5 - pt[1] : 0) * 14);
-            const z = pt.z !== undefined ? -pt.z * 14 : (-(pt[2] || 0) * 14);
-            this.secondJoints[i].position.set(x, y, z);
-          }
-        });
-      } else {
-        this.secondHandGroup.visible = false;
+    // Enforce strictly ONE skeleton: keep secondHandGroup hidden
+    if (this.secondHandGroup) {
+      this.secondHandGroup.visible = false;
+    }
+
+    const count = Math.min(landmarks.length, 21);
+
+    // Calculate centroid of the hand landmarks so the single skeleton is centered directly in view
+    let sumX = 0, sumY = 0, sumZ = 0;
+    for (let i = 0; i < count; i++) {
+      const pt = landmarks[i];
+      sumX += (pt.x !== undefined ? pt.x : (pt[0] || 0));
+      sumY += (pt.y !== undefined ? pt.y : (pt[1] || 0));
+      sumZ += (pt.z !== undefined ? pt.z : (pt[2] || 0));
+    }
+    const cx = sumX / count;
+    const cy = sumY / count;
+    const cz = sumZ / count;
+
+    // Centered scaling factor for optimal visibility and clarity
+    const scale = 20.0;
+    for (let i = 0; i < count; i++) {
+      if (this.joints[i]) {
+        const pt = landmarks[i];
+        const rawX = pt.x !== undefined ? pt.x : (pt[0] || 0);
+        const rawY = pt.y !== undefined ? pt.y : (pt[1] || 0);
+        const rawZ = pt.z !== undefined ? pt.z : (pt[2] || 0);
+
+        // Center hand directly at origin (0, 0, 0)
+        const x = (rawX - cx) * scale;
+        const y = (cy - rawY) * scale; // Inverted Y: 0 is top of video, 1 is bottom
+        const z = (rawZ - cz) * scale * -0.8;
+        this.joints[i].position.set(x, y, z);
       }
     }
 
@@ -1506,12 +1556,20 @@ class ISL3DAvatarViewer {
     const leftInterp = this.interpolateHandPoints(frameA.left_hand_landmarks, targetB.left_hand_landmarks, alpha);
     const rightInterp = this.interpolateHandPoints(frameA.right_hand_landmarks, targetB.right_hand_landmarks, alpha);
 
-    if (leftInterp && rightInterp) {
-      this.setLandmarks(leftInterp, rightInterp);
-    } else if (leftInterp) {
-      this.setLandmarks(leftInterp, null);
-    } else if (rightInterp) {
-      this.setLandmarks(rightInterp, null);
+    // Focus strictly on ONE single skeleton to prevent confusion and visual clutter
+    let singleHand = null;
+    if (rightInterp && rightInterp.length >= 21) {
+      singleHand = rightInterp;
+    } else if (leftInterp && leftInterp.length >= 21) {
+      singleHand = leftInterp;
+    } else if (rightInterp && rightInterp.length > 0) {
+      singleHand = rightInterp;
+    } else if (leftInterp && leftInterp.length > 0) {
+      singleHand = leftInterp;
+    }
+
+    if (singleHand) {
+      this.setLandmarks(singleHand, null);
     }
   }
 
@@ -1575,10 +1633,11 @@ class ISL3DAvatarViewer {
 
   resetCamera() {
     if (this.camera) {
-      this.camera.position.set(0, 5, 26);
+      this.camera.position.set(0, 0, 24);
       this.camera.lookAt(0, 0, 0);
     }
     if (this.controls) {
+      this.controls.target.set(0, 0, 0);
       this.controls.reset();
     }
   }
