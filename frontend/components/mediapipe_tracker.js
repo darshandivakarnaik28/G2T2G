@@ -56,9 +56,9 @@ export class MediaPipeTracker {
     });
     this.hands.setOptions({
       maxNumHands: 2,
-      modelComplexity: 1,
-      minDetectionConfidence: 0.5,
-      minTrackingConfidence: 0.5
+      modelComplexity: 0,
+      minDetectionConfidence: 0.35,
+      minTrackingConfidence: 0.35
     });
     this.hands.onResults((results) => this.handleResults(results));
   }

@@ -175,8 +175,11 @@ function navigateTo(viewName) {
   }
 
   // Manage camera cleanup if navigating away from camera views
-  if (viewName !== 'sign' && viewName !== 'chat' && state.cameraStream) {
-    // Keep camera active only if requested, or pause tracks to save power
+  if (viewName !== 'sign' && state.isCameraActiveSign) {
+    toggleSignCamera();
+  }
+  if (viewName !== 'chat' && state.isCameraActiveLive) {
+    toggleLiveCamera();
   }
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -662,21 +665,50 @@ function preloadSpeechVoices() {
 }
 preloadSpeechVoices();
 
-function pickFastVoice(langCode) {
+function pickFemaleVoice(langCode) {
   if (!cachedSpeechVoices || cachedSpeechVoices.length === 0) {
     if ('speechSynthesis' in window) {
       cachedSpeechVoices = window.speechSynthesis.getVoices() || [];
     }
   }
-  const prefix = langCode.split('-')[0].toLowerCase();
-  // Prefer local OS voice (localService: true) for zero-latency offline synthesis
-  const exactLocal = cachedSpeechVoices.find(v => v.localService && v.lang && v.lang.toLowerCase() === langCode.toLowerCase());
-  if (exactLocal) return exactLocal;
-  const prefixLocal = cachedSpeechVoices.find(v => v.localService && v.lang && v.lang.toLowerCase().startsWith(prefix));
-  if (prefixLocal) return prefixLocal;
-  const exactAny = cachedSpeechVoices.find(v => v.lang && v.lang.toLowerCase() === langCode.toLowerCase());
-  if (exactAny) return exactAny;
-  return cachedSpeechVoices.find(v => v.lang && v.lang.toLowerCase().startsWith(prefix)) || null;
+  if (!cachedSpeechVoices || cachedSpeechVoices.length === 0) return null;
+
+  const targetLang = (langCode || 'en-IN').toLowerCase();
+  const prefix = targetLang.split('-')[0];
+
+  // Identifiers for natural female / young female / girl voices across Windows, Chrome, Android, Mac, iOS
+  const femaleVoiceKeywords = [
+    'zira', 'female', 'girl', 'google us english', 'google uk english female',
+    'heera', 'neerja', 'kavya', 'priya', 'sangeeta', 'swara', 'samantha',
+    'victoria', 'karen', 'moira', 'tessa', 'fiona', 'veena', 'en-us-x-sfg', 'woman'
+  ];
+  const maleVoiceKeywords = ['david', 'male', 'mark', 'george', 'guy', 'ravi', 'stefan', 'prabhat', 'man', 'richard'];
+
+  const langVoices = cachedSpeechVoices.filter(v => v.lang && v.lang.toLowerCase().startsWith(prefix));
+  const pool = langVoices.length > 0 ? langVoices : cachedSpeechVoices;
+
+  // 1. Highest Priority: Explicit female / girl voice in matching language
+  const femaleLangVoice = pool.find(v => {
+    const name = (v.name || '').toLowerCase();
+    return femaleVoiceKeywords.some(kw => name.includes(kw));
+  });
+  if (femaleLangVoice) return femaleLangVoice;
+
+  // 2. Second Priority: Any voice in language pool that is NOT a male voice
+  const nonMaleLangVoice = pool.find(v => {
+    const name = (v.name || '').toLowerCase();
+    return !maleVoiceKeywords.some(kw => name.includes(kw));
+  });
+  if (nonMaleLangVoice) return nonMaleLangVoice;
+
+  // 3. Fallback: Any female voice anywhere in system
+  const anyFemale = cachedSpeechVoices.find(v => {
+    const name = (v.name || '').toLowerCase();
+    return femaleVoiceKeywords.some(kw => name.includes(kw));
+  });
+  if (anyFemale) return anyFemale;
+
+  return null; // Return null so browser falls back to its natural default female synthesizer
 }
 
 function speakText(text) {
@@ -692,15 +724,15 @@ function speakText(text) {
       .trim();
     if (!cleanSpeech) cleanSpeech = String(text).trim();
 
-    // Short 350ms guard only to prevent double-firing from the same click/key event
+    // Short 300ms guard to prevent double-firing from duplicate events
     const now = Date.now();
-    if (state.lastSpokenText === cleanSpeech && (now - (state.lastSpokenTime || 0)) < 350) {
+    if (state.lastSpokenText === cleanSpeech && (now - (state.lastSpokenTime || 0)) < 300) {
       return;
     }
     state.lastSpokenText = cleanSpeech;
     state.lastSpokenTime = now;
 
-    // Only cancel if currently speaking — avoids Windows/Chrome SAPI5 1-second reset delay when idle
+    // Only cancel if actively speaking
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
@@ -711,12 +743,13 @@ function speakText(text) {
     const targetLang = state.currentLang === 'kn' ? 'kn-IN' : 'en-IN';
     const utterance = new SpeechSynthesisUtterance(cleanSpeech);
     utterance.lang = targetLang;
-    const preferredVoice = pickFastVoice(targetLang);
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
+    const femaleVoice = pickFemaleVoice(targetLang);
+    if (femaleVoice) {
+      utterance.voice = femaleVoice;
     }
-    utterance.rate = 1.05;
-    utterance.pitch = 1.0;
+    // Rate 1.0 and Pitch 1.15 to guarantee the clear, bright young girl voice
+    utterance.rate = 1.0;
+    utterance.pitch = 1.15;
     window.speechSynthesis.speak(utterance);
   }
 }
@@ -2007,16 +2040,28 @@ function initMediaPipeHands() {
     locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
   });
 
+  // Fast real-time configuration: complexity 0 for instant frame tracking and rapid hand recognition
   hands.setOptions({
     maxNumHands: 2,
-    modelComplexity: 1,
-    minDetectionConfidence: 0.5,
-    minTrackingConfidence: 0.5
+    modelComplexity: 0,
+    minDetectionConfidence: 0.35,
+    minTrackingConfidence: 0.35
   });
 
   hands.onResults(onHandTrackingResults);
   mediaPipeHandsInstance = hands;
   return hands;
+}
+
+function preloadMediaPipeHands() {
+  if (typeof Hands !== 'undefined') {
+    try {
+      const h = initMediaPipeHands();
+      if (h && typeof h.initialize === 'function') {
+        h.initialize().catch(() => {});
+      }
+    } catch (e) {}
+  }
 }
 
 function onHandTrackingResults(results) {
@@ -2043,8 +2088,10 @@ function onHandTrackingResults(results) {
     state.lastPredictedGesture = null;
     state.consecutiveMatchCount = 0;
     state.lastCommittedGesture = null;
-    if (badgeLeft) badgeLeft.textContent = "Searching for hands...";
-    if (badgeRight) badgeRight.textContent = isLiveChat ? "Perform Sign to Reply" : "--";
+    if (badgeLeft) {
+      badgeLeft.textContent = state.currentLang === 'kn' ? "ಕೈಗಳಿಗಾಗಿ ಹುಡುಕುತ್ತಿದೆ..." : "Searching for hands...";
+    }
+    if (badgeRight) badgeRight.textContent = isLiveChat ? (state.currentLang === 'kn' ? "ಸೈನ್ ಮಾಡಿ" : "Perform Sign to Reply") : "--";
     if (!isLiveChat) {
       if (handsCountBadge) handsCountBadge.textContent = "0 Hands";
       if (handednessBadge) handednessBadge.textContent = "No Hands Detected";
@@ -2175,8 +2222,9 @@ function onHandTrackingResults(results) {
     state.mlFrameBuffer.shift();
   }
 
+  // Fast inference: poll every 200ms instead of 420ms for instant hand sign recognition
   const now = Date.now();
-  if (!state.mlPredictInFlight && (now - state.lastMlPredictTime >= 420) && state.mlFrameBuffer.length >= 2) {
+  if (!state.mlPredictInFlight && (now - state.lastMlPredictTime >= 200) && state.mlFrameBuffer.length >= 2) {
     state.mlPredictInFlight = true;
     state.lastMlPredictTime = now;
     const framesSnapshot = state.mlFrameBuffer.slice();
@@ -2204,13 +2252,13 @@ function onHandTrackingResults(results) {
 
         if (!isLiveChat) {
           const recognizedEl = document.getElementById('recognized-text');
-          if (recognizedEl && pred.confidence >= 0.45) {
+          if (recognizedEl && pred.confidence >= 0.40) {
             recognizedEl.innerText = `${activeLabel} [${typeTag} ${confPct}]`;
           }
         }
 
-        // Auto-commit high-confidence stabilized predictions to conversation feed
-        if (pred.confidence >= 0.70) {
+        // Fast auto-commit: Instant on confidence >= 0.75, 2 matches for >= 0.60
+        if (pred.confidence >= 0.60) {
           if (state.lastPredictedGesture === pred.gesture_id) {
             state.consecutiveMatchCount += 1;
           } else {
@@ -2218,8 +2266,9 @@ function onHandTrackingResults(results) {
             state.consecutiveMatchCount = 1;
           }
 
+          const requiredMatches = pred.confidence >= 0.75 ? 1 : 2;
           if (
-            state.consecutiveMatchCount >= 2 &&
+            state.consecutiveMatchCount >= requiredMatches &&
             state.lastCommittedGesture !== pred.gesture_id
           ) {
             state.lastCommittedGesture = pred.gesture_id;
@@ -2253,8 +2302,9 @@ async function toggleSignCamera() {
 
   if (state.isCameraActiveSign) {
     try {
+      // 640x480 resolution for lightning-fast 60fps tracking with zero latency
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720, facingMode: 'user' }
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
       });
       state.cameraStream = stream;
       if (video) {
@@ -2266,6 +2316,7 @@ async function toggleSignCamera() {
       if (badgeLeft) {
         badgeLeft.classList.remove('hidden');
         badgeLeft.classList.add('flex');
+        badgeLeft.textContent = state.currentLang === 'kn' ? 'ಕೈಗಳಿಗಾಗಿ ಹುಡುಕುತ್ತಿದೆ...' : 'Searching for hands...';
       }
       if (badgeRight) {
         badgeRight.classList.remove('hidden');
@@ -2281,14 +2332,17 @@ async function toggleSignCamera() {
       // Initialize real MediaPipe Hands detection
       const hands = initMediaPipeHands();
       if (hands && typeof Camera !== 'undefined' && video) {
+        if (mediaPipeCameraInstance) {
+          try { mediaPipeCameraInstance.stop(); } catch(e) {}
+        }
         mediaPipeCameraInstance = new Camera(video, {
           onFrame: async () => {
             if (state.isCameraActiveSign && video.readyState >= 2) {
               await hands.send({ image: video });
             }
           },
-          width: 1280,
-          height: 720
+          width: 640,
+          height: 480
         });
         await mediaPipeCameraInstance.start();
       } else {
@@ -2467,7 +2521,7 @@ async function toggleLiveCamera() {
       if (upperLabel) upperLabel.textContent = 'Upper: Sign User Live Camera (ISL Reply)';
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720, facingMode: 'user' }
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
       });
       state.cameraStream = stream;
 
@@ -2505,8 +2559,8 @@ async function toggleLiveCamera() {
               await hands.send({ image: video });
             }
           },
-          width: 1280,
-          height: 720
+          width: 640,
+          height: 480
         });
         await mediaPipeCameraInstance.start();
       } else {
@@ -2910,7 +2964,20 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Theme preference (Dark / Light Mode)
   initTheme();
   preloadSpeechVoices();
+  preloadMediaPipeHands();
   syncDatasetGestures();
+
+  // Automatically turn off camera whenever the user switches to another tab or minimizes browser
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (state.isCameraActiveSign) {
+        toggleSignCamera();
+      }
+      if (state.isCameraActiveLive) {
+        toggleLiveCamera();
+      }
+    }
+  });
 
   // Check initial hash
   const initialHash = window.location.hash.replace('#', '') || 'home';

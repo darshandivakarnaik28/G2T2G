@@ -133,8 +133,6 @@ class App {
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) {
         this.tracker.stopCamera();
-      } else if (!document.hidden && this.activeView === "collection") {
-        this.handleCollectionGestureChange();
       }
     });
   }
