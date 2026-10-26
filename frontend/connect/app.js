@@ -32,7 +32,10 @@ const state = {
   consecutiveMatchCount: 0,
   lastCommittedGesture: null,
   lastCommittedTime: 0,
-  mlPredictionMode: 'auto' // 'auto' | 'static' | 'dynamic'
+  mlPredictionMode: 'auto', // 'auto' | 'static' | 'dynamic'
+  // Camera Warmup & First-Time Hand Stabilization State (Waits 5s after first hand detect)
+  firstHandDetectTime: 0,
+  isFirstHandStabilized: false
 };
 
 // Bilingual Dictionary for 45 Trained ISL Signs (27 Static + 18 Dynamic)
@@ -2147,6 +2150,9 @@ function onHandTrackingResults(results) {
     state.lastPredictedGesture = null;
     state.consecutiveMatchCount = 0;
     state.lastCommittedGesture = null;
+    if (!state.isFirstHandStabilized) {
+      state.firstHandDetectTime = 0;
+    }
     if (badgeLeft) {
       badgeLeft.textContent = state.currentLang === 'kn' ? "ಕೈಗಳಿಗಾಗಿ ಹುಡುಕುತ್ತಿದೆ..." : "Searching for hands...";
     }
@@ -2272,6 +2278,63 @@ function onHandTrackingResults(results) {
     }
   }
 
+  // --------------------------------------------------------------------------
+  // First-Time 5-Second Stabilization Guard
+  // (Prevents sudden false 'HELLO' prediction as hand is raised into frame)
+  // --------------------------------------------------------------------------
+  if (!state.isFirstHandStabilized) {
+    if (!state.firstHandDetectTime) {
+      state.firstHandDetectTime = Date.now();
+    }
+    const elapsed = Date.now() - state.firstHandDetectTime;
+    if (elapsed < 5000) {
+      const remainingSec = Math.max(1, Math.ceil((5000 - elapsed) / 1000));
+      const stabMsgEn = `Stabilizing Hand... Ready in ${remainingSec}s`;
+      const stabMsgKn = `ಕೈಯನ್ನು ಸಿದ್ಧಗೊಳಿಸಲಾಗುತ್ತಿದೆ... ${remainingSec}ಸೆ`;
+
+      if (badgeRight) {
+        badgeRight.textContent = state.currentLang === 'kn' ? `ಸಿದ್ಧತೆ: ${remainingSec}s` : `Ready in ${remainingSec}s`;
+      }
+      if (!isLiveChat) {
+        const recognizedEl = document.getElementById('recognized-text');
+        if (recognizedEl) {
+          recognizedEl.innerText = state.currentLang === 'kn' ? stabMsgKn : stabMsgEn;
+        }
+      } else {
+        const recOverlayText = document.querySelector('#chat-live-rec-overlay span.text-xs');
+        if (recOverlayText) {
+          recOverlayText.textContent = `REC - Ready in ${remainingSec}s`;
+        }
+      }
+
+      // Discard buffer frames during stabilization warmup to avoid false predictions
+      state.mlFrameBuffer = [];
+      state.lastPredictedGesture = null;
+      state.consecutiveMatchCount = 0;
+      state.lastCommittedGesture = null;
+      return;
+    } else {
+      // 5-second stabilization period completed!
+      state.isFirstHandStabilized = true;
+      state.mlFrameBuffer = [];
+      state.lastPredictedGesture = null;
+      state.consecutiveMatchCount = 0;
+      state.lastCommittedGesture = null;
+
+      if (!isLiveChat) {
+        const recognizedEl = document.getElementById('recognized-text');
+        if (recognizedEl) {
+          recognizedEl.innerText = state.currentLang === 'kn' ? "ಸಿದ್ಧವಾಗಿದೆ! ಸೈನ್ ಮಾಡಿ" : "Ready! Perform your sign";
+        }
+      } else {
+        const recOverlayText = document.querySelector('#chat-live-rec-overlay span.text-xs');
+        if (recOverlayText) {
+          recOverlayText.textContent = "REC - Live Hand Tracking";
+        }
+      }
+    }
+  }
+
   state.mlFrameBuffer.push({
     left_hand_landmarks: leftLandmarks,
     right_hand_landmarks: rightLandmarks,
@@ -2361,6 +2424,13 @@ async function toggleSignCamera() {
 
   if (state.isCameraActiveSign) {
     try {
+      state.firstHandDetectTime = 0;
+      state.isFirstHandStabilized = false;
+      state.mlFrameBuffer = [];
+      state.lastPredictedGesture = null;
+      state.consecutiveMatchCount = 0;
+      state.lastCommittedGesture = null;
+
       // 640x480 resolution for lightning-fast 60fps tracking with zero latency
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
@@ -2418,6 +2488,13 @@ async function toggleSignCamera() {
     }
   } else {
     // Teardown camera & hands
+    state.firstHandDetectTime = 0;
+    state.isFirstHandStabilized = false;
+    state.mlFrameBuffer = [];
+    state.lastPredictedGesture = null;
+    state.consecutiveMatchCount = 0;
+    state.lastCommittedGesture = null;
+
     if (mediaPipeCameraInstance) {
       try { mediaPipeCameraInstance.stop(); } catch(e) {}
       mediaPipeCameraInstance = null;
@@ -2603,9 +2680,12 @@ async function toggleLiveCamera() {
         btn.title = 'Stop Sign User Camera';
       }
 
+      state.firstHandDetectTime = 0;
+      state.isFirstHandStabilized = false;
       state.mlFrameBuffer = [];
       state.lastPredictedGesture = null;
       state.consecutiveMatchCount = 0;
+      state.lastCommittedGesture = null;
 
       const hands = initMediaPipeHands();
       if (hands && typeof Camera !== 'undefined' && video) {
@@ -2639,6 +2719,13 @@ async function toggleLiveCamera() {
     }
   } else {
     // Teardown Live Chat camera
+    state.firstHandDetectTime = 0;
+    state.isFirstHandStabilized = false;
+    state.mlFrameBuffer = [];
+    state.lastPredictedGesture = null;
+    state.consecutiveMatchCount = 0;
+    state.lastCommittedGesture = null;
+
     if (mediaPipeCameraInstance) {
       try { mediaPipeCameraInstance.stop(); } catch (e) {}
       mediaPipeCameraInstance = null;
@@ -3035,6 +3122,12 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.isCameraActiveLive) {
         toggleLiveCamera();
       }
+      state.firstHandDetectTime = 0;
+      state.isFirstHandStabilized = false;
+      state.mlFrameBuffer = [];
+      state.lastPredictedGesture = null;
+      state.consecutiveMatchCount = 0;
+      state.lastCommittedGesture = null;
     }
   });
 
