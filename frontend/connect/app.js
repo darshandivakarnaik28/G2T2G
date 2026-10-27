@@ -2162,6 +2162,7 @@ function onHandTrackingResults(results) {
     state.lastPredictedGesture = null;
     state.consecutiveMatchCount = 0;
     state.lastCommittedGesture = null;
+    state.mlFrameBuffer = [];
     if (!state.isFirstHandStabilized) {
       state.firstHandDetectTime = 0;
     }
@@ -2448,8 +2449,8 @@ function stageGesture(gestureId, displayName, knText, confPct) {
   const lastStaged = state.stagedGestures[state.stagedGestures.length - 1];
   const timeSinceLast = now - (state.lastStagedTime || 0);
 
-  // If user holds the same sign, prevent duplicate staging unless held > 2.0 seconds
-  if (lastStaged && lastStaged.id === gestureId && timeSinceLast < 2000) {
+  // If user holds the same sign, prevent duplicate staging unless held/re-signed after 1.5s
+  if (lastStaged && lastStaged.id === gestureId && timeSinceLast < 1500) {
     return;
   }
 
@@ -2516,6 +2517,7 @@ function commitStagedPhraseNow() {
   state.lastPredictedGesture = null;
   state.consecutiveMatchCount = 0;
   state.lastCommittedGesture = null;
+  state.mlFrameBuffer = [];
   updateStagedUI();
 
   // Combine words into sentence phrase
