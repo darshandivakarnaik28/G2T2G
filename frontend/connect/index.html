@@ -1096,6 +1096,25 @@
     <video id="sign-webcam-video" autoplay playsinline muted class="absolute inset-0 w-full h-full object-cover hidden z-10"></video>
     <canvas id="sign-mesh-canvas" class="absolute inset-0 w-full h-full pointer-events-none z-20"></canvas>
 
+    <!-- Continuous Signing Staged Phrase Banner (Drop hand to send) -->
+    <div id="sign-staged-phrase-banner" class="hidden absolute top-14 inset-x-space-md z-30 flex items-center justify-between bg-inverse-surface/95 border border-secondary/50 backdrop-blur-xl px-4 py-2.5 rounded-2xl shadow-2xl transition-all">
+      <div class="flex items-center gap-2 overflow-x-auto py-0.5 no-scrollbar">
+        <span class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse shrink-0"></span>
+        <span class="text-xs uppercase font-mono font-bold tracking-wider text-secondary-fixed shrink-0">Continuous Signing:</span>
+        <div id="sign-staged-chips" class="flex items-center gap-1.5 flex-nowrap shrink-0"></div>
+      </div>
+      <div class="flex items-center gap-2 pl-3 border-l border-outline/30 shrink-0">
+        <span class="text-[11px] text-tertiary-fixed-dim font-medium hidden sm:inline whitespace-nowrap">Drop hand to send</span>
+        <button onclick="commitStagedPhraseNow()" class="px-3 py-1 bg-secondary text-on-secondary rounded-lg text-xs font-bold hover:brightness-110 shadow-sm cursor-pointer btn-bounce flex items-center gap-1">
+          <span class="material-symbols-outlined text-[14px]">send</span>
+          <span>Send</span>
+        </button>
+        <button onclick="clearStagedPhrase()" class="p-1 text-on-surface-variant hover:text-error rounded-full hover:bg-white/10 cursor-pointer" title="Cancel & Clear">
+          <span class="material-symbols-outlined text-[16px]">close</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Initial Standby Overlay: "Performs Sign Here" -->
     <div id="sign-camera-standby" class="absolute inset-0 z-10 flex flex-col items-center justify-center text-center p-space-lg bg-gradient-to-br from-[#12192c] via-[#0d1322] to-[#070b14] overflow-hidden">
       <!-- Ambient Studio Radial Glow -->
@@ -1284,7 +1303,29 @@
       <span class="px-2.5 py-0.5 rounded-full bg-secondary/80 text-on-secondary text-label-sm font-semibold animate-pulse shadow-sm">AI Tracking Active</span>
     </div>
 
-    <div id="chat-camera-container" class="relative w-full h-[260px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group"><video id="chat-webcam-video" autoplay playsinline muted class="hidden absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></video><canvas id="chat-mesh-canvas" class="hidden absolute inset-0 w-full h-full pointer-events-none -scale-x-100 z-20"></canvas><div id="chat-live-rec-overlay" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-secondary/40 shadow-lg z-30"><span id="chat-live-hand-status" class="font-bold text-secondary-fixed text-xs">Searching for hands...</span><span id="chat-live-pred-badge" class="text-inverse-on-surface font-mono font-bold text-xs bg-secondary/20 px-2.5 py-0.5 rounded-md border border-secondary/30">Ready to Sign</span></div><img id="chat-master-img" class="hidden absolute inset-0 w-full h-full object-contain p-2 pt-10 pb-12 bg-[#0d1322] z-20" alt="Master Signer Reference"/><video id="chat-master-video" autoplay loop muted playsinline class="hidden absolute inset-0 w-full h-full object-contain p-2 pt-10 pb-12 bg-[#0d1322] z-20"></video><div id="chat-master-caption" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-outline/30 shadow-lg z-30"><span id="chat-master-title" class="font-bold text-inverse-on-surface text-sm">HELLO</span><span id="chat-master-signer" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20">Signer: 1GG23CS007 (Master)</span></div>
+    <div id="chat-camera-container" class="relative w-full h-[260px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
+      <video id="chat-webcam-video" autoplay playsinline muted class="hidden absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></video>
+      <canvas id="chat-mesh-canvas" class="hidden absolute inset-0 w-full h-full pointer-events-none -scale-x-100 z-20"></canvas>
+      
+      <!-- Live Chat Continuous Staged Phrase Banner -->
+      <div id="chat-staged-phrase-banner" class="hidden absolute top-12 inset-x-2.5 z-30 flex items-center justify-between bg-inverse-surface/95 border border-secondary/50 backdrop-blur-xl px-3 py-1.5 rounded-xl shadow-lg transition-all">
+        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+          <span class="w-2 h-2 rounded-full bg-secondary animate-pulse shrink-0"></span>
+          <span class="text-[10px] uppercase font-mono font-bold tracking-wider text-secondary-fixed shrink-0">Staged:</span>
+          <div id="chat-staged-chips" class="flex items-center gap-1 flex-nowrap shrink-0"></div>
+        </div>
+        <div class="flex items-center gap-1.5 pl-2 border-l border-outline/30 shrink-0">
+          <button onclick="commitStagedPhraseNow()" class="px-2 py-0.5 bg-secondary text-on-secondary rounded-md text-[10px] font-bold hover:brightness-110 shadow-xs cursor-pointer flex items-center gap-0.5">
+            <span class="material-symbols-outlined text-[12px]">send</span>
+            <span>Send</span>
+          </button>
+          <button onclick="clearStagedPhrase()" class="p-0.5 text-on-surface-variant hover:text-error rounded-full hover:bg-white/10 cursor-pointer" title="Clear">
+            <span class="material-symbols-outlined text-[14px]">close</span>
+          </button>
+        </div>
+      </div>
+
+      <div id="chat-live-rec-overlay" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-secondary/40 shadow-lg z-30"><span id="chat-live-hand-status" class="font-bold text-secondary-fixed text-xs">Searching for hands...</span><span id="chat-live-pred-badge" class="text-inverse-on-surface font-mono font-bold text-xs bg-secondary/20 px-2.5 py-0.5 rounded-md border border-secondary/30">Ready to Sign</span></div><img id="chat-master-img" class="hidden absolute inset-0 w-full h-full object-contain p-2 pt-10 pb-12 bg-[#0d1322] z-20" alt="Master Signer Reference"/><video id="chat-master-video" autoplay loop muted playsinline class="hidden absolute inset-0 w-full h-full object-contain p-2 pt-10 pb-12 bg-[#0d1322] z-20"></video><div id="chat-master-caption" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-outline/30 shadow-lg z-30"><span id="chat-master-title" class="font-bold text-inverse-on-surface text-sm">HELLO</span><span id="chat-master-signer" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20">Signer: 1GG23CS007 (Master)</span></div>
       <div id="chat-missing-gesture-overlay" class="hidden absolute inset-0 z-30 bg-[#0d1322]/95 backdrop-blur-md p-4 pt-11 flex-col items-center justify-center text-center">
         <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/30 mb-1.5">
           <span class="material-symbols-outlined text-[14px]">warning</span>
@@ -1501,6 +1542,6 @@
   </div>
 
   <!-- Application Logic -->
-  <script src="app.js?v=20261026_first_hand_5s_warmup_stabilization"></script>
+  <script src="app.js?v=20261027_continuous_drop_to_commit"></script>
 </body>
 </html>

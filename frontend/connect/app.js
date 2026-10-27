@@ -35,20 +35,32 @@ const state = {
   mlPredictionMode: 'auto', // 'auto' | 'static' | 'dynamic'
   // Camera Warmup & First-Time Hand Stabilization State (Waits 5s after first hand detect)
   firstHandDetectTime: 0,
-  isFirstHandStabilized: false
+  isFirstHandStabilized: false,
+  // Continuous Signing & Drop-to-Commit Staging Engine
+  stagedGestures: [],
+  handLostTimestamp: null,
+  lastStagedId: null,
+  lastStagedTime: 0
 };
 
 // Bilingual Dictionary for 45 Trained ISL Signs (27 Static + 18 Dynamic)
 const DICTIONARY = {
   "HELLO": { en: "HELLO", kn: "ನಮಸ್ಕಾರ (Namaskara)" },
+  "GOOD": { en: "GOOD", kn: "ಒಳ್ಳೆಯದು (Olleya)" },
+  "MORNING": { en: "MORNING", kn: "ಶುಭೋದಯ (Shubhodaya)" },
+  "GOOD MORNING": { en: "GOOD MORNING", kn: "ಶುಭೋದಯ (Shubhodaya)" },
+  "THANK": { en: "THANK", kn: "ಧನ್ಯವಾದ (Dhanyavada)" },
+  "YOU": { en: "YOU", kn: "ನೀವು (Neevu)" },
   "THANK YOU": { en: "THANK YOU", kn: "ಧನ್ಯವಾದಗಳು (Dhanyavadagalu)" },
   "THANK_YOU": { en: "THANK YOU", kn: "ಧನ್ಯವಾದಗಳು (Dhanyavadagalu)" },
   "WATER": { en: "WATER", kn: "ನೀರು (Neeru)" },
   "FOOD": { en: "FOOD", kn: "ಊಟ (Oota)" },
-  "MORNING": { en: "MORNING", kn: "ಶುಭೋದಯ (Shubhodaya)" },
-  "GOOD MORNING": { en: "GOOD MORNING", kn: "ಶುಭೋದಯ (Shubhodaya)" },
+  "HELP": { en: "HELP", kn: "ಸಹಾಯ (Sahaya)" },
+  "HELP NEEDED": { en: "HELP NEEDED", kn: "ಸಹಾಯ ಬೇಕು (Sahaya Beku)" },
+  "ALL CLEAR": { en: "ALL CLEAR", kn: "ಎಲ್ಲವೂ ಸರಿ (Ellavu Sari)" },
   "MY": { en: "MY", kn: "ನನ್ನ (Nanna)" },
-  "YOU": { en: "YOU", kn: "ನೀವು (Neevu)" },
+  "NAME": { en: "NAME", kn: "ಹೆಸರು (Hesaru)" },
+  "MY NAME": { en: "MY NAME", kn: "ನನ್ನ ಹೆಸರು (Nanna Hesaru)" },
   "YOUR": { en: "YOUR", kn: "ನಿಮ್ಮ (Nimma)" },
   "HER": { en: "HER", kn: "ಅವಳ (Avala)" },
   "WE": { en: "WE", kn: "ನಾವು (Naavu)" },
@@ -2153,6 +2165,28 @@ function onHandTrackingResults(results) {
     if (!state.isFirstHandStabilized) {
       state.firstHandDetectTime = 0;
     }
+
+    // CONTINUOUS RECOGNITION: Drop-to-Commit Staged Phrase
+    if (state.stagedGestures && state.stagedGestures.length > 0) {
+      if (!state.handLostTimestamp) {
+        state.handLostTimestamp = Date.now();
+      }
+      const elapsedDrop = Date.now() - state.handLostTimestamp;
+
+      // 600ms debounce to confirm deliberate hand drop (not a momentary tracking flicker)
+      if (elapsedDrop < 600) {
+        const remaining = Math.max(0.1, ((600 - elapsedDrop) / 1000)).toFixed(1);
+        if (badgeLeft) {
+          badgeLeft.textContent = state.currentLang === 'kn' ? `ಕಳುಹಿಸಲಾಗುತ್ತಿದೆ (${remaining}s)...` : `Sending phrase in ${remaining}s...`;
+        }
+        return;
+      } else {
+        // Hand deliberately dropped: Finalize and commit entire combined phrase!
+        commitStagedPhraseNow();
+        return;
+      }
+    }
+
     if (badgeLeft) {
       badgeLeft.textContent = state.currentLang === 'kn' ? "ಕೈಗಳಿಗಾಗಿ ಹುಡುಕುತ್ತಿದೆ..." : "Searching for hands...";
     }
@@ -2163,6 +2197,9 @@ function onHandTrackingResults(results) {
     }
     return;
   }
+
+  // Hand is active in frame: cancel hand-loss timer so continuous signing is uninterrupted
+  state.handLostTimestamp = null;
 
   // Determine Handedness & Scores
   const labels = [];
@@ -2379,8 +2416,8 @@ function onHandTrackingResults(results) {
           }
         }
 
-        // Fast auto-commit: Instant on confidence >= 0.75, 2 matches for >= 0.60
-        if (pred.confidence >= 0.60) {
+        // Continuous Gesture Staging (Instant on confidence >= 0.70, or 2 consecutive matches for >= 0.55)
+        if (pred.confidence >= 0.55) {
           if (state.lastPredictedGesture === pred.gesture_id) {
             state.consecutiveMatchCount += 1;
           } else {
@@ -2388,18 +2425,9 @@ function onHandTrackingResults(results) {
             state.consecutiveMatchCount = 1;
           }
 
-          const requiredMatches = pred.confidence >= 0.75 ? 1 : 2;
-          if (
-            state.consecutiveMatchCount >= requiredMatches &&
-            state.lastCommittedGesture !== pred.gesture_id
-          ) {
-            state.lastCommittedGesture = pred.gesture_id;
-            state.lastCommittedTime = Date.now();
-            if (isLiveChat) {
-              sendSignUserLiveReply(displayName, knText, confPct);
-            } else {
-              simulateGesture(displayName, knText);
-            }
+          const requiredMatches = pred.confidence >= 0.70 ? 1 : 2;
+          if (state.consecutiveMatchCount >= requiredMatches) {
+            stageGesture(pred.gesture_id, displayName, knText, confPct);
           }
         }
       })
@@ -2409,6 +2437,119 @@ function onHandTrackingResults(results) {
       });
   }
 }
+
+// --------------------------------------------------------------------------
+// Continuous Signing Staging & Drop-to-Commit Engine
+// --------------------------------------------------------------------------
+function stageGesture(gestureId, displayName, knText, confPct) {
+  if (!state.stagedGestures) state.stagedGestures = [];
+
+  const now = Date.now();
+  const lastStaged = state.stagedGestures[state.stagedGestures.length - 1];
+  const timeSinceLast = now - (state.lastStagedTime || 0);
+
+  // If user holds the same sign, prevent duplicate staging unless held > 2.0 seconds
+  if (lastStaged && lastStaged.id === gestureId && timeSinceLast < 2000) {
+    return;
+  }
+
+  state.stagedGestures.push({
+    id: gestureId,
+    name: displayName,
+    knText: knText,
+    confPct: confPct,
+    time: now
+  });
+  state.lastStagedTime = now;
+  state.lastStagedId = gestureId;
+  updateStagedUI();
+}
+window.stageGesture = stageGesture;
+
+function updateStagedUI() {
+  const isLiveChat = Boolean(state.isCameraActiveLive);
+  const banner = document.getElementById(isLiveChat ? 'chat-staged-phrase-banner' : 'sign-staged-phrase-banner');
+  const chipsContainer = document.getElementById(isLiveChat ? 'chat-staged-chips' : 'sign-staged-chips');
+
+  if (!state.stagedGestures || state.stagedGestures.length === 0) {
+    if (banner) {
+      banner.classList.add('hidden');
+      banner.classList.remove('flex');
+    }
+    return;
+  }
+
+  if (banner) {
+    banner.classList.remove('hidden');
+    banner.classList.add('flex');
+  }
+
+  if (chipsContainer) {
+    chipsContainer.innerHTML = state.stagedGestures.map((g, idx) => {
+      const label = state.currentLang === 'kn' ? g.knText : g.name;
+      return `<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary text-on-secondary font-bold text-xs shadow-sm border border-secondary/40 animate-scale-in">
+        ${label}
+        ${idx < state.stagedGestures.length - 1 ? '<span class="opacity-60 text-[10px] mx-0.5">+</span>' : ''}
+      </span>`;
+    }).join("");
+  }
+
+  const stagedWords = state.stagedGestures.map(g => state.currentLang === 'kn' ? g.knText : g.name).join(" ");
+  const badgeRight = document.getElementById(isLiveChat ? 'chat-live-pred-badge' : 'sign-confidence-score');
+  if (badgeRight) {
+    badgeRight.textContent = `${state.stagedGestures.length} Staged: ${stagedWords}`;
+  }
+}
+window.updateStagedUI = updateStagedUI;
+
+function commitStagedPhraseNow() {
+  if (!state.stagedGestures || state.stagedGestures.length === 0) return;
+
+  const isLiveChat = Boolean(state.isCameraActiveLive);
+  const staged = state.stagedGestures.slice();
+
+  // Reset staging state immediately
+  state.stagedGestures = [];
+  state.handLostTimestamp = null;
+  state.lastStagedId = null;
+  state.lastStagedTime = 0;
+  state.lastPredictedGesture = null;
+  state.consecutiveMatchCount = 0;
+  state.lastCommittedGesture = null;
+  updateStagedUI();
+
+  // Combine words into sentence phrase
+  const rawEnglishPhrase = staged.map(g => g.name).join(" ").trim();
+  const rawKannadaPhrase = staged.map(g => g.knText).join(" ").trim();
+
+  // Check if combined phrase matches compound sign (e.g. "GOOD MORNING" -> "ಶುಭೋದಯ")
+  const resolved = resolveTrainedGesture(rawEnglishPhrase);
+  let finalEnglish = rawEnglishPhrase;
+  let finalKannada = rawKannadaPhrase;
+
+  if (resolved.found) {
+    finalEnglish = resolved.signKey;
+    finalKannada = resolved.knMeaning;
+  }
+
+  const confLabel = staged.length > 1 ? `${staged.length} Signs Combined` : (staged[0].confPct || '98%');
+
+  if (isLiveChat) {
+    sendSignUserLiveReply(finalEnglish, finalKannada, confLabel);
+  } else {
+    simulateGesture(finalEnglish, finalKannada);
+  }
+}
+window.commitStagedPhraseNow = commitStagedPhraseNow;
+
+function clearStagedPhrase() {
+  state.stagedGestures = [];
+  state.handLostTimestamp = null;
+  state.lastStagedId = null;
+  state.lastStagedTime = 0;
+  updateStagedUI();
+}
+window.clearStagedPhrase = clearStagedPhrase;
 
 async function toggleSignCamera() {
   const video = document.getElementById('sign-webcam-video');
@@ -2424,6 +2565,8 @@ async function toggleSignCamera() {
 
   if (state.isCameraActiveSign) {
     try {
+      clearStagedPhrase();
+      clearStagedPhrase();
       state.firstHandDetectTime = 0;
       state.isFirstHandStabilized = false;
       state.mlFrameBuffer = [];
@@ -2488,6 +2631,7 @@ async function toggleSignCamera() {
     }
   } else {
     // Teardown camera & hands
+    clearStagedPhrase();
     state.firstHandDetectTime = 0;
     state.isFirstHandStabilized = false;
     state.mlFrameBuffer = [];
@@ -2680,6 +2824,7 @@ async function toggleLiveCamera() {
         btn.title = 'Stop Sign User Camera';
       }
 
+      clearStagedPhrase();
       state.firstHandDetectTime = 0;
       state.isFirstHandStabilized = false;
       state.mlFrameBuffer = [];
@@ -3122,6 +3267,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.isCameraActiveLive) {
         toggleLiveCamera();
       }
+      clearStagedPhrase();
       state.firstHandDetectTime = 0;
       state.isFirstHandStabilized = false;
       state.mlFrameBuffer = [];
