@@ -1298,171 +1298,167 @@
 </div>
 
 <!-- Main Grid Layout -->
-
 <div class="max-w-7xl mx-auto w-full px-gutter pb-space-xl grid grid-cols-1 lg:grid-cols-12 gap-space-lg flex-1">
 
-<!-- Left Column: Camera Feed & 3D Avatar (5 cols) -->
+  <!-- Left Column: Continuous Unified Chat Feed & Dock (7 cols) -->
+  <div class="lg:col-span-7 flex flex-col gap-space-lg">
 
-<div class="lg:col-span-5 flex flex-col gap-space-lg">
-
-  <!-- Live Gesture Recognition Camera Stream -->
-  <div class="bg-inverse-surface rounded-2xl md:rounded-3xl overflow-hidden shadow-xl flex flex-col relative border border-secondary/30 card-interactive">
-    <div class="absolute top-0 inset-x-0 z-10 p-space-md flex items-center justify-between bg-gradient-to-b from-inverse-surface/90 to-transparent">
-      <div class="flex items-center gap-space-xs">
-        <span class="material-symbols-outlined text-secondary-fixed text-[20px]">videocam</span>
-        <span class="text-label-md font-bold text-inverse-on-surface" id="chat-upper-frame-label">Upper: Master Signer Gesture</span>
+    <div class="bg-surface-container-low/90 backdrop-blur-md rounded-2xl md:rounded-3xl border border-outline-variant/30 p-space-lg shadow-md flex flex-col flex-1 justify-between min-h-[500px] card-interactive">
+      <div class="flex items-center justify-between pb-space-md border-b border-outline-variant/30">
+        <div class="flex items-center gap-space-xs">
+          <div class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">forum</span>
+          </div>
+          <h2 class="font-headline-sm text-on-surface">Continuous Live Conversation</h2>
+        </div>
+        <span class="text-label-sm text-on-surface-variant font-medium">Synchronized ISL &amp; Text</span>
       </div>
-      <span class="px-2.5 py-0.5 rounded-full bg-secondary/80 text-on-secondary text-label-sm font-semibold animate-pulse shadow-sm">AI Tracking Active</span>
+
+      <!-- Scrolling Feed -->
+      <div id="live-chat-feed" class="flex flex-col gap-space-md py-space-md max-h-[420px] overflow-y-auto pr-space-xs flex-1">
+        <div id="live-chat-empty" class="flex flex-col items-center justify-center p-8 text-center text-on-surface-variant/60 my-auto">
+          <div class="w-14 h-14 rounded-2xl bg-surface-container flex items-center justify-center mb-3 text-primary/40 shadow-inner">
+            <span class="material-symbols-outlined text-[32px]">forum</span>
+          </div>
+          <p class="text-body-sm font-semibold text-on-surface">No live conversation yet</p>
+          <p class="text-xs opacity-75 mt-0.5">Send a message or sign on camera to begin real-time translation</p>
+        </div>
+      </div>
+
+      <!-- Bottom Control Dock -->
+      <div id="live-mic-status" class="hidden items-center gap-2 text-error text-xs font-semibold px-1 pb-1"><span class="w-2 h-2 rounded-full bg-error animate-ping"></span><span>Listening... Speak now</span></div>
+      <div class="pt-space-md border-t border-outline-variant/30 flex flex-col gap-space-sm">
+        <div class="flex items-center gap-space-sm">
+          <div class="relative flex-1">
+            <input id="live-chat-input" class="w-full bg-surface text-on-surface placeholder:text-outline px-space-md py-3 rounded-xl border border-outline-variant/40 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-body-md shadow-inner" placeholder="Type message or sign on camera..." type="text" onkeydown="if(event.key==='Enter') sendLiveMessage()">
+          </div>
+          <button class="w-11 h-11 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-xs border border-outline-variant/25 flex items-center justify-center" id="live-cam-toggle-btn" title="Sign User Camera Reply (Click to toggle camera)" onclick="toggleLiveCamera()"><span id="live-cam-icon" class="material-symbols-outlined text-[20px]">videocam</span></button>
+          <button class="w-11 h-11 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-xs border border-outline-variant/25 flex items-center justify-center" id="live-mic-btn" title="Voice Input (Mic)" onclick="toggleLiveVoiceRecording()">
+            <span class="material-symbols-outlined text-[20px]">mic</span>
+          </button>
+          <button id="live-send-btn" onclick="sendLiveMessage()" class="h-11 px-5 bg-primary hover:bg-primary/95 text-on-primary rounded-xl font-semibold text-label-md btn-bounce shadow-sm flex items-center gap-1.5 cursor-pointer">
+            <span>Send</span>
+            <span class="material-symbols-outlined text-[18px]">send</span>
+          </button>
+        </div>
+      </div>
     </div>
 
-    <div id="chat-camera-container" class="relative w-full h-[260px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
-      <video id="chat-webcam-video" autoplay playsinline muted class="hidden absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></video>
-      <!-- Live Camera Stream & Canvas -->
-      <video id="chat-webcam-video" autoplay playsinline muted class="hidden absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></video>
-      <canvas id="chat-mesh-canvas" class="hidden absolute inset-0 w-full h-full pointer-events-none -scale-x-100 z-20"></canvas>
+  </div>
 
-      <!-- Master Signer Reference Image & Video (Live Chat Upper Frame) -->
-      <img id="chat-master-img" class="hidden absolute inset-0 w-full h-full object-contain p-2 bg-[#0d1322] z-20" alt="Master Signer Reference"/>
-      <video id="chat-master-video" autoplay loop muted playsinline class="hidden absolute inset-0 w-full h-full object-contain p-2 bg-[#0d1322] z-20"></video>
+  <!-- Right Column: Dual Stacked ISL Output (5 cols) -->
+  <div class="lg:col-span-5 flex flex-col gap-space-lg">
 
-      <!-- Live Chat Hand Status / Recognition Overlay -->
-      <div id="chat-live-rec-overlay" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-secondary/40 shadow-lg z-30">
-        <span id="chat-live-hand-status" class="font-bold text-secondary-fixed text-xs">Searching for hands...</span>
-        <span id="chat-live-pred-badge" class="text-inverse-on-surface font-mono font-bold text-xs bg-secondary/20 px-2.5 py-0.5 rounded-md border border-secondary/30">Ready to Sign</span>
+    <!-- Upper: Master Signer Gesture / Live Gesture Recognition Camera Stream -->
+    <div class="bg-inverse-surface rounded-2xl md:rounded-3xl overflow-hidden shadow-xl flex flex-col relative border border-secondary/30 card-interactive">
+      <div class="absolute top-0 inset-x-0 z-10 p-space-md flex items-center justify-between bg-gradient-to-b from-inverse-surface/90 to-transparent">
+        <div class="flex items-center gap-space-xs">
+          <span class="material-symbols-outlined text-secondary-fixed text-[20px]">videocam</span>
+          <span class="text-label-md font-bold text-inverse-on-surface" id="chat-upper-frame-label">Upper: Master Signer Gesture</span>
+        </div>
+        <span class="px-2.5 py-0.5 rounded-full bg-secondary/80 text-on-secondary text-label-sm font-semibold animate-pulse shadow-sm">AI Tracking Active</span>
       </div>
 
-      <!-- Live Chat Continuous Staged Phrase Banner -->
-      <div id="chat-staged-phrase-banner" class="hidden absolute top-3 inset-x-2.5 z-30 flex items-center justify-between bg-inverse-surface/95 border border-secondary/50 backdrop-blur-xl px-3 py-1.5 rounded-xl shadow-lg transition-all">
-        <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
-          <span class="w-2 h-2 rounded-full bg-secondary animate-pulse shrink-0"></span>
-          <span class="text-[10px] uppercase font-mono font-bold tracking-wider text-secondary-fixed shrink-0">Staged:</span>
-          <div id="chat-staged-chips" class="flex items-center gap-1 flex-nowrap shrink-0"></div>
-        </div>
-        <div class="flex items-center gap-1.5 pl-2 border-l border-outline/30 shrink-0">
-          <button onclick="commitStagedPhraseNow()" class="px-2 py-0.5 bg-secondary text-on-secondary rounded-md text-[10px] font-bold hover:brightness-110 shadow-xs cursor-pointer flex items-center gap-0.5">
-            <span class="material-symbols-outlined text-[12px]">send</span>
-            <span>Send</span>
-          </button>
-          <button onclick="clearStagedPhrase()" class="p-0.5 text-on-surface-variant hover:text-error rounded-full hover:bg-white/10 cursor-pointer" title="Clear">
-            <span class="material-symbols-outlined text-[14px]">close</span>
-          </button>
-        </div>
-      </div>
+      <div id="chat-camera-container" class="relative w-full h-[260px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
+        <video id="chat-webcam-video" autoplay playsinline muted class="hidden absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></video>
+        <canvas id="chat-mesh-canvas" class="hidden absolute inset-0 w-full h-full pointer-events-none -scale-x-100 z-20"></canvas>
 
-      <!-- Missing Gesture Overlay -->
-      <div id="chat-missing-gesture-overlay" class="hidden absolute inset-0 z-30 bg-[#0d1322]/95 backdrop-blur-md p-4 pt-11 flex-col items-center justify-center text-center">
-        <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/30 mb-1.5">
-          <span class="material-symbols-outlined text-[14px]">warning</span>
-          <span id="chat-missing-gesture-badge">Gesture Not in Dataset</span>
+        <!-- Master Signer Reference Image & Video (Live Chat Upper Frame) -->
+        <img id="chat-master-img" class="hidden absolute inset-0 w-full h-full object-contain p-2 bg-[#0d1322] z-20" alt="Master Signer Reference"/>
+        <video id="chat-master-video" autoplay loop muted playsinline class="hidden absolute inset-0 w-full h-full object-contain p-2 bg-[#0d1322] z-20"></video>
+
+        <!-- Live Chat Hand Status / Recognition Overlay -->
+        <div id="chat-live-rec-overlay" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-secondary/40 shadow-lg z-30">
+          <span id="chat-live-hand-status" class="font-bold text-secondary-fixed text-xs">Searching for hands...</span>
+          <span id="chat-live-pred-badge" class="text-inverse-on-surface font-mono font-bold text-xs bg-secondary/20 px-2.5 py-0.5 rounded-md border border-secondary/30">Ready to Sign</span>
         </div>
-        <h3 class="text-inverse-on-surface font-bold text-sm" id="chat-missing-gesture-title">"..." is not in the dataset</h3>
-        <p class="text-tertiary-fixed-dim text-xs mt-1 max-w-xs leading-snug" id="chat-missing-gesture-desc">Do you want to perform the gesture for this and save it in the database?</p>
-        <div id="chat-missing-gesture-breakdown" class="hidden flex-wrap items-center justify-center gap-1.5 mt-2 max-w-xs"></div>
-        <div class="flex flex-col gap-2 mt-3 w-full max-w-xs">
-          <div class="flex items-center justify-center gap-2">
-            <button onclick="confirmPerformMissingGesture()" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary/95 text-on-primary font-semibold text-xs shadow-sm btn-bounce transition-all flex items-center gap-1.5 cursor-pointer">
-              <span class="material-symbols-outlined text-[15px]">videocam</span>
-              <span id="chat-missing-yes-label">Yes, Perform Gesture</span>
+
+        <!-- Live Chat Continuous Staged Phrase Banner -->
+        <div id="chat-staged-phrase-banner" class="hidden absolute top-3 inset-x-2.5 z-30 flex items-center justify-between bg-inverse-surface/95 border border-secondary/50 backdrop-blur-xl px-3 py-1.5 rounded-xl shadow-lg transition-all">
+          <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+            <span class="w-2 h-2 rounded-full bg-secondary animate-pulse shrink-0"></span>
+            <span class="text-[10px] uppercase font-mono font-bold tracking-wider text-secondary-fixed shrink-0">Staged:</span>
+            <div id="chat-staged-chips" class="flex items-center gap-1 flex-nowrap shrink-0"></div>
+          </div>
+          <div class="flex items-center gap-1.5 pl-2 border-l border-outline/30 shrink-0">
+            <button onclick="commitStagedPhraseNow()" class="px-2 py-0.5 bg-secondary text-on-secondary rounded-md text-[10px] font-bold hover:brightness-110 shadow-xs cursor-pointer flex items-center gap-0.5">
+              <span class="material-symbols-outlined text-[12px]">send</span>
+              <span>Send</span>
             </button>
-            <button onclick="dismissChatMissingGesturePrompt()" class="px-3 py-1.5 rounded-xl bg-white/10 text-inverse-on-surface font-semibold text-xs border border-white/20 hover:bg-white/20 transition-all cursor-pointer">
-              <span id="chat-missing-no-label">No</span>
+            <button onclick="clearStagedPhrase()" class="p-0.5 text-on-surface-variant hover:text-error rounded-full hover:bg-white/10 cursor-pointer" title="Clear">
+              <span class="material-symbols-outlined text-[14px]">close</span>
             </button>
           </div>
-          <button id="chat-btn-play-available" onclick="playAvailableSentenceSigns('chat')" class="hidden px-3 py-1 rounded-xl bg-secondary/15 hover:bg-secondary/25 text-secondary border border-secondary/30 text-xs font-semibold items-center justify-center gap-1 cursor-pointer">
-            <span class="material-symbols-outlined text-[14px]">play_circle</span>
-            <span id="chat-play-available-text">Play Available Signs</span>
-          </button>
+        </div>
+
+        <!-- Missing Gesture Overlay -->
+        <div id="chat-missing-gesture-overlay" class="hidden absolute inset-0 z-30 bg-[#0d1322]/95 backdrop-blur-md p-4 pt-11 flex-col items-center justify-center text-center">
+          <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/30 mb-1.5">
+            <span class="material-symbols-outlined text-[14px]">warning</span>
+            <span id="chat-missing-gesture-badge">Gesture Not in Dataset</span>
+          </div>
+          <h3 class="text-inverse-on-surface font-bold text-sm" id="chat-missing-gesture-title">"..." is not in the dataset</h3>
+          <p class="text-tertiary-fixed-dim text-xs mt-1 max-w-xs leading-snug" id="chat-missing-gesture-desc">Do you want to perform the gesture for this and save it in the database?</p>
+          <div id="chat-missing-gesture-breakdown" class="hidden flex-wrap items-center justify-center gap-1.5 mt-2 max-w-xs"></div>
+          <div class="flex flex-col gap-2 mt-3 w-full max-w-xs">
+            <div class="flex items-center justify-center gap-2">
+              <button onclick="confirmPerformMissingGesture()" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary/95 text-on-primary font-semibold text-xs shadow-sm btn-bounce transition-all flex items-center gap-1.5 cursor-pointer">
+                <span class="material-symbols-outlined text-[15px]">videocam</span>
+                <span id="chat-missing-yes-label">Yes, Perform Gesture</span>
+              </button>
+              <button onclick="dismissChatMissingGesturePrompt()" class="px-3 py-1.5 rounded-xl bg-white/10 text-inverse-on-surface font-semibold text-xs border border-white/20 hover:bg-white/20 transition-all cursor-pointer">
+                <span id="chat-missing-no-label">No</span>
+              </button>
+            </div>
+            <button id="chat-btn-play-available" onclick="playAvailableSentenceSigns('chat')" class="hidden px-3 py-1 rounded-xl bg-secondary/15 hover:bg-secondary/25 text-secondary border border-secondary/30 text-xs font-semibold items-center justify-center gap-1 cursor-pointer">
+              <span class="material-symbols-outlined text-[14px]">play_circle</span>
+              <span id="chat-play-available-text">Play Available Signs</span>
+            </button>
+          </div>
+        </div>
+        <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#89f5e7_1px,transparent_1px)] [background-size:16px_16px]"></div>
+        <div id="chat-camera-standby" onclick="toggleLiveCamera()" class="relative z-0 flex flex-col items-center justify-center text-center p-space-md cursor-pointer">
+          <div class="w-20 h-20 rounded-2xl bg-secondary/15 flex items-center justify-center mb-space-xs border border-secondary/30 shadow-[0_0_25px_rgba(137,245,231,0.2)] group-hover:scale-110 transition-transform duration-300">
+            <span class="material-symbols-outlined text-secondary-fixed text-[40px]">back_hand</span>
+          </div>
+          <p class="text-inverse-on-surface font-headline-sm text-sm font-bold">Waiting for gestures...</p>
+          <p class="text-tertiary-fixed-dim text-body-sm text-xs mt-1">Camera active for real-time sign recognition</p>
         </div>
       </div>
-      <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#89f5e7_1px,transparent_1px)] [background-size:16px_16px]"></div>
-      <div id="chat-camera-standby" onclick="toggleLiveCamera()" class="relative z-0 flex flex-col items-center justify-center text-center p-space-md cursor-pointer">
-        <div class="w-20 h-20 rounded-2xl bg-secondary/15 flex items-center justify-center mb-space-xs border border-secondary/30 shadow-[0_0_25px_rgba(137,245,231,0.2)] group-hover:scale-110 transition-transform duration-300">
-          <span class="material-symbols-outlined text-secondary-fixed text-[40px]">back_hand</span>
+
+      <!-- Dedicated Bottom Info Bar for Live Chat: Below canvas, never covering video! -->
+      <div id="chat-master-caption" class="hidden px-4 py-2.5 bg-inverse-surface/95 border-t border-outline/20 flex-col gap-1.5">
+        <div class="flex items-center justify-between text-xs">
+          <span id="chat-master-title" class="font-bold text-inverse-on-surface text-sm truncate">HELLO</span>
+          <span id="chat-master-signer" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20 shrink-0">Signer: 1GG23CS007 (Master)</span>
         </div>
-        <p class="text-inverse-on-surface font-headline-sm text-sm font-bold">Waiting for gestures...</p>
-        <p class="text-tertiary-fixed-dim text-body-sm text-xs mt-1">Camera active for real-time sign recognition</p>
+        <div id="chat-master-sequence-stepper" class="hidden flex-wrap items-center gap-1.5 pt-0.5"></div>
       </div>
     </div>
 
-    <!-- Dedicated Bottom Info Bar for Live Chat: Below canvas, never covering video! -->
-    <div id="chat-master-caption" class="hidden px-4 py-2.5 bg-inverse-surface/95 border-t border-outline/20 flex-col gap-1.5">
-      <div class="flex items-center justify-between text-xs">
-        <span id="chat-master-title" class="font-bold text-inverse-on-surface text-sm truncate">HELLO</span>
-        <span id="chat-master-signer" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20 shrink-0">Signer: 1GG23CS007 (Master)</span>
+    <!-- Below: 3D ISL Avatar Viewer -->
+    <div class="bg-inverse-surface rounded-2xl md:rounded-3xl overflow-hidden shadow-xl flex flex-col relative border border-primary/30 card-interactive">
+      <div class="absolute top-0 inset-x-0 z-10 p-space-md flex items-center justify-between bg-gradient-to-b from-inverse-surface/90 to-transparent">
+        <div class="flex items-center gap-space-xs">
+          <span class="material-symbols-outlined text-secondary-fixed text-[20px]">view_in_ar</span>
+          <span class="text-label-md font-bold text-inverse-on-surface">3D ISL Avatar Output</span>
+        </div>
+        <div class="flex items-center bg-surface-container/90 rounded-lg p-0.5 gap-0.5 shadow-sm"><button class="speed-btn px-2 py-0.5 rounded text-[11px] font-medium text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" data-speed="0.1" onclick="setSpeed(0.1, this)">0.1x</button><button class="speed-btn px-2 py-0.5 rounded text-[11px] font-medium text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" data-speed="0.25" onclick="setSpeed(0.25, this)">0.25x</button><button class="speed-btn px-2 py-0.5 rounded text-[11px] font-medium text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" data-speed="0.5" onclick="setSpeed(0.5, this)">0.5x</button><button class="speed-btn px-2 py-0.5 rounded bg-primary text-on-primary text-[11px] font-semibold shadow-sm transition-colors cursor-pointer" data-speed="1.0" onclick="setSpeed(1.0, this)">1.0x</button><button class="speed-btn px-2 py-0.5 rounded text-[11px] font-medium text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" data-speed="1.5" onclick="setSpeed(1.5, this)">1.5x</button></div>
       </div>
-      <div id="chat-master-sequence-stepper" class="hidden flex-wrap items-center gap-1.5 pt-0.5"></div>
+
+      <div id="chat-avatar-container" class="relative w-full h-[220px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
+        <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#89f5e7_1px,transparent_1px)] [background-size:16px_16px]"></div>
+        <div id="chat-avatar-standby" onclick="toggleLiveCamera()" class="relative z-0 flex flex-col items-center justify-center text-center p-space-md cursor-pointer">
+          <div class="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mb-space-xs border border-primary/30 shadow-[0_0_20px_rgba(59,130,246,0.2)] group-hover:scale-110 transition-transform duration-300">
+            <span class="material-symbols-outlined text-primary-fixed text-[32px]">front_hand</span>
+          </div>
+          <p class="text-inverse-on-surface font-headline-sm text-sm font-bold">Avatar Ready</p>
+        </div>
+      </div>
     </div>
-    </div>
+
   </div>
 
-  <!-- 3D ISL Avatar Viewer -->
-  <div class="bg-inverse-surface rounded-2xl md:rounded-3xl overflow-hidden shadow-xl flex flex-col relative border border-primary/30 card-interactive">
-    <div class="absolute top-0 inset-x-0 z-10 p-space-md flex items-center justify-between bg-gradient-to-b from-inverse-surface/90 to-transparent">
-      <div class="flex items-center gap-space-xs">
-        <span class="material-symbols-outlined text-secondary-fixed text-[20px]">view_in_ar</span>
-        <span class="text-label-md font-bold text-inverse-on-surface">3D ISL Avatar Output</span>
-      </div>
-      <div class="flex items-center bg-surface-container/90 rounded-lg p-0.5 gap-0.5 shadow-sm"><button class="speed-btn px-2 py-0.5 rounded text-[11px] font-medium text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" data-speed="0.1" onclick="setSpeed(0.1, this)">0.1x</button><button class="speed-btn px-2 py-0.5 rounded text-[11px] font-medium text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" data-speed="0.25" onclick="setSpeed(0.25, this)">0.25x</button><button class="speed-btn px-2 py-0.5 rounded text-[11px] font-medium text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" data-speed="0.5" onclick="setSpeed(0.5, this)">0.5x</button><button class="speed-btn px-2 py-0.5 rounded bg-primary text-on-primary text-[11px] font-semibold shadow-sm transition-colors cursor-pointer" data-speed="1.0" onclick="setSpeed(1.0, this)">1.0x</button><button class="speed-btn px-2 py-0.5 rounded text-[11px] font-medium text-on-surface-variant hover:text-on-surface transition-colors cursor-pointer" data-speed="1.5" onclick="setSpeed(1.5, this)">1.5x</button></div>
-    </div>
-
-    <div id="chat-avatar-container" class="relative w-full h-[220px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
-      <div class="absolute inset-0 opacity-10 bg-[radial-gradient(#89f5e7_1px,transparent_1px)] [background-size:16px_16px]"></div>
-      <div id="chat-camera-standby" onclick="toggleLiveCamera()" class="relative z-0 flex flex-col items-center justify-center text-center p-space-md cursor-pointer">
-        <div class="w-16 h-16 rounded-2xl bg-primary/15 flex items-center justify-center mb-space-xs border border-primary/30 shadow-[0_0_20px_rgba(59,130,246,0.2)] group-hover:scale-110 transition-transform duration-300">
-          <span class="material-symbols-outlined text-primary-fixed text-[32px]">front_hand</span>
-        </div>
-        <p class="text-inverse-on-surface font-headline-sm text-sm font-bold">Avatar Ready</p>
-      </div>
-    </div>
-  </div>
-
-</div>
-
-<!-- Right Column: Continuous Unified Chat Feed & Dock (7 cols) -->
-<div class="lg:col-span-7 flex flex-col gap-space-lg">
-
-  <div class="bg-surface-container-low/90 backdrop-blur-md rounded-2xl md:rounded-3xl border border-outline-variant/30 p-space-lg shadow-md flex flex-col flex-1 justify-between min-h-[500px] card-interactive">
-    <div class="flex items-center justify-between pb-space-md border-b border-outline-variant/30">
-      <div class="flex items-center gap-space-xs">
-        <div class="w-8 h-8 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-          <span class="material-symbols-outlined text-[20px]">forum</span>
-        </div>
-        <h2 class="font-headline-sm text-on-surface">Continuous Live Conversation</h2>
-      </div>
-      <span class="text-label-sm text-on-surface-variant font-medium">Synchronized ISL &amp; Text</span>
-    </div>
-
-    <!-- Scrolling Feed -->
-    <div id="live-chat-feed" class="flex flex-col gap-space-md py-space-md max-h-[420px] overflow-y-auto pr-space-xs flex-1">
-      <div id="live-chat-empty" class="flex flex-col items-center justify-center p-8 text-center text-on-surface-variant/60 my-auto">
-        <div class="w-14 h-14 rounded-2xl bg-surface-container flex items-center justify-center mb-3 text-primary/40 shadow-inner">
-          <span class="material-symbols-outlined text-[32px]">forum</span>
-        </div>
-        <p class="text-body-sm font-semibold text-on-surface">No live conversation yet</p>
-        <p class="text-xs opacity-75 mt-0.5">Send a message or sign on camera to begin real-time translation</p>
-      </div>
-    </div>
-
-    <!-- Bottom Control Dock -->
-    <div id="live-mic-status" class="hidden items-center gap-2 text-error text-xs font-semibold px-1 pb-1"><span class="w-2 h-2 rounded-full bg-error animate-ping"></span><span>Listening... Speak now</span></div>
-    <div class="pt-space-md border-t border-outline-variant/30 flex flex-col gap-space-sm">
-      <div class="flex items-center gap-space-sm">
-        <div class="relative flex-1">
-          <input id="live-chat-input" class="w-full bg-surface text-on-surface placeholder:text-outline px-space-md py-3 rounded-xl border border-outline-variant/40 outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all text-body-md shadow-inner" placeholder="Type message or sign on camera..." type="text" onkeydown="if(event.key==='Enter') sendLiveMessage()">
-        </div>
-        <button class="w-11 h-11 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-xs border border-outline-variant/25 flex items-center justify-center" id="live-cam-toggle-btn" title="Sign User Camera Reply (Click to toggle camera)" onclick="toggleLiveCamera()"><span id="live-cam-icon" class="material-symbols-outlined text-[20px]">videocam</span></button>
-        <button class="w-11 h-11 bg-surface-container hover:bg-surface-container-high text-on-surface rounded-xl btn-bounce cursor-pointer shadow-xs border border-outline-variant/25 flex items-center justify-center" id="live-mic-btn" title="Voice Input (Mic)" onclick="toggleLiveVoiceRecording()">
-          <span class="material-symbols-outlined text-[20px]">mic</span>
-        </button>
-        <button id="live-send-btn" onclick="sendLiveMessage()" class="h-11 px-5 bg-primary hover:bg-primary/95 text-on-primary rounded-xl font-semibold text-label-md btn-bounce shadow-sm flex items-center gap-1.5 cursor-pointer">
-          <span>Send</span>
-          <span class="material-symbols-outlined text-[18px]">send</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  </div>
 </div>
     </div>
 
@@ -1583,6 +1579,6 @@
   </div>
 
   <!-- Application Logic -->
-  <script src="app.js?v=20261027_unobstructed_master_and_stable_transition"></script>
+  <script src="app.js?v=20261027_live_chat_layout_reordered"></script>
 </body>
 </html>
