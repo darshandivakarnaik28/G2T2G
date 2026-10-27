@@ -384,6 +384,8 @@ const UI_TRANSLATIONS = {
   "Thank you": "ಧನ್ಯವಾದಗಳು",
   "How are you?": "ನೀವು ಹೇಗಿದ್ದೀರಿ?",
   "Need help": "ಸಹಾಯ ಬೇಕು",
+  "Food": "ಊಟ",
+  "Morning": "ಶುಭೋದಯ",
   "Water": "ನೀರು",
   "Conversation Feed": "ಸಂಭಾಷಣೆ ಪಟ್ಟಿ",
   "Live transcript & ISL log": "ಲೈವ್ ಸಂಭಾಷಣೆ ಮತ್ತು ISL ದಾಖಲೆ",
