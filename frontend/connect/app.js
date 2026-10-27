@@ -762,8 +762,8 @@ function speakText(text) {
     if (femaleVoice) {
       utterance.voice = femaleVoice;
     }
-    // Rate 1.0 and Pitch 1.15 to guarantee the clear, bright young girl voice
-    utterance.rate = 1.0;
+    // Rate 1.08 and Pitch 1.15 to guarantee the fast, clear, bright young girl voice
+    utterance.rate = 1.08;
     utterance.pitch = 1.15;
     window.speechSynthesis.speak(utterance);
   }
@@ -798,6 +798,7 @@ function initSpeechRecognition(onResultCallback, onEndCallback) {
   const recognizer = new SpeechRec();
   recognizer.continuous = false;
   recognizer.interimResults = true;
+  recognizer.maxAlternatives = 1;
   recognizer.lang = state.currentLang === 'kn' ? 'kn-IN' : 'en-IN';
 
   recognizer.onresult = (event) => {
@@ -989,6 +990,14 @@ function toggleVoiceRecording() {
     state.isRecordingNormal = false;
     setNormalMicUI(false);
     stopAllSpeechRecognition();
+    if (textarea) {
+      const recognized = textarea.value.trim();
+      if (recognized) {
+        showMasterGestureAnd3D(recognized);
+      }
+      textarea.value = '';
+      textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   }
 }
 window.toggleVoiceRecording = toggleVoiceRecording;
@@ -1085,6 +1094,14 @@ function toggleLiveVoiceRecording() {
     state.isRecordingLive = false;
     setLiveMicUI(false);
     stopAllSpeechRecognition();
+    if (input) {
+      const recognized = input.value.trim();
+      if (recognized) {
+        sendLiveChatMessage();
+      }
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   }
 }
 window.toggleLiveVoiceRecording = toggleLiveVoiceRecording;
@@ -1220,6 +1237,14 @@ function toggleSignVoiceRecording() {
     state.isRecordingSign = false;
     setSignMicUI(false);
     stopAllSpeechRecognition();
+    if (input) {
+      const recognized = input.value.trim();
+      if (recognized) {
+        sendManualMessage();
+      }
+      input.value = '';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+    }
   }
 }
 window.toggleSignVoiceRecording = toggleSignVoiceRecording;
@@ -1618,6 +1643,11 @@ class ISL3DAvatarViewer {
 
   animate() {
     requestAnimationFrame(this.animate);
+
+    // PERFORMANCE: Skip Three.js calculation and WebGL render when viewer container is hidden
+    if (!this.container || this.container.offsetParent === null) {
+      return;
+    }
 
     if (this.controls) this.controls.update();
 
@@ -2152,8 +2182,12 @@ function onHandTrackingResults(results) {
 
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  canvas.width = canvas.clientWidth;
-  canvas.height = canvas.clientHeight;
+  const targetW = canvas.clientWidth || 640;
+  const targetH = canvas.clientHeight || 480;
+  if (canvas.width !== targetW || canvas.height !== targetH) {
+    canvas.width = targetW;
+    canvas.height = targetH;
+  }
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
   const numHands = results.multiHandLandmarks ? results.multiHandLandmarks.length : 0;
@@ -2572,7 +2606,6 @@ async function toggleSignCamera() {
   if (state.isCameraActiveSign) {
     try {
       clearStagedPhrase();
-      clearStagedPhrase();
       state.firstHandDetectTime = 0;
       state.isFirstHandStabilized = false;
       state.mlFrameBuffer = [];
@@ -2588,7 +2621,7 @@ async function toggleSignCamera() {
       if (video) {
         video.srcObject = stream;
         video.classList.remove('hidden');
-        await video.play();
+        video.play().catch(() => {});
       }
       if (standby) standby.classList.add('hidden');
       if (badgeLeft) {
@@ -2650,10 +2683,13 @@ async function toggleSignCamera() {
       mediaPipeCameraInstance = null;
     }
     if (state.cameraStream) {
-      state.cameraStream.getTracks().forEach(t => t.stop());
+      state.cameraStream.getTracks().forEach(t => {
+        try { t.stop(); } catch(e) {}
+      });
       state.cameraStream = null;
     }
     if (video) {
+      try { video.pause(); } catch(e) {}
       video.classList.add('hidden');
       video.srcObject = null;
     }
@@ -2814,7 +2850,7 @@ async function toggleLiveCamera() {
       if (video) {
         video.srcObject = stream;
         video.classList.remove('hidden');
-        await video.play();
+        video.play().catch(() => {});
       }
       if (canvas) {
         canvas.classList.remove('hidden');
@@ -2882,10 +2918,13 @@ async function toggleLiveCamera() {
       mediaPipeCameraInstance = null;
     }
     if (state.cameraStream) {
-      state.cameraStream.getTracks().forEach(t => t.stop());
+      state.cameraStream.getTracks().forEach(t => {
+        try { t.stop(); } catch(e) {}
+      });
       state.cameraStream = null;
     }
     if (video) {
+      try { video.pause(); } catch(e) {}
       video.classList.add('hidden');
       video.srcObject = null;
     }
