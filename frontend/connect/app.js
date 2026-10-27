@@ -1615,6 +1615,8 @@ class ISL3DAvatarViewer {
 
   async playGesture(gestureName) {
     this.currentGesture = (gestureName || '').trim().toUpperCase();
+    this.sequenceMarkers = null;
+    this.onStepChangeCallback = null;
     if (!this.currentGesture) {
       this.isPlaying = false;
       this.resetToNeutralPose();
@@ -1641,6 +1643,87 @@ class ISL3DAvatarViewer {
     this.resetToNeutralPose();
   }
 
+  async playSequence(gestureNames, onStepChange) {
+    if (!gestureNames || !gestureNames.length) {
+      this.isPlaying = false;
+      this.resetToNeutralPose();
+      return;
+    }
+
+    if (gestureNames.length === 1) {
+      this.sequenceMarkers = null;
+      this.onStepChangeCallback = null;
+      return this.playGesture(gestureNames[0]);
+    }
+
+    this.currentGesture = gestureNames.join(' + ').toUpperCase();
+    this.isPlaying = false;
+    this.sequenceFrames = null;
+    this.sequenceMarkers = [];
+    this.currentStepIndex = 0;
+    this.onStepChangeCallback = onStepChange;
+
+    try {
+      const allFrames = [];
+      const markers = [];
+
+      for (let gIdx = 0; gIdx < gestureNames.length; gIdx++) {
+        const gName = gestureNames[gIdx];
+        const cleanQuery = (gName || '').toLowerCase().trim().replace(/\s+/g, '_');
+        const res = await fetch(`/api/ml/gesture-template/${encodeURIComponent(cleanQuery)}`);
+        if (!res.ok) continue;
+        const data = await res.json();
+        const frames = data.frames || [];
+        if (!frames.length) continue;
+
+        // If not the first gesture, interpolate 6 smooth transition frames from previous gesture end to this gesture start
+        if (allFrames.length > 0) {
+          const lastF = allFrames[allFrames.length - 1];
+          const firstF = frames[0];
+          for (let s = 1; s <= 6; s++) {
+            const alpha = s / 7;
+            allFrames.push({
+              frame_index: allFrames.length,
+              left_hand_landmarks: this.interpolateHandPoints(lastF.left_hand_landmarks, firstF.left_hand_landmarks, alpha),
+              right_hand_landmarks: this.interpolateHandPoints(lastF.right_hand_landmarks, firstF.right_hand_landmarks, alpha)
+            });
+          }
+        }
+
+        const startFrame = allFrames.length;
+        for (let fi = 0; fi < frames.length; fi++) {
+          const f = frames[fi];
+          allFrames.push({
+            frame_index: allFrames.length,
+            left_hand_landmarks: f.left_hand_landmarks,
+            right_hand_landmarks: f.right_hand_landmarks
+          });
+        }
+        const endFrame = allFrames.length - 1;
+        markers.push({
+          stepIndex: gIdx,
+          gestureName: gName,
+          startFrame,
+          endFrame
+        });
+      }
+
+      if (allFrames.length > 0) {
+        this.sequenceFrames = allFrames;
+        this.sequenceMarkers = markers;
+        this.frameCursor = 0;
+        this.isPlaying = allFrames.length > 1;
+        this.setInterpolatedFrame(allFrames[0], allFrames[0], 0);
+        return;
+      }
+    } catch (e) {
+      console.warn('[ISL Connect] playSequence notice:', e);
+    }
+
+    this.isPlaying = false;
+    this.resetToNeutralPose();
+  }
+
   animate() {
     requestAnimationFrame(this.animate);
 
@@ -1662,6 +1745,23 @@ class ISL3DAvatarViewer {
       const idxB = (idxA + 1) % len;
       const alpha = this.frameCursor - Math.floor(this.frameCursor);
       this.setInterpolatedFrame(this.sequenceFrames[idxA], this.sequenceFrames[idxB], alpha);
+
+      // Check if active step changed during sequence playback
+      if (this.sequenceMarkers && this.sequenceMarkers.length > 0) {
+        const curFrame = Math.floor(this.frameCursor) % len;
+        for (let m = 0; m < this.sequenceMarkers.length; m++) {
+          const marker = this.sequenceMarkers[m];
+          if (curFrame >= marker.startFrame && curFrame <= marker.endFrame) {
+            if (this.currentStepIndex !== marker.stepIndex) {
+              this.currentStepIndex = marker.stepIndex;
+              if (typeof this.onStepChangeCallback === 'function') {
+                this.onStepChangeCallback(marker.stepIndex, marker.gestureName);
+              }
+            }
+            break;
+          }
+        }
+      }
 
       if (this === state.normalViewer) {
         const scrubber = document.getElementById('normal-scrubber');
@@ -1830,15 +1930,97 @@ function resolveTrainedGesture(text) {
   };
 }
 
-function showMissingGesturePrompt(gestureText) {
+function resolveSentenceGestures(text) {
+  if (!text) return { isSequence: false, gestures: [], missing: [], rawText: '' };
+
+  const cleaned = String(text).trim().replace(/[?!.,;:]/g, '');
+  if (!cleaned) return { isSequence: false, gestures: [], missing: [], rawText: '' };
+
+  // 1. Direct match check (single word or exact compound in DICTIONARY)
+  const direct = resolveTrainedGesture(cleaned);
+  if (direct.found) {
+    return {
+      isSequence: false,
+      gestures: [direct],
+      missing: [],
+      rawText: cleaned
+    };
+  }
+
+  // 2. Tokenize words for multi-word sequential decomposition
+  const words = cleaned.split(/\s+/).filter(Boolean);
+  if (words.length <= 1) {
+    return {
+      isSequence: false,
+      gestures: [],
+      missing: [cleaned],
+      rawText: cleaned
+    };
+  }
+
+  const gestures = [];
+  const missing = [];
+  let i = 0;
+  while (i < words.length) {
+    // Check 2-word pair first (e.g. "what time", "thank you", "my name")
+    if (i + 1 < words.length) {
+      const pair = `${words[i]} ${words[i + 1]}`;
+      const pairResolved = resolveTrainedGesture(pair);
+      if (pairResolved.found) {
+        gestures.push(pairResolved);
+        i += 2;
+        continue;
+      }
+    }
+    // Check single word
+    const single = words[i];
+    const singleResolved = resolveTrainedGesture(single);
+    if (singleResolved.found) {
+      gestures.push(singleResolved);
+    } else {
+      missing.push(single);
+    }
+    i += 1;
+  }
+
+  return {
+    isSequence: gestures.length > 1 || missing.length > 0,
+    gestures,
+    missing,
+    rawText: cleaned
+  };
+}
+window.resolveSentenceGestures = resolveSentenceGestures;
+
+state.sequenceControllers = {
+  normal: {
+    gestures: [],
+    currentIndex: 0,
+    timer: null,
+    samples: {}
+  },
+  chat: {
+    gestures: [],
+    currentIndex: 0,
+    timer: null,
+    samples: {}
+  }
+};
+
+function showMissingGesturePrompt(gestureText, context = {}) {
   const cleanName = (gestureText || '').trim();
   state.pendingMissingGesture = cleanName;
+  state.pendingMissingContext = context;
 
   const petIdle = document.getElementById('normal-pet-idle');
   const dualFrames = document.getElementById('normal-dual-frames');
   const missingCard = document.getElementById('normal-missing-gesture-card');
   const missingTitle = document.getElementById('missing-gesture-title');
   const missingDesc = document.getElementById('missing-gesture-desc');
+  const missingBreakdown = document.getElementById('missing-gesture-breakdown');
+  const btnRecordText = document.getElementById('btn-confirm-record-text');
+  const btnPlayAvail = document.getElementById('btn-play-available-gestures');
+  const btnPlayAvailText = document.getElementById('btn-play-available-text');
   const masterVideo = document.getElementById('master-reference-video');
 
   if (petIdle) petIdle.classList.add('hidden');
@@ -1857,15 +2039,62 @@ function showMissingGesturePrompt(gestureText) {
     missingCard.classList.remove('hidden');
     missingCard.classList.add('flex');
   }
+
+  const allMissing = context.allMissing && context.allMissing.length ? context.allMissing : [cleanName];
+  const missingDisplay = allMissing.map(m => `"${m.toUpperCase()}"`).join(', ');
+
   if (missingTitle) {
     missingTitle.textContent = state.currentLang === 'kn'
-      ? `"${cleanName}" ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ`
-      : `"${cleanName}" is not in the dataset`;
+      ? `${missingDisplay} ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ`
+      : `${missingDisplay} is not in the dataset`;
   }
   if (missingDesc) {
     missingDesc.textContent = state.currentLang === 'kn'
-      ? `ಈ ಸೈನ್ ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಇಲ್ಲ. ನೀವು "${cleanName}" ಗಾಗಿ ಸೈನ್ ಮಾಡಿ ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಉಳಿಸಲು ಬಯಸುವಿರಾ?`
-      : `This gesture is not in the dataset. Do you want to perform the gesture for "${cleanName}" and save it in the database?`;
+      ? `ವಾಕ್ಯದಲ್ಲಿನ "${cleanName}" ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಇಲ್ಲ. ಇದಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಿ ಡೇಟಾಸೆಟ್‌ಗೆ ಸೇರಿಸಲು ಬಯಸುವಿರಾ?`
+      : `Word "${cleanName}" has no recorded samples in the database yet. Perform and record this gesture to complete your dataset!`;
+  }
+  if (btnRecordText) {
+    btnRecordText.textContent = state.currentLang === 'kn'
+      ? `ಹೌದು, "${cleanName.toUpperCase()}" ಸೈನ್ ಮಾಡಿ`
+      : `Yes, Record "${cleanName.toUpperCase()}"`;
+  }
+
+  // Render multi-word token breakdown if phrase had multiple words
+  if (missingBreakdown) {
+    missingBreakdown.innerHTML = '';
+    const rawWords = (context.rawText || '').split(/\s+/).filter(Boolean);
+    if (rawWords.length > 1) {
+      missingBreakdown.classList.remove('hidden');
+      missingBreakdown.classList.add('flex');
+
+      rawWords.forEach(w => {
+        const isMissing = allMissing.some(m => m.toLowerCase() === w.toLowerCase());
+        const pill = document.createElement('span');
+        if (isMissing) {
+          pill.className = 'px-2.5 py-1 rounded-full text-xs font-semibold bg-error/20 text-error border border-error/40 flex items-center gap-1 animate-pulse';
+          pill.innerHTML = `<span class="material-symbols-outlined text-[13px]">cancel</span> ${w.toUpperCase()} (Missing)`;
+        } else {
+          pill.className = 'px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-500 border border-emerald-500/30 flex items-center gap-1';
+          pill.innerHTML = `<span class="material-symbols-outlined text-[13px]">check_circle</span> ${w.toUpperCase()}`;
+        }
+        missingBreakdown.appendChild(pill);
+      });
+    } else {
+      missingBreakdown.classList.add('hidden');
+      missingBreakdown.classList.remove('flex');
+    }
+  }
+
+  // Handle "Play Available Signs" button
+  if (btnPlayAvail && btnPlayAvailText) {
+    if (context.availableGestures && context.availableGestures.length > 0) {
+      btnPlayAvailText.textContent = `Play Available Signs (${context.availableGestures.map(g => g.signKey).join(', ')})`;
+      btnPlayAvail.classList.remove('hidden');
+      btnPlayAvail.classList.add('flex');
+    } else {
+      btnPlayAvail.classList.add('hidden');
+      btnPlayAvail.classList.remove('flex');
+    }
   }
 }
 window.showMissingGesturePrompt = showMissingGesturePrompt;
@@ -1879,6 +2108,7 @@ window.confirmPerformMissingGesture = confirmPerformMissingGesture;
 
 function dismissMissingGesturePrompt() {
   state.pendingMissingGesture = null;
+  state.pendingMissingContext = null;
   const missingCard = document.getElementById('normal-missing-gesture-card');
   const petIdle = document.getElementById('normal-pet-idle');
   if (missingCard) {
@@ -1891,23 +2121,302 @@ function dismissMissingGesturePrompt() {
 }
 window.dismissMissingGesturePrompt = dismissMissingGesturePrompt;
 
-async function showMasterGestureAnd3D(text) {
-  if (!text) return;
+function playAvailableSentenceSigns(mode = 'normal') {
+  const context = state.pendingMissingContext;
+  if (!context || !context.availableGestures || !context.availableGestures.length) return;
+  state.pendingMissingGesture = null;
+  state.pendingMissingContext = null;
 
-  let resolved = resolveTrainedGesture(text);
-  // If not found in local DICTIONARY, check once with backend in case it was just added to SQLite
-  if (!resolved.found) {
-    await syncDatasetGestures();
-    resolved = resolveTrainedGesture(text);
+  if (mode === 'normal') {
+    const missingCard = document.getElementById('normal-missing-gesture-card');
+    if (missingCard) {
+      missingCard.classList.add('hidden');
+      missingCard.classList.remove('flex');
+    }
+    playSequenceGestures('normal', context.availableGestures);
+  } else {
+    const chatOverlay = document.getElementById('chat-missing-gesture-overlay');
+    if (chatOverlay) {
+      chatOverlay.classList.add('hidden');
+      chatOverlay.classList.remove('flex');
+    }
+    playSequenceGestures('chat', context.availableGestures);
+  }
+}
+window.playAvailableSentenceSigns = playAvailableSentenceSigns;
+
+async function playSequenceGestures(mode, gestures) {
+  if (!gestures || !gestures.length) return;
+  const ctrl = state.sequenceControllers[mode || 'normal'];
+  if (!ctrl) return;
+
+  if (ctrl.timer) {
+    clearTimeout(ctrl.timer);
+    ctrl.timer = null;
   }
 
-  if (!resolved.found) {
-    showMissingGesturePrompt(resolved.rawText || text);
+  ctrl.gestures = gestures;
+  ctrl.currentIndex = 0;
+  ctrl.samples = {};
+
+  if (mode === 'normal') {
+    const petIdle = document.getElementById('normal-pet-idle');
+    const missingCard = document.getElementById('normal-missing-gesture-card');
+    const dualFrames = document.getElementById('normal-dual-frames');
+    if (petIdle) petIdle.classList.add('hidden');
+    if (missingCard) {
+      missingCard.classList.add('hidden');
+      missingCard.classList.remove('flex');
+    }
+    if (dualFrames) {
+      dualFrames.classList.remove('hidden');
+      dualFrames.classList.add('flex');
+    }
+
+    const modelStatusBadge = document.getElementById('model-status-badge');
+    if (modelStatusBadge) {
+      modelStatusBadge.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Continuous ISL Sequence Active`;
+    }
+
+    initNormal3DViewer();
+    if (state.normalViewer) {
+      state.normalViewer.playSequence(gestures.map(g => g.cleanId), (stepIdx) => {
+        updateSequenceStepUI('normal', stepIdx);
+      });
+    }
+  } else {
+    const standby = document.getElementById('chat-camera-standby');
+    const chatMissingOverlay = document.getElementById('chat-missing-gesture-overlay');
+    const upperLabel = document.getElementById('chat-upper-frame-label');
+    if (standby) standby.classList.add('hidden');
+    if (chatMissingOverlay) {
+      chatMissingOverlay.classList.add('hidden');
+      chatMissingOverlay.classList.remove('flex');
+    }
+    if (upperLabel) upperLabel.textContent = 'Upper: Continuous Master Signer Gesture';
+
+    initChat3DViewer();
+    if (state.chatViewer) {
+      state.chatViewer.playSequence(gestures.map(g => g.cleanId), (stepIdx) => {
+        updateSequenceStepUI('chat', stepIdx);
+      });
+    }
+  }
+
+  renderSequenceStepper(mode, gestures, 0);
+  await playSequenceStep(mode, 0);
+}
+window.playSequenceGestures = playSequenceGestures;
+
+function renderSequenceStepper(mode, gestures, activeIdx) {
+  const containerId = mode === 'chat' ? 'chat-master-sequence-stepper' : 'master-sequence-stepper';
+  const stepper = document.getElementById(containerId);
+  if (!stepper) return;
+
+  stepper.innerHTML = '';
+  if (!gestures || gestures.length <= 1) {
+    stepper.classList.add('hidden');
+    stepper.classList.remove('flex');
     return;
   }
 
+  stepper.classList.remove('hidden');
+  stepper.classList.add('flex');
+
+  gestures.forEach((g, idx) => {
+    const isActive = idx === activeIdx;
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = isActive
+      ? 'px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary text-on-primary shadow-xs transition-all cursor-pointer'
+      : 'px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/10 hover:bg-white/20 text-inverse-on-surface transition-all cursor-pointer';
+    btn.textContent = `${idx + 1}. ${g.signKey}`;
+    btn.onclick = () => jumpSequenceStep(mode, idx);
+    stepper.appendChild(btn);
+
+    if (idx < gestures.length - 1) {
+      const arrow = document.createElement('span');
+      arrow.className = 'text-[9px] text-tertiary-fixed-dim';
+      arrow.textContent = '→';
+      stepper.appendChild(arrow);
+    }
+  });
+}
+window.renderSequenceStepper = renderSequenceStepper;
+
+function updateSequenceStepUI(mode, stepIdx) {
+  const ctrl = state.sequenceControllers[mode || 'normal'];
+  if (!ctrl || !ctrl.gestures.length) return;
+  if (ctrl.currentIndex === stepIdx) return;
+  ctrl.currentIndex = stepIdx;
+  renderSequenceStepper(mode, ctrl.gestures, stepIdx);
+  playSequenceStep(mode, stepIdx);
+}
+window.updateSequenceStepUI = updateSequenceStepUI;
+
+async function jumpSequenceStep(mode, stepIdx) {
+  const ctrl = state.sequenceControllers[mode || 'normal'];
+  if (!ctrl || !ctrl.gestures[stepIdx]) return;
+  ctrl.currentIndex = stepIdx;
+  renderSequenceStepper(mode, ctrl.gestures, stepIdx);
+
+  const viewer = mode === 'chat' ? state.chatViewer : state.normalViewer;
+  if (viewer && viewer.sequenceMarkers && viewer.sequenceMarkers[stepIdx]) {
+    viewer.frameCursor = viewer.sequenceMarkers[stepIdx].startFrame;
+    viewer.currentStepIndex = stepIdx;
+  }
+  await playSequenceStep(mode, stepIdx);
+}
+window.jumpSequenceStep = jumpSequenceStep;
+
+async function playSequenceStep(mode, stepIdx) {
+  const ctrl = state.sequenceControllers[mode || 'normal'];
+  if (!ctrl || !ctrl.gestures[stepIdx]) return;
+  const gesture = ctrl.gestures[stepIdx];
+
+  const titleEl = document.getElementById(mode === 'chat' ? 'chat-master-title' : 'master-sign-title');
+  const signerEl = document.getElementById(mode === 'chat' ? 'chat-master-signer' : 'master-signer-id');
+  const imgEl = document.getElementById(mode === 'chat' ? 'chat-master-img' : 'master-reference-img');
+  const videoEl = document.getElementById(mode === 'chat' ? 'chat-master-video' : 'master-reference-video');
+  const fallbackEl = document.getElementById('master-reference-fallback');
+  const captionEl = document.getElementById(mode === 'chat' ? 'chat-master-caption' : null);
+  const standbyBanner = document.getElementById('model-standby-banner');
+
+  const displayTitle = state.currentLang === 'kn' ? gesture.knMeaning : gesture.signKey;
+  if (titleEl) {
+    titleEl.textContent = `${displayTitle} (${stepIdx + 1}/${ctrl.gestures.length})`;
+  }
+  if (captionEl) {
+    captionEl.classList.remove('hidden');
+    captionEl.classList.add('flex');
+  }
+  if (standbyBanner) {
+    standbyBanner.innerHTML = `
+      <span class="flex items-center gap-1.5 text-secondary-fixed font-medium">
+        <span class="material-symbols-outlined text-[15px] text-emerald-400">playlist_play</span>
+        <span>Sequence Step ${stepIdx + 1} of ${ctrl.gestures.length}: ${displayTitle}</span>
+      </span>
+      <span class="text-[10px] text-secondary-fixed font-mono bg-secondary/20 px-1.5 py-0.5 rounded">Continuous 3D</span>
+    `;
+  }
+
+  let sample = ctrl.samples[gesture.cleanId];
+  if (!sample) {
+    try {
+      const res = await fetch(`/api/gestures/${encodeURIComponent(gesture.cleanId)}/master-sample`);
+      if (res.ok) {
+        sample = await res.json();
+        ctrl.samples[gesture.cleanId] = sample;
+      }
+    } catch (e) {}
+  }
+
+  if (signerEl && sample && sample.signer_id) {
+    signerEl.textContent = `Signer: ${sample.signer_id} (Master)`;
+  }
+
+  const triggerNext = () => {
+    if (ctrl.timer) clearTimeout(ctrl.timer);
+    ctrl.timer = setTimeout(() => {
+      const nextIdx = (ctrl.currentIndex + 1) % ctrl.gestures.length;
+      jumpSequenceStep(mode, nextIdx);
+    }, 600);
+  };
+
+  if (sample && sample.stored_file_path && sample.stored_file_path !== 'landmarks_only') {
+    const mediaUrl = `/${sample.stored_file_path.replace(/^\/+/, '')}`;
+    const isVideo = /\.(webm|mp4|mov|mkv)$/i.test(sample.stored_file_path);
+
+    if (fallbackEl) fallbackEl.classList.add('hidden');
+
+    if (isVideo && videoEl) {
+      if (imgEl) imgEl.classList.add('hidden');
+      videoEl.loop = false;
+      videoEl.src = mediaUrl;
+      videoEl.classList.remove('hidden');
+      videoEl.onended = () => {
+        triggerNext();
+      };
+      videoEl.load();
+      try {
+        videoEl.playbackRate = Math.max(0.1, Math.min(2.0, state.playbackSpeed || 1.0));
+      } catch (e) {}
+      videoEl.play().catch(() => {});
+    } else if (imgEl) {
+      if (videoEl) {
+        videoEl.pause();
+        videoEl.classList.add('hidden');
+      }
+      imgEl.src = mediaUrl;
+      imgEl.classList.remove('hidden');
+      if (ctrl.timer) clearTimeout(ctrl.timer);
+      ctrl.timer = setTimeout(() => triggerNext(), 2800);
+    }
+  } else {
+    if (imgEl) imgEl.classList.add('hidden');
+    if (videoEl) {
+      videoEl.pause();
+      videoEl.classList.add('hidden');
+    }
+    if (fallbackEl) {
+      fallbackEl.classList.remove('hidden');
+      const fbTitle = document.getElementById('master-fallback-title');
+      if (fbTitle) fbTitle.textContent = `Master Gesture: ${displayTitle}`;
+    }
+    if (ctrl.timer) clearTimeout(ctrl.timer);
+    ctrl.timer = setTimeout(() => triggerNext(), 2500);
+  }
+}
+window.playSequenceStep = playSequenceStep;
+
+async function showMasterGestureAnd3D(text) {
+  if (!text) return;
+
+  let sentence = resolveSentenceGestures(text);
+  // If not found in local DICTIONARY, check once with backend in case it was just added to SQLite
+  if (sentence.missing.length > 0 && sentence.gestures.length === 0) {
+    await syncDatasetGestures();
+    sentence = resolveSentenceGestures(text);
+  }
+
+  // If any word in the sentence is missing from the dataset:
+  if (sentence.missing.length > 0) {
+    showMissingGesturePrompt(sentence.missing[0], {
+      allMissing: sentence.missing,
+      availableGestures: sentence.gestures,
+      rawText: text
+    });
+    return;
+  }
+
+  if (!sentence.gestures || !sentence.gestures.length) {
+    showMissingGesturePrompt(text);
+    return;
+  }
+
+  // If multiple gestures in sentence: Play continuous sequence!
+  if (sentence.gestures.length > 1) {
+    await playSequenceGestures('normal', sentence.gestures);
+    return;
+  }
+
+  // Single gesture playback:
+  const resolved = sentence.gestures[0];
   const { cleanId, signKey, knMeaning } = resolved;
   const activeDisplayTitle = state.currentLang === 'kn' ? knMeaning : signKey;
+
+  // Clear any sequence stepper and timer
+  const stepper = document.getElementById('master-sequence-stepper');
+  if (stepper) {
+    stepper.classList.add('hidden');
+    stepper.classList.remove('flex');
+    stepper.innerHTML = '';
+  }
+  const ctrl = state.sequenceControllers['normal'];
+  if (ctrl && ctrl.timer) {
+    clearTimeout(ctrl.timer);
+    ctrl.timer = null;
+  }
 
   // Verify the gesture actually has recorded samples in the database
   let sample = null;
@@ -1962,14 +2471,15 @@ async function showMasterGestureAnd3D(text) {
 
       if (isVideo && masterVideo) {
         if (masterImg) masterImg.classList.add('hidden');
-        const rate = Math.max(0.1, Math.min(2.0, state.playbackSpeed || 1.0));
+        masterVideo.loop = true;
+        masterVideo.onended = null;
         masterVideo.src = mediaUrl;
         masterVideo.classList.remove('hidden');
         masterVideo.onloadedmetadata = () => {
-          try { masterVideo.playbackRate = rate; } catch (e) {}
+          try { masterVideo.playbackRate = Math.max(0.1, Math.min(2.0, state.playbackSpeed || 1.0)); } catch (e) {}
         };
         masterVideo.load();
-        try { masterVideo.playbackRate = rate; } catch (e) {}
+        try { masterVideo.playbackRate = Math.max(0.1, Math.min(2.0, state.playbackSpeed || 1.0)); } catch (e) {}
         masterVideo.play().catch(() => {});
       } else if (masterImg) {
         if (masterVideo) {
@@ -2023,9 +2533,9 @@ window.showMasterGestureAnd3D = showMasterGestureAnd3D;
 
 function setInputValue(text) {
   const textarea = document.getElementById('normal-text-input');
-  const resolved = resolveTrainedGesture(text);
-  const activeText = resolved.found
-    ? (state.currentLang === 'kn' ? resolved.knMeaning : resolved.signKey)
+  const sentence = resolveSentenceGestures(text);
+  const activeText = sentence.gestures.length > 0
+    ? (state.currentLang === 'kn' ? sentence.gestures.map(g => g.knMeaning).join(' ') : sentence.gestures.map(g => g.signKey).join(' '))
     : text;
   if (textarea) textarea.value = activeText;
   // Speak the selected phrase aloud immediately in the active language
@@ -2042,9 +2552,10 @@ function triggerTranslation() {
   if (!textarea || !textarea.value.trim()) return;
 
   const text = textarea.value.trim();
-  const resolved = resolveTrainedGesture(text);
-  const activeMsg = resolved.found
-    ? (state.currentLang === 'kn' ? resolved.knMeaning : text)
+  const sentence = resolveSentenceGestures(text);
+  const isFound = sentence.missing.length === 0 && sentence.gestures.length > 0;
+  const activeMsg = isFound
+    ? (state.currentLang === 'kn' ? sentence.gestures.map(g => g.knMeaning).join(' ') : sentence.gestures.map(g => g.signKey).join(' '))
     : text;
 
   // Speak immediately FIRST for zero-latency voice output
@@ -2070,7 +2581,10 @@ function triggerTranslation() {
     const msgDiv = document.createElement('div');
     msgDiv.className = "flex flex-col gap-space-xs bg-surface/90 backdrop-blur-sm p-4 rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow animate-fade-in";
 
-    if (resolved.found) {
+    if (isFound) {
+      const sequenceBadge = sentence.gestures.length > 1
+        ? ` (${sentence.gestures.map(g => g.signKey).join(' → ')})`
+        : '';
       msgDiv.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-space-xs">
@@ -2082,16 +2596,17 @@ function triggerTranslation() {
         <p class="text-body-md text-on-surface pl-7 font-bold">${activeMsg}</p>
         <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
           <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
-            <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D 21-Landmark Output
+            <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D 21-Landmark Output${sequenceBadge}
           </span>
         </div>
       `;
     } else {
-      const safeAttr = text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const missingWord = sentence.missing[0] || text;
+      const safeAttr = missingWord.replace(/'/g, "\\'").replace(/"/g, '&quot;');
       const notFoundText = state.currentLang === 'kn'
-        ? 'ಈ ಸೈನ್ ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ. ಇದಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಲು ಬಯಸುವಿರಾ?'
-        : 'This gesture is not in the dataset. Do you want to perform the gesture for this?';
-      const yesBtnText = state.currentLang === 'kn' ? 'ಹೌದು, ಸೈನ್ ಮಾಡಿ' : 'Yes, Perform Gesture';
+        ? `"${missingWord.toUpperCase()}" ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ. ಇದಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಲು ಬಯಸುವಿರಾ?`
+        : `"${missingWord.toUpperCase()}" is not in the dataset. Do you want to perform the gesture for this?`;
+      const yesBtnText = state.currentLang === 'kn' ? 'ಹೌದು, ಸೈನ್ ಮಾಡಿ' : `Record "${missingWord.toUpperCase()}"`;
       msgDiv.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-space-xs">
@@ -3010,9 +3525,10 @@ function sendSignUserLiveReply(textEn, textKn, confPct) {
 }
 window.sendSignUserLiveReply = sendSignUserLiveReply;
 
-function showChatMissingGesturePrompt(gestureText) {
+function showChatMissingGesturePrompt(gestureText, context = {}) {
   const cleanGesture = (gestureText || '').trim();
   state.pendingMissingGesture = cleanGesture;
+  state.pendingMissingContext = context;
 
   const standby = document.getElementById('chat-camera-standby');
   const upperLabel = document.getElementById('chat-upper-frame-label');
@@ -3025,6 +3541,9 @@ function showChatMissingGesturePrompt(gestureText) {
   const badgeEl = document.getElementById('chat-missing-gesture-badge');
   const yesLabelEl = document.getElementById('chat-missing-yes-label');
   const noLabelEl = document.getElementById('chat-missing-no-label');
+  const breakdownEl = document.getElementById('chat-missing-gesture-breakdown');
+  const btnPlayAvail = document.getElementById('chat-btn-play-available');
+  const playAvailText = document.getElementById('chat-play-available-text');
 
   if (standby) standby.classList.add('hidden');
   if (upperLabel) {
@@ -3043,18 +3562,56 @@ function showChatMissingGesturePrompt(gestureText) {
     state.chatViewer.pause();
   }
 
+  const allMissing = context.allMissing && context.allMissing.length ? context.allMissing : [cleanGesture];
+  const missingDisplay = allMissing.map(m => `"${m.toUpperCase()}"`).join(', ');
+
   if (state.currentLang === 'kn') {
     if (badgeEl) badgeEl.textContent = 'ಈ ಸೈನ್ ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ';
-    if (titleEl) titleEl.textContent = `"${cleanGesture}" ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ`;
-    if (descEl) descEl.textContent = 'ಇದಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಿ ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಉಳಿಸಲು ಬಯಸುವಿರಾ?';
-    if (yesLabelEl) yesLabelEl.textContent = 'ಹೌದು, ಸೈನ್ ಮಾಡಿ';
+    if (titleEl) titleEl.textContent = `${missingDisplay} ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ`;
+    if (descEl) descEl.textContent = `ವಾಕ್ಯದಲ್ಲಿನ "${cleanGesture}" ಡೇಟಾಬೇಸ್‌ನಲ್ಲಿ ಇಲ್ಲ. ಇದಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಿ ಡೇಟಾಸೆಟ್‌ಗೆ ಸೇರಿಸಲು ಬಯಸುವಿರಾ?`;
+    if (yesLabelEl) yesLabelEl.textContent = `ಹೌದು, "${cleanGesture.toUpperCase()}" ಸೈನ್ ಮಾಡಿ`;
     if (noLabelEl) noLabelEl.textContent = 'ಇಲ್ಲ';
   } else {
     if (badgeEl) badgeEl.textContent = 'Gesture Not in Dataset';
-    if (titleEl) titleEl.textContent = `"${cleanGesture}" is not in the dataset`;
-    if (descEl) descEl.textContent = 'Do you want to perform the gesture for this and save it in the database?';
-    if (yesLabelEl) yesLabelEl.textContent = 'Yes, Perform Gesture';
+    if (titleEl) titleEl.textContent = `${missingDisplay} is not in the dataset`;
+    if (descEl) descEl.textContent = `Word "${cleanGesture}" has no recorded samples in the database yet. Perform and record this gesture to complete your dataset!`;
+    if (yesLabelEl) yesLabelEl.textContent = `Yes, Record "${cleanGesture.toUpperCase()}"`;
     if (noLabelEl) noLabelEl.textContent = 'No';
+  }
+
+  if (breakdownEl) {
+    breakdownEl.innerHTML = '';
+    const rawWords = (context.rawText || '').split(/\s+/).filter(Boolean);
+    if (rawWords.length > 1) {
+      breakdownEl.classList.remove('hidden');
+      breakdownEl.classList.add('flex');
+      rawWords.forEach(w => {
+        const isMissing = allMissing.some(m => m.toLowerCase() === w.toLowerCase());
+        const pill = document.createElement('span');
+        if (isMissing) {
+          pill.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold bg-error/20 text-error border border-error/40 flex items-center gap-1 animate-pulse';
+          pill.innerHTML = `<span class="material-symbols-outlined text-[11px]">cancel</span> ${w.toUpperCase()} (Missing)`;
+        } else {
+          pill.className = 'px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1';
+          pill.innerHTML = `<span class="material-symbols-outlined text-[11px]">check_circle</span> ${w.toUpperCase()}`;
+        }
+        breakdownEl.appendChild(pill);
+      });
+    } else {
+      breakdownEl.classList.add('hidden');
+      breakdownEl.classList.remove('flex');
+    }
+  }
+
+  if (btnPlayAvail && playAvailText) {
+    if (context.availableGestures && context.availableGestures.length > 0) {
+      playAvailText.textContent = `Play Available Signs (${context.availableGestures.map(g => g.signKey).join(', ')})`;
+      btnPlayAvail.classList.remove('hidden');
+      btnPlayAvail.classList.add('flex');
+    } else {
+      btnPlayAvail.classList.add('hidden');
+      btnPlayAvail.classList.remove('flex');
+    }
   }
 
   if (chatMissingOverlay) {
@@ -3066,6 +3623,7 @@ window.showChatMissingGesturePrompt = showChatMissingGesturePrompt;
 
 function dismissChatMissingGesturePrompt() {
   state.pendingMissingGesture = null;
+  state.pendingMissingContext = null;
   const chatMissingOverlay = document.getElementById('chat-missing-gesture-overlay');
   const standby = document.getElementById('chat-camera-standby');
   const upperLabel = document.getElementById('chat-upper-frame-label');
@@ -3086,19 +3644,50 @@ async function showChatMasterGestureAnd3D(text) {
     await toggleLiveCamera();
   }
 
-  let resolved = resolveTrainedGesture(text);
-  if (!resolved.found) {
+  let sentence = resolveSentenceGestures(text);
+  if (sentence.missing.length > 0 && sentence.gestures.length === 0) {
     await syncDatasetGestures();
-    resolved = resolveTrainedGesture(text);
+    sentence = resolveSentenceGestures(text);
   }
 
-  if (!resolved.found) {
-    showChatMissingGesturePrompt(resolved.rawText || text);
+  // If any word in the sentence is missing from the dataset:
+  if (sentence.missing.length > 0) {
+    showChatMissingGesturePrompt(sentence.missing[0], {
+      allMissing: sentence.missing,
+      availableGestures: sentence.gestures,
+      rawText: text
+    });
     return;
   }
 
+  if (!sentence.gestures || !sentence.gestures.length) {
+    showChatMissingGesturePrompt(text);
+    return;
+  }
+
+  // If multiple gestures in sentence: Play continuous sequence!
+  if (sentence.gestures.length > 1) {
+    await playSequenceGestures('chat', sentence.gestures);
+    return;
+  }
+
+  // Single gesture playback:
+  const resolved = sentence.gestures[0];
   const { cleanId, signKey, knMeaning } = resolved;
   const activeTitle = state.currentLang === 'kn' ? knMeaning : signKey;
+
+  // Clear any sequence stepper and timer
+  const stepper = document.getElementById('chat-master-sequence-stepper');
+  if (stepper) {
+    stepper.classList.add('hidden');
+    stepper.classList.remove('flex');
+    stepper.innerHTML = '';
+  }
+  const ctrl = state.sequenceControllers['chat'];
+  if (ctrl && ctrl.timer) {
+    clearTimeout(ctrl.timer);
+    ctrl.timer = null;
+  }
 
   let sample = null;
   try {
@@ -3147,14 +3736,15 @@ async function showChatMasterGestureAnd3D(text) {
 
       if (isVideo && chatMasterVideo) {
         if (chatMasterImg) chatMasterImg.classList.add('hidden');
-        const rate = Math.max(0.1, Math.min(2.0, state.playbackSpeed || 1.0));
+        chatMasterVideo.loop = true;
+        chatMasterVideo.onended = null;
         chatMasterVideo.src = mediaUrl;
         chatMasterVideo.classList.remove('hidden');
         chatMasterVideo.onloadedmetadata = () => {
-          try { chatMasterVideo.playbackRate = rate; } catch (e) {}
+          try { chatMasterVideo.playbackRate = Math.max(0.1, Math.min(2.0, state.playbackSpeed || 1.0)); } catch (e) {}
         };
         chatMasterVideo.load();
-        try { chatMasterVideo.playbackRate = rate; } catch (e) {}
+        try { chatMasterVideo.playbackRate = Math.max(0.1, Math.min(2.0, state.playbackSpeed || 1.0)); } catch (e) {}
         chatMasterVideo.play().catch(() => {});
       } else if (chatMasterImg) {
         if (chatMasterVideo) {
@@ -3178,9 +3768,10 @@ function sendLiveMessage() {
   const input = document.getElementById('live-chat-input');
   if (!input || !input.value.trim()) return;
   const text = input.value.trim();
-  const resolved = resolveTrainedGesture(text);
-  const activeMsg = resolved.found
-    ? (state.currentLang === 'kn' ? resolved.knMeaning : text)
+  const sentence = resolveSentenceGestures(text);
+  const isFound = sentence.missing.length === 0 && sentence.gestures.length > 0;
+  const activeMsg = isFound
+    ? (state.currentLang === 'kn' ? sentence.gestures.map(g => g.knMeaning).join(' ') : sentence.gestures.map(g => g.signKey).join(' '))
     : text;
 
   // Generate voice output (TTS) immediately for zero-latency audio
@@ -3206,7 +3797,10 @@ function sendLiveMessage() {
     const msg = document.createElement('div');
     msg.className = "flex flex-col gap-space-xs bg-surface/90 backdrop-blur-sm p-4 rounded-2xl border border-outline-variant/30 shadow-sm hover:shadow-md transition-shadow animate-fade-in";
 
-    if (resolved.found) {
+    if (isFound) {
+      const sequenceBadge = sentence.gestures.length > 1
+        ? ` (${sentence.gestures.map(g => g.signKey).join(' → ')})`
+        : '';
       msg.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-space-xs">
@@ -3218,16 +3812,17 @@ function sendLiveMessage() {
         <p class="text-body-md text-on-surface pl-7 font-bold">${activeMsg}</p>
         <div class="pl-7 flex items-center gap-space-xs pt-space-xs">
           <span class="px-2 py-0.5 rounded-full bg-primary-fixed/80 text-on-primary-fixed text-label-sm font-semibold flex items-center gap-1 shadow-2xs">
-            <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D ISL Avatar Output
+            <span class="material-symbols-outlined text-[14px]">sign_language</span> Master Sign &amp; 3D ISL Avatar Output${sequenceBadge}
           </span>
         </div>
       `;
     } else {
-      const safeAttr = text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+      const missingWord = sentence.missing[0] || text;
+      const safeAttr = missingWord.replace(/'/g, "\\'").replace(/"/g, '&quot;');
       const notFoundText = state.currentLang === 'kn'
-        ? 'ಈ ಸೈನ್ ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ. ಇದಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಲು ಬಯಸುವಿರಾ?'
-        : 'This gesture is not in the dataset. Do you want to perform the gesture for this?';
-      const yesBtnText = state.currentLang === 'kn' ? 'ಹೌದು, ಸೈನ್ ಮಾಡಿ' : 'Yes, Perform Gesture';
+        ? `"${missingWord.toUpperCase()}" ಡೇಟಾಸೆಟ್‌ನಲ್ಲಿ ಲಭ್ಯವಿಲ್ಲ. ಇದಕ್ಕಾಗಿ ನೀವು ಸೈನ್ ಮಾಡಲು ಬಯಸುವಿರಾ?`
+        : `"${missingWord.toUpperCase()}" is not in the dataset. Do you want to perform the gesture for this?`;
+      const yesBtnText = state.currentLang === 'kn' ? 'ಹೌದು, ಸೈನ್ ಮಾಡಿ' : `Record "${missingWord.toUpperCase()}"`;
       msg.innerHTML = `
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-space-xs">
@@ -3259,6 +3854,7 @@ function sendLiveMessage() {
   input.value = '';
 }
 window.sendLiveMessage = sendLiveMessage;
+window.sendLiveChatMessage = sendLiveMessage;
 
 // --------------------------------------------------------------------------
 // Interactive "How It Works" Architecture Pipeline Switcher

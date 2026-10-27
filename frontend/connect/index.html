@@ -895,16 +895,24 @@
   <h3 id="missing-gesture-title" class="font-headline-sm text-on-surface font-bold text-lg mb-1">
     This gesture is not in the dataset
   </h3>
-  <p id="missing-gesture-desc" class="text-body-sm text-on-surface-variant max-w-[330px] mb-6">
+  <p id="missing-gesture-desc" class="text-body-sm text-on-surface-variant max-w-[340px] mb-3">
     Do you want to perform the gesture for this message and save it in the database?
   </p>
-  <div class="flex flex-wrap items-center justify-center gap-3 w-full max-w-[330px]">
-    <button id="btn-confirm-record-gesture" onclick="confirmPerformMissingGesture()" class="flex-1 h-11 px-5 bg-primary hover:bg-primary/95 text-on-primary rounded-xl font-semibold text-label-md btn-bounce shadow-sm flex items-center justify-center gap-2 cursor-pointer">
-      <span class="material-symbols-outlined text-[18px]">videocam</span>
-      <span>Yes, Perform Gesture</span>
-    </button>
-    <button onclick="dismissMissingGesturePrompt()" class="h-11 px-4 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-xl font-semibold text-label-md transition-colors cursor-pointer">
-      <span>No</span>
+  <!-- Breakdown pills container for multi-word phrases -->
+  <div id="missing-gesture-breakdown" class="hidden flex-wrap items-center justify-center gap-1.5 mb-5 max-w-sm"></div>
+  <div class="flex flex-col gap-2.5 w-full max-w-[340px]">
+    <div class="flex flex-wrap items-center justify-center gap-3 w-full">
+      <button id="btn-confirm-record-gesture" onclick="confirmPerformMissingGesture()" class="flex-1 h-11 px-5 bg-primary hover:bg-primary/95 text-on-primary rounded-xl font-semibold text-label-md btn-bounce shadow-sm flex items-center justify-center gap-2 cursor-pointer">
+        <span class="material-symbols-outlined text-[18px]">videocam</span>
+        <span id="btn-confirm-record-text">Yes, Perform Gesture</span>
+      </button>
+      <button onclick="dismissMissingGesturePrompt()" class="h-11 px-4 bg-surface-container-high hover:bg-surface-container-highest text-on-surface rounded-xl font-semibold text-label-md transition-colors cursor-pointer">
+        <span>No</span>
+      </button>
+    </div>
+    <button id="btn-play-available-gestures" onclick="playAvailableSentenceSigns()" class="hidden h-10 px-4 bg-secondary/15 hover:bg-secondary/25 text-secondary border border-secondary/30 rounded-xl font-semibold text-label-sm transition-colors cursor-pointer items-center justify-center gap-1.5">
+      <span class="material-symbols-outlined text-[16px]">play_circle</span>
+      <span id="btn-play-available-text">Play Available Signs</span>
     </button>
   </div>
 </div>
@@ -933,8 +941,11 @@
       </div>
       <!-- Caption Overlay Bar -->
       <div class="absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl flex items-center justify-between text-xs border border-outline/30 shadow-lg">
-        <span id="master-sign-title" class="font-bold text-inverse-on-surface text-sm">WATER (ನೀರು)</span>
-        <span id="master-signer-id" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20">Signer: T001</span>
+        <div class="flex flex-col gap-1 min-w-0 pr-2">
+          <span id="master-sign-title" class="font-bold text-inverse-on-surface text-sm truncate">WATER (ನೀರು)</span>
+          <div id="master-sequence-stepper" class="hidden flex-wrap items-center gap-1.5"></div>
+        </div>
+        <span id="master-signer-id" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20 shrink-0">Signer: T001</span>
       </div>
     </div>
   </div>
@@ -1325,7 +1336,13 @@
         </div>
       </div>
 
-      <div id="chat-live-rec-overlay" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-secondary/40 shadow-lg z-30"><span id="chat-live-hand-status" class="font-bold text-secondary-fixed text-xs">Searching for hands...</span><span id="chat-live-pred-badge" class="text-inverse-on-surface font-mono font-bold text-xs bg-secondary/20 px-2.5 py-0.5 rounded-md border border-secondary/30">Ready to Sign</span></div><img id="chat-master-img" class="hidden absolute inset-0 w-full h-full object-contain p-2 pt-10 pb-12 bg-[#0d1322] z-20" alt="Master Signer Reference"/><video id="chat-master-video" autoplay loop muted playsinline class="hidden absolute inset-0 w-full h-full object-contain p-2 pt-10 pb-12 bg-[#0d1322] z-20"></video><div id="chat-master-caption" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-outline/30 shadow-lg z-30"><span id="chat-master-title" class="font-bold text-inverse-on-surface text-sm">HELLO</span><span id="chat-master-signer" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20">Signer: 1GG23CS007 (Master)</span></div>
+      <div id="chat-master-caption" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-outline/30 shadow-lg z-30">
+        <div class="flex flex-col gap-1 min-w-0 pr-2">
+          <span id="chat-master-title" class="font-bold text-inverse-on-surface text-sm truncate">HELLO</span>
+          <div id="chat-master-sequence-stepper" class="hidden flex-wrap items-center gap-1.5"></div>
+        </div>
+        <span id="chat-master-signer" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20 shrink-0">Signer: 1GG23CS007 (Master)</span>
+      </div>
       <div id="chat-missing-gesture-overlay" class="hidden absolute inset-0 z-30 bg-[#0d1322]/95 backdrop-blur-md p-4 pt-11 flex-col items-center justify-center text-center">
         <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/30 mb-1.5">
           <span class="material-symbols-outlined text-[14px]">warning</span>
@@ -1333,13 +1350,20 @@
         </div>
         <h3 class="text-inverse-on-surface font-bold text-sm" id="chat-missing-gesture-title">"..." is not in the dataset</h3>
         <p class="text-tertiary-fixed-dim text-xs mt-1 max-w-xs leading-snug" id="chat-missing-gesture-desc">Do you want to perform the gesture for this and save it in the database?</p>
-        <div class="flex items-center justify-center gap-2 mt-3">
-          <button onclick="confirmPerformMissingGesture()" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary/95 text-on-primary font-semibold text-xs shadow-sm btn-bounce transition-all flex items-center gap-1.5 cursor-pointer">
-            <span class="material-symbols-outlined text-[15px]">videocam</span>
-            <span id="chat-missing-yes-label">Yes, Perform Gesture</span>
-          </button>
-          <button onclick="dismissChatMissingGesturePrompt()" class="px-3 py-1.5 rounded-xl bg-white/10 text-inverse-on-surface font-semibold text-xs border border-white/20 hover:bg-white/20 transition-all cursor-pointer">
-            <span id="chat-missing-no-label">No</span>
+        <div id="chat-missing-gesture-breakdown" class="hidden flex-wrap items-center justify-center gap-1.5 mt-2 max-w-xs"></div>
+        <div class="flex flex-col gap-2 mt-3 w-full max-w-xs">
+          <div class="flex items-center justify-center gap-2">
+            <button onclick="confirmPerformMissingGesture()" class="px-3.5 py-1.5 rounded-xl bg-primary hover:bg-primary/95 text-on-primary font-semibold text-xs shadow-sm btn-bounce transition-all flex items-center gap-1.5 cursor-pointer">
+              <span class="material-symbols-outlined text-[15px]">videocam</span>
+              <span id="chat-missing-yes-label">Yes, Perform Gesture</span>
+            </button>
+            <button onclick="dismissChatMissingGesturePrompt()" class="px-3 py-1.5 rounded-xl bg-white/10 text-inverse-on-surface font-semibold text-xs border border-white/20 hover:bg-white/20 transition-all cursor-pointer">
+              <span id="chat-missing-no-label">No</span>
+            </button>
+          </div>
+          <button id="chat-btn-play-available" onclick="playAvailableSentenceSigns('chat')" class="hidden px-3 py-1 rounded-xl bg-secondary/15 hover:bg-secondary/25 text-secondary border border-secondary/30 text-xs font-semibold items-center justify-center gap-1 cursor-pointer">
+            <span class="material-symbols-outlined text-[14px]">play_circle</span>
+            <span id="chat-play-available-text">Play Available Signs</span>
           </button>
         </div>
       </div>
@@ -1542,6 +1566,6 @@
   </div>
 
   <!-- Application Logic -->
-  <script src="app.js?v=20261027_ultra_perf_and_voice_optimized"></script>
+  <script src="app.js?v=20261027_continuous_sequence_and_missing_word"></script>
 </body>
 </html>
