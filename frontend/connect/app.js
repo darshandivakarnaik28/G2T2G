@@ -2417,8 +2417,8 @@ function onHandTrackingResults(results) {
           }
         }
 
-        // Continuous Gesture Staging (Instant on confidence >= 0.70, or 2 consecutive matches for >= 0.55)
-        if (pred.confidence >= 0.55) {
+        // Continuous Gesture Staging (Require 2 matches for >= 0.75, or 3 matches for >= 0.60)
+        if (pred.confidence >= 0.60) {
           if (state.lastPredictedGesture === pred.gesture_id) {
             state.consecutiveMatchCount += 1;
           } else {
@@ -2426,9 +2426,12 @@ function onHandTrackingResults(results) {
             state.consecutiveMatchCount = 1;
           }
 
-          const requiredMatches = pred.confidence >= 0.70 ? 1 : 2;
+          const requiredMatches = pred.confidence >= 0.75 ? 2 : 3;
           if (state.consecutiveMatchCount >= requiredMatches) {
-            stageGesture(pred.gesture_id, displayName, knText, confPct);
+            // STRICT ANTI-DUPLICATE: Only stage if this gesture is not already the active staged sign
+            if (state.lastStagedId !== pred.gesture_id) {
+              stageGesture(pred.gesture_id, displayName, knText, confPct);
+            }
           }
         }
       })
@@ -2445,15 +2448,16 @@ function onHandTrackingResults(results) {
 function stageGesture(gestureId, displayName, knText, confPct) {
   if (!state.stagedGestures) state.stagedGestures = [];
 
-  const now = Date.now();
+  // Strict Anti-Duplicate Guard: NEVER stage the same gesture consecutively in the phrase
   const lastStaged = state.stagedGestures[state.stagedGestures.length - 1];
-  const timeSinceLast = now - (state.lastStagedTime || 0);
-
-  // If user holds the same sign, prevent duplicate staging unless held/re-signed after 1.5s
-  if (lastStaged && lastStaged.id === gestureId && timeSinceLast < 1500) {
+  if (lastStaged && lastStaged.id === gestureId) {
+    return;
+  }
+  if (state.lastStagedId === gestureId) {
     return;
   }
 
+  const now = Date.now();
   state.stagedGestures.push({
     id: gestureId,
     name: displayName,
@@ -2461,8 +2465,8 @@ function stageGesture(gestureId, displayName, knText, confPct) {
     confPct: confPct,
     time: now
   });
-  state.lastStagedTime = now;
   state.lastStagedId = gestureId;
+  state.lastStagedTime = now;
   updateStagedUI();
 }
 window.stageGesture = stageGesture;
