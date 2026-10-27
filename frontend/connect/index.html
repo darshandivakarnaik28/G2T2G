@@ -930,8 +930,8 @@
       <span id="master-gesture-badge" class="px-2.5 py-0.5 rounded-full bg-secondary/80 text-on-secondary text-label-sm font-semibold shadow-sm">Master Reference</span>
     </div>
 
-    <!-- Master Image / Gesture Display Container -->
-    <div class="relative w-full h-[230px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
+    <!-- Master Image / Gesture Display Container: 100% clean and unobstructed -->
+    <div class="relative w-full h-[240px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
       <img id="master-reference-img" class="w-full h-full object-contain p-2 group-hover:scale-105 transition-transform duration-500" src="/storage/images/a_1GG23CS007_fa0eb80e95.jpg" alt="Master Reference Gesture"/>
       <video id="master-reference-video" autoplay loop muted playsinline class="hidden w-full h-full object-contain p-2"></video>
       <div id="master-reference-fallback" class="hidden absolute inset-0 flex flex-col items-center justify-center text-center p-4">
@@ -939,14 +939,15 @@
         <p class="text-inverse-on-surface font-bold text-sm" id="master-fallback-title">Master Reference Gesture</p>
         <p class="text-tertiary-fixed-dim text-xs mt-0.5">Verified master signer reference recording</p>
       </div>
-      <!-- Caption Overlay Bar -->
-      <div class="absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl flex items-center justify-between text-xs border border-outline/30 shadow-lg">
-        <div class="flex flex-col gap-1 min-w-0 pr-2">
-          <span id="master-sign-title" class="font-bold text-inverse-on-surface text-sm truncate">WATER (ನೀರು)</span>
-          <div id="master-sequence-stepper" class="hidden flex-wrap items-center gap-1.5"></div>
-        </div>
+    </div>
+
+    <!-- Dedicated Info & Stepper Bar: Below the video canvas so gesture hands are never covered -->
+    <div class="px-4 py-2.5 bg-inverse-surface/95 border-t border-outline/20 flex flex-col gap-1.5">
+      <div class="flex items-center justify-between text-xs">
+        <span id="master-sign-title" class="font-bold text-inverse-on-surface text-sm">WATER (ನೀರು)</span>
         <span id="master-signer-id" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20 shrink-0">Signer: T001</span>
       </div>
+      <div id="master-sequence-stepper" class="hidden flex-wrap items-center gap-1.5 pt-0.5"></div>
     </div>
   </div>
 
@@ -1316,10 +1317,22 @@
 
     <div id="chat-camera-container" class="relative w-full h-[260px] bg-gradient-to-br from-[#1a233a] via-[#131b2e] to-[#0d1322] flex items-center justify-center overflow-hidden group">
       <video id="chat-webcam-video" autoplay playsinline muted class="hidden absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></video>
+      <!-- Live Camera Stream & Canvas -->
+      <video id="chat-webcam-video" autoplay playsinline muted class="hidden absolute inset-0 w-full h-full object-cover -scale-x-100 z-10"></video>
       <canvas id="chat-mesh-canvas" class="hidden absolute inset-0 w-full h-full pointer-events-none -scale-x-100 z-20"></canvas>
-      
+
+      <!-- Master Signer Reference Image & Video (Live Chat Upper Frame) -->
+      <img id="chat-master-img" class="hidden absolute inset-0 w-full h-full object-contain p-2 bg-[#0d1322] z-20" alt="Master Signer Reference"/>
+      <video id="chat-master-video" autoplay loop muted playsinline class="hidden absolute inset-0 w-full h-full object-contain p-2 bg-[#0d1322] z-20"></video>
+
+      <!-- Live Chat Hand Status / Recognition Overlay -->
+      <div id="chat-live-rec-overlay" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-secondary/40 shadow-lg z-30">
+        <span id="chat-live-hand-status" class="font-bold text-secondary-fixed text-xs">Searching for hands...</span>
+        <span id="chat-live-pred-badge" class="text-inverse-on-surface font-mono font-bold text-xs bg-secondary/20 px-2.5 py-0.5 rounded-md border border-secondary/30">Ready to Sign</span>
+      </div>
+
       <!-- Live Chat Continuous Staged Phrase Banner -->
-      <div id="chat-staged-phrase-banner" class="hidden absolute top-12 inset-x-2.5 z-30 flex items-center justify-between bg-inverse-surface/95 border border-secondary/50 backdrop-blur-xl px-3 py-1.5 rounded-xl shadow-lg transition-all">
+      <div id="chat-staged-phrase-banner" class="hidden absolute top-3 inset-x-2.5 z-30 flex items-center justify-between bg-inverse-surface/95 border border-secondary/50 backdrop-blur-xl px-3 py-1.5 rounded-xl shadow-lg transition-all">
         <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
           <span class="w-2 h-2 rounded-full bg-secondary animate-pulse shrink-0"></span>
           <span class="text-[10px] uppercase font-mono font-bold tracking-wider text-secondary-fixed shrink-0">Staged:</span>
@@ -1336,13 +1349,7 @@
         </div>
       </div>
 
-      <div id="chat-master-caption" class="hidden absolute bottom-2.5 left-2.5 right-2.5 bg-inverse-surface/90 backdrop-blur-md px-3.5 py-2 rounded-xl items-center justify-between text-xs border border-outline/30 shadow-lg z-30">
-        <div class="flex flex-col gap-1 min-w-0 pr-2">
-          <span id="chat-master-title" class="font-bold text-inverse-on-surface text-sm truncate">HELLO</span>
-          <div id="chat-master-sequence-stepper" class="hidden flex-wrap items-center gap-1.5"></div>
-        </div>
-        <span id="chat-master-signer" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20 shrink-0">Signer: 1GG23CS007 (Master)</span>
-      </div>
+      <!-- Missing Gesture Overlay -->
       <div id="chat-missing-gesture-overlay" class="hidden absolute inset-0 z-30 bg-[#0d1322]/95 backdrop-blur-md p-4 pt-11 flex-col items-center justify-center text-center">
         <div class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/20 text-amber-300 text-[11px] font-bold border border-amber-500/30 mb-1.5">
           <span class="material-symbols-outlined text-[14px]">warning</span>
@@ -1375,6 +1382,16 @@
         <p class="text-inverse-on-surface font-headline-sm text-sm font-bold">Waiting for gestures...</p>
         <p class="text-tertiary-fixed-dim text-body-sm text-xs mt-1">Camera active for real-time sign recognition</p>
       </div>
+    </div>
+
+    <!-- Dedicated Bottom Info Bar for Live Chat: Below canvas, never covering video! -->
+    <div id="chat-master-caption" class="hidden px-4 py-2.5 bg-inverse-surface/95 border-t border-outline/20 flex-col gap-1.5">
+      <div class="flex items-center justify-between text-xs">
+        <span id="chat-master-title" class="font-bold text-inverse-on-surface text-sm truncate">HELLO</span>
+        <span id="chat-master-signer" class="text-secondary-fixed font-mono text-[11px] bg-secondary/15 px-2 py-0.5 rounded-md border border-secondary/20 shrink-0">Signer: 1GG23CS007 (Master)</span>
+      </div>
+      <div id="chat-master-sequence-stepper" class="hidden flex-wrap items-center gap-1.5 pt-0.5"></div>
+    </div>
     </div>
   </div>
 
@@ -1566,6 +1583,6 @@
   </div>
 
   <!-- Application Logic -->
-  <script src="app.js?v=20261027_continuous_sequence_and_missing_word"></script>
+  <script src="app.js?v=20261027_unobstructed_master_and_stable_transition"></script>
 </body>
 </html>

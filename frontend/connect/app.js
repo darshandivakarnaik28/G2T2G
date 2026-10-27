@@ -2196,11 +2196,6 @@ async function playSequenceGestures(mode, gestures) {
     if (upperLabel) upperLabel.textContent = 'Upper: Continuous Master Signer Gesture';
 
     initChat3DViewer();
-    if (state.chatViewer) {
-      state.chatViewer.playSequence(gestures.map(g => g.cleanId), (stepIdx) => {
-        updateSequenceStepUI('chat', stepIdx);
-      });
-    }
   }
 
   renderSequenceStepper(mode, gestures, 0);
@@ -2228,15 +2223,15 @@ function renderSequenceStepper(mode, gestures, activeIdx) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = isActive
-      ? 'px-2 py-0.5 rounded-md text-[10px] font-bold bg-primary text-on-primary shadow-xs transition-all cursor-pointer'
-      : 'px-2 py-0.5 rounded-md text-[10px] font-bold bg-white/10 hover:bg-white/20 text-inverse-on-surface transition-all cursor-pointer';
+      ? 'px-2.5 py-1 rounded-lg text-xs font-bold bg-primary text-on-primary shadow-xs transition-all cursor-pointer'
+      : 'px-2.5 py-1 rounded-lg text-xs font-bold bg-white/10 hover:bg-white/20 text-inverse-on-surface transition-all cursor-pointer';
     btn.textContent = `${idx + 1}. ${g.signKey}`;
-    btn.onclick = () => jumpSequenceStep(mode, idx);
+    btn.onclick = () => jumpSequenceStep(mode, idx, false);
     stepper.appendChild(btn);
 
     if (idx < gestures.length - 1) {
       const arrow = document.createElement('span');
-      arrow.className = 'text-[9px] text-tertiary-fixed-dim';
+      arrow.className = 'text-xs text-tertiary-fixed-dim px-0.5';
       arrow.textContent = '→';
       stepper.appendChild(arrow);
     }
@@ -2244,35 +2239,31 @@ function renderSequenceStepper(mode, gestures, activeIdx) {
 }
 window.renderSequenceStepper = renderSequenceStepper;
 
-function updateSequenceStepUI(mode, stepIdx) {
-  const ctrl = state.sequenceControllers[mode || 'normal'];
-  if (!ctrl || !ctrl.gestures.length) return;
-  if (ctrl.currentIndex === stepIdx) return;
-  ctrl.currentIndex = stepIdx;
-  renderSequenceStepper(mode, ctrl.gestures, stepIdx);
-  playSequenceStep(mode, stepIdx);
-}
-window.updateSequenceStepUI = updateSequenceStepUI;
-
-async function jumpSequenceStep(mode, stepIdx) {
+async function jumpSequenceStep(mode, stepIdx, isFromAuto = false) {
   const ctrl = state.sequenceControllers[mode || 'normal'];
   if (!ctrl || !ctrl.gestures[stepIdx]) return;
+
+  if (ctrl.timer) {
+    clearTimeout(ctrl.timer);
+    ctrl.timer = null;
+  }
+
   ctrl.currentIndex = stepIdx;
   renderSequenceStepper(mode, ctrl.gestures, stepIdx);
-
-  const viewer = mode === 'chat' ? state.chatViewer : state.normalViewer;
-  if (viewer && viewer.sequenceMarkers && viewer.sequenceMarkers[stepIdx]) {
-    viewer.frameCursor = viewer.sequenceMarkers[stepIdx].startFrame;
-    viewer.currentStepIndex = stepIdx;
-  }
-  await playSequenceStep(mode, stepIdx);
+  await playSequenceStep(mode, stepIdx, isFromAuto);
 }
 window.jumpSequenceStep = jumpSequenceStep;
 
-async function playSequenceStep(mode, stepIdx) {
+async function playSequenceStep(mode, stepIdx, isFromAuto = false) {
   const ctrl = state.sequenceControllers[mode || 'normal'];
   if (!ctrl || !ctrl.gestures[stepIdx]) return;
   const gesture = ctrl.gestures[stepIdx];
+  ctrl.currentIndex = stepIdx;
+
+  if (ctrl.timer) {
+    clearTimeout(ctrl.timer);
+    ctrl.timer = null;
+  }
 
   const titleEl = document.getElementById(mode === 'chat' ? 'chat-master-title' : 'master-sign-title');
   const signerEl = document.getElementById(mode === 'chat' ? 'chat-master-signer' : 'master-signer-id');
@@ -2281,10 +2272,13 @@ async function playSequenceStep(mode, stepIdx) {
   const fallbackEl = document.getElementById('master-reference-fallback');
   const captionEl = document.getElementById(mode === 'chat' ? 'chat-master-caption' : null);
   const standbyBanner = document.getElementById('model-standby-banner');
+  const standby = document.getElementById(mode === 'chat' ? 'chat-camera-standby' : null);
+
+  if (standby) standby.classList.add('hidden');
 
   const displayTitle = state.currentLang === 'kn' ? gesture.knMeaning : gesture.signKey;
   if (titleEl) {
-    titleEl.textContent = `${displayTitle} (${stepIdx + 1}/${ctrl.gestures.length})`;
+    titleEl.textContent = `${displayTitle} (Sign ${stepIdx + 1} of ${ctrl.gestures.length})`;
   }
   if (captionEl) {
     captionEl.classList.remove('hidden');
@@ -2294,12 +2288,19 @@ async function playSequenceStep(mode, stepIdx) {
     standbyBanner.innerHTML = `
       <span class="flex items-center gap-1.5 text-secondary-fixed font-medium">
         <span class="material-symbols-outlined text-[15px] text-emerald-400">playlist_play</span>
-        <span>Sequence Step ${stepIdx + 1} of ${ctrl.gestures.length}: ${displayTitle}</span>
+        <span>Sign ${stepIdx + 1} of ${ctrl.gestures.length}: ${displayTitle}</span>
       </span>
       <span class="text-[10px] text-secondary-fixed font-mono bg-secondary/20 px-1.5 py-0.5 rounded">Continuous 3D</span>
     `;
   }
 
+  // Play this specific gesture in 3D Avatar (complete readable loop for this gesture)
+  const viewer = mode === 'chat' ? state.chatViewer : state.normalViewer;
+  if (viewer) {
+    viewer.playGesture(gesture.cleanId);
+  }
+
+  // Fetch sample if not cached
   let sample = ctrl.samples[gesture.cleanId];
   if (!sample) {
     try {
@@ -2315,12 +2316,21 @@ async function playSequenceStep(mode, stepIdx) {
     signerEl.textContent = `Signer: ${sample.signer_id} (Master)`;
   }
 
-  const triggerNext = () => {
+  // Generous complete duration: 3.8s minimum so the user can clearly see and recognize the full gesture!
+  const MIN_SIGN_DURATION = 3800;
+  const startTime = Date.now();
+
+  const scheduleNextStep = () => {
     if (ctrl.timer) clearTimeout(ctrl.timer);
+    const elapsed = Date.now() - startTime;
+    const remainingTime = Math.max(0, MIN_SIGN_DURATION - elapsed);
+    // 1000ms transition pause so the gesture transition is natural and not abrupt
+    const totalWait = remainingTime + 1000;
+
     ctrl.timer = setTimeout(() => {
       const nextIdx = (ctrl.currentIndex + 1) % ctrl.gestures.length;
-      jumpSequenceStep(mode, nextIdx);
-    }, 600);
+      jumpSequenceStep(mode, nextIdx, true);
+    }, totalWait);
   };
 
   if (sample && sample.stored_file_path && sample.stored_file_path !== 'landmarks_only') {
@@ -2335,13 +2345,14 @@ async function playSequenceStep(mode, stepIdx) {
       videoEl.src = mediaUrl;
       videoEl.classList.remove('hidden');
       videoEl.onended = () => {
-        triggerNext();
+        scheduleNextStep();
       };
       videoEl.load();
       try {
         videoEl.playbackRate = Math.max(0.1, Math.min(2.0, state.playbackSpeed || 1.0));
       } catch (e) {}
       videoEl.play().catch(() => {});
+      scheduleNextStep();
     } else if (imgEl) {
       if (videoEl) {
         videoEl.pause();
@@ -2349,8 +2360,7 @@ async function playSequenceStep(mode, stepIdx) {
       }
       imgEl.src = mediaUrl;
       imgEl.classList.remove('hidden');
-      if (ctrl.timer) clearTimeout(ctrl.timer);
-      ctrl.timer = setTimeout(() => triggerNext(), 2800);
+      scheduleNextStep();
     }
   } else {
     if (imgEl) imgEl.classList.add('hidden');
@@ -2363,8 +2373,7 @@ async function playSequenceStep(mode, stepIdx) {
       const fbTitle = document.getElementById('master-fallback-title');
       if (fbTitle) fbTitle.textContent = `Master Gesture: ${displayTitle}`;
     }
-    if (ctrl.timer) clearTimeout(ctrl.timer);
-    ctrl.timer = setTimeout(() => triggerNext(), 2500);
+    scheduleNextStep();
   }
 }
 window.playSequenceStep = playSequenceStep;
@@ -3720,6 +3729,10 @@ async function showChatMasterGestureAnd3D(text) {
   if (chatMasterTitle) {
     chatMasterTitle.textContent = activeTitle;
   }
+  if (chatMasterCaption) {
+    chatMasterCaption.classList.remove('hidden');
+    chatMasterCaption.classList.add('flex');
+  }
 
   if (sample) {
     if (chatMasterSigner && sample.signer_id) {
@@ -3728,11 +3741,6 @@ async function showChatMasterGestureAnd3D(text) {
     if (sample.stored_file_path && sample.stored_file_path !== 'landmarks_only') {
       const mediaUrl = `/${sample.stored_file_path.replace(/^\/+/, '')}`;
       const isVideo = /\.(webm|mp4|mov|mkv)$/i.test(sample.stored_file_path);
-
-      if (chatMasterCaption) {
-        chatMasterCaption.classList.remove('hidden');
-        chatMasterCaption.classList.add('flex');
-      }
 
       if (isVideo && chatMasterVideo) {
         if (chatMasterImg) chatMasterImg.classList.add('hidden');
