@@ -317,32 +317,32 @@ def train_and_compare_suite(
 
     # Define candidate models
     rf = RandomForestClassifier(
-        n_estimators=200, max_depth=None, min_samples_split=2,
+        n_estimators=300, max_depth=None, min_samples_split=2,
         n_jobs=-1, random_state=42
     )
     et = ExtraTreesClassifier(
-        n_estimators=250, max_depth=None, min_samples_split=2,
+        n_estimators=350, max_depth=None, min_samples_split=2,
         n_jobs=-1, random_state=42
     )
     mlp = MLPClassifier(
         hidden_layer_sizes=(256, 128), activation="relu",
         alpha=1e-3, batch_size=64, learning_rate_init=1e-3,
-        max_iter=120, early_stopping=True, n_iter_no_change=10,
+        max_iter=500, early_stopping=True, n_iter_no_change=25,
         random_state=42
     )
 
     models = {
         "Naive Baseline (Majority)": (DummyClassifier(strategy="prior"), False),
-        "Logistic Regression (L2)": (LogisticRegression(C=1.0, max_iter=300, random_state=42), True),
-        "Random Forest (200 trees)": (rf, False),
-        "Extra Trees (250 trees)": (et, False),
+        "Logistic Regression (L2)": (LogisticRegression(C=1.0, max_iter=1000, random_state=42), True),
+        "Random Forest (300 trees)": (rf, False),
+        "Extra Trees (350 trees)": (et, False),
         "MLP Neural Network (256x128)": (mlp, True),
         "Soft-Voting Ensemble (ET+RF+MLP)": (
             VotingClassifier(
                 estimators=[
-                    ("et", ExtraTreesClassifier(n_estimators=250, n_jobs=-1, random_state=42)),
-                    ("rf", RandomForestClassifier(n_estimators=200, n_jobs=-1, random_state=42)),
-                    ("mlp", MLPClassifier(hidden_layer_sizes=(256, 128), alpha=1e-3, max_iter=120, early_stopping=True, random_state=42))
+                    ("et", ExtraTreesClassifier(n_estimators=350, n_jobs=-1, random_state=42)),
+                    ("rf", RandomForestClassifier(n_estimators=300, n_jobs=-1, random_state=42)),
+                    ("mlp", MLPClassifier(hidden_layer_sizes=(256, 128), alpha=1e-3, max_iter=500, early_stopping=True, n_iter_no_change=25, random_state=42))
                 ],
                 voting="soft",
                 weights=[2, 1, 2]

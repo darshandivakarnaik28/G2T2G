@@ -1,9 +1,9 @@
 {
-  "generated_at": "2026-10-24T16:12:34Z",
-  "total_training_pipeline_sec": 159.25,
+  "generated_at": "2026-10-29T17:34:34Z",
+  "total_training_pipeline_sec": 927.27,
   "data_audit": {
-    "static_total_rows": 4774,
-    "static_excluded_rows": 11,
+    "static_total_rows": 4763,
+    "static_excluded_rows": 0,
     "static_invalid_rows": 0,
     "static_valid_rows": 4763,
     "dynamic_total_rows": 2702,
@@ -103,8 +103,8 @@
           0.004,
           0.004
         ],
-        "train_time_sec": 0.0,
-        "inference_latency_ms": 0.008
+        "train_time_sec": 0.02,
+        "inference_latency_ms": 0.022
       },
       {
         "model_name": "Logistic Regression (L2)",
@@ -124,11 +124,11 @@
           0.9874,
           0.9985
         ],
-        "train_time_sec": 0.62,
-        "inference_latency_ms": 0.006
+        "train_time_sec": 102.12,
+        "inference_latency_ms": 0.008
       },
       {
-        "model_name": "Random Forest (200 trees)",
+        "model_name": "Random Forest (300 trees)",
         "use_scaled": false,
         "train_accuracy": 0.9943,
         "val_accuracy": 0.9818,
@@ -145,11 +145,11 @@
           0.9857,
           0.9975
         ],
-        "train_time_sec": 4.51,
-        "inference_latency_ms": 0.141
+        "train_time_sec": 40.51,
+        "inference_latency_ms": 1.516
       },
       {
-        "model_name": "Extra Trees (250 trees)",
+        "model_name": "Extra Trees (350 trees)",
         "use_scaled": false,
         "train_accuracy": 0.9943,
         "val_accuracy": 0.9846,
@@ -166,8 +166,8 @@
           0.9857,
           0.9975
         ],
-        "train_time_sec": 1.04,
-        "inference_latency_ms": 0.178
+        "train_time_sec": 10.06,
+        "inference_latency_ms": 3.079
       },
       {
         "model_name": "MLP Neural Network (256x128)",
@@ -187,15 +187,15 @@
           0.9838,
           0.9966
         ],
-        "train_time_sec": 2.48,
-        "inference_latency_ms": 0.008
+        "train_time_sec": 199.47,
+        "inference_latency_ms": 0.014
       },
       {
         "model_name": "Soft-Voting Ensemble (ET+RF+MLP)",
         "use_scaled": true,
         "train_accuracy": 0.9943,
-        "val_accuracy": 0.9818,
-        "val_macro_f1": 0.9837,
+        "val_accuracy": 0.9832,
+        "val_macro_f1": 0.9849,
         "test_accuracy": 0.9888,
         "test_macro_f1": 0.991,
         "test_macro_precision": 0.9911,
@@ -208,8 +208,8 @@
           0.9842,
           0.9965
         ],
-        "train_time_sec": 7.55,
-        "inference_latency_ms": 0.353
+        "train_time_sec": 30.09,
+        "inference_latency_ms": 0.772
       }
     ],
     "signer_slice_analysis": {
@@ -506,7 +506,7 @@
           0.006
         ],
         "train_time_sec": 0.0,
-        "inference_latency_ms": 0.0
+        "inference_latency_ms": 0.001
       },
       {
         "model_name": "Logistic Regression (L2)",
@@ -526,11 +526,11 @@
           1.0,
           1.0
         ],
-        "train_time_sec": 0.35,
-        "inference_latency_ms": 0.01
+        "train_time_sec": 1.02,
+        "inference_latency_ms": 0.013
       },
       {
-        "model_name": "Random Forest (200 trees)",
+        "model_name": "Random Forest (300 trees)",
         "use_scaled": false,
         "train_accuracy": 1.0,
         "val_accuracy": 1.0,
@@ -547,11 +547,11 @@
           1.0,
           1.0
         ],
-        "train_time_sec": 4.76,
-        "inference_latency_ms": 0.33
+        "train_time_sec": 6.6,
+        "inference_latency_ms": 0.427
       },
       {
-        "model_name": "Extra Trees (250 trees)",
+        "model_name": "Extra Trees (350 trees)",
         "use_scaled": false,
         "train_accuracy": 1.0,
         "val_accuracy": 1.0,
@@ -568,8 +568,8 @@
           1.0,
           1.0
         ],
-        "train_time_sec": 2.18,
-        "inference_latency_ms": 0.32
+        "train_time_sec": 2.9,
+        "inference_latency_ms": 0.482
       },
       {
         "model_name": "MLP Neural Network (256x128)",
@@ -589,8 +589,8 @@
           0.9879,
           1.0
         ],
-        "train_time_sec": 7.21,
-        "inference_latency_ms": 0.031
+        "train_time_sec": 19.64,
+        "inference_latency_ms": 0.02
       },
       {
         "model_name": "Soft-Voting Ensemble (ET+RF+MLP)",
@@ -610,8 +610,8 @@
           1.0,
           1.0
         ],
-        "train_time_sec": 9.15,
-        "inference_latency_ms": 0.776
+        "train_time_sec": 20.04,
+        "inference_latency_ms": 0.962
       }
     ],
     "signer_slice_analysis": {
